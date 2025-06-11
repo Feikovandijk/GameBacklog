@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useEffect, InputHTMLAttributes, SelectHTMLAttributes } from 'react';
+import { X, RefreshCw } from 'lucide-react';
 import { Game, GAME_STATUSES, OWNERSHIP_STATUSES, GameStatus, OwnershipStatus } from '../types/game';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+
+interface SteamApp {
+  appid: number;
+  name: string;
+}
 
 interface GameModalProps {
   isOpen: boolean;
@@ -11,58 +17,123 @@ interface GameModalProps {
 }
 
 export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalProps) {
-  const [formData, setFormData] = useState({
+  const [steamSearchTerm, setSteamSearchTerm] = useState('');
+  const [steamSearchResults, setSteamSearchResults] = useState<SteamApp[]>([]);
+  const [steamAppList, setSteamAppList] = useLocalStorage<SteamApp[]>('steamAppList', []);
+  const [isFetchingAppList, setIsFetchingAppList] = useState(false);
+  const [selectedGameHeader, setSelectedGameHeader] = useState<string | null>(null);
+
+  const initialFormData = {
     title: '',
     platform: '',
+    genre: '',
     status: 'Unplayed' as GameStatus,
     ownership: 'Digital' as OwnershipStatus,
     priority: false,
-    notes: ''
-  });
+    notes: '',
+  };
 
+  const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (game) {
-      setFormData({
-        title: game.title,
-        platform: game.platform,
-        status: game.status,
-        ownership: game.ownership,
-        priority: game.priority,
-        notes: game.notes
-      });
-    } else {
-      setFormData({
-        title: '',
-        platform: '',
-        status: 'Unplayed',
-        ownership: 'Digital',
-        priority: false,
-        notes: ''
-      });
+    if (isOpen) {
+      if (game) {
+        setFormData({
+          title: game.title,
+          platform: game.platform,
+          genre: game.genre || '',
+          status: game.status,
+          ownership: game.ownership,
+          priority: game.priority,
+          notes: game.notes,
+        });
+      } else {
+        setFormData(initialFormData);
+      }
+      setErrors({});
+      setSteamSearchTerm('');
+      setSteamSearchResults([]);
+      setSelectedGameHeader(null);
     }
-    setErrors({});
   }, [game, isOpen]);
+
+  const handleFetchSteamAppList = async () => {
+    setIsFetchingAppList(true);
+    try {
+      const response = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.steampowered.com/ISteamApps/GetAppList/v2/'));
+      if (!response.ok) throw new Error('Failed to fetch Steam app list.');
+      const data = await response.json();
+      if (data.applist?.apps) {
+        setSteamAppList(data.applist.apps);
+      }
+    } catch (error) {
+      console.error(error);
+      setErrors(prev => ({ ...prev, steam: 'Failed to download Steam games list.' }));
+    } finally {
+      setIsFetchingAppList(false);
+    }
+  };
+
+  useEffect(() => {
+    if (steamSearchTerm.length > 2) {
+      const results = steamAppList
+        .filter(app => app.name.toLowerCase().includes(steamSearchTerm.toLowerCase()))
+        .slice(0, 100);
+      setSteamSearchResults(results);
+    } else {
+      setSteamSearchResults([]);
+    }
+  }, [steamSearchTerm, steamAppList]);
+
+  const handleFetchSteamInfo = async (appId: string) => {
+    if (!appId) return;
+    setErrors({});
+    try {
+      const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(`https://store.steampowered.com/api/appdetails?appids=${appId}`)}`);
+      if (!response.ok) throw new Error('Failed to fetch data from Steam.');
+      const data = await response.json();
+      const gameData = data[appId].data;
+
+      if (gameData) {
+        setSelectedGameHeader(gameData.header_image);
+        const platforms: string[] = [];
+        if (gameData.platforms?.windows) platforms.push('PC');
+        if (gameData.platforms?.mac) platforms.push('Mac');
+        if (gameData.platforms?.linux) platforms.push('Linux');
+
+        const genres = gameData.genres?.map((g: any) => g.description).join(', ') || '';
+        
+        setFormData(prev => ({
+          ...prev,
+          title: gameData.name || prev.title,
+          platform: platforms.join(', ') || prev.platform,
+          genre: genres,
+          notes: `${gameData.short_description || ''}`
+        }));
+      } else {
+        throw new Error('Invalid Steam App ID or no data found.');
+      }
+    } catch (error) {
+      console.error(error);
+      setErrors(prev => ({ ...prev, steam: 'Failed to fetch Steam data.' }));
+    } finally {
+      setSteamSearchTerm('');
+      setSteamSearchResults([]);
+    }
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Game title is required';
-    }
-    
-    if (!formData.platform.trim()) {
-      newErrors.platform = 'Platform is required';
-    }
-
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.platform.trim()) newErrors.platform = 'Platform is required';
+    if (!formData.genre.trim()) newErrors.genre = 'Genre is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (validateForm()) {
       onSave(formData);
       onClose();
@@ -78,129 +149,123 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
 
   if (!isOpen) return null;
 
+  const InputField = (props: InputHTMLAttributes<HTMLInputElement> & { label: string, id: string }) => {
+    const { label, id, ...rest } = props;
+    return (
+      <div>
+        <label htmlFor={id} className="block text-sm font-medium text-gray-400 mb-1">{label}</label>
+        <input
+          id={id}
+          name={id}
+          value={formData[id as keyof typeof formData] as string}
+          onChange={(e) => handleInputChange(id, e.target.value)}
+          className={`w-full px-3 py-2 text-sm bg-gray-700 border text-white rounded-md transition-colors ${
+            errors[id] ? 'border-red-500' : 'border-gray-600 focus:border-indigo-500'
+          }`}
+          {...rest}
+        />
+        {errors[id] && <p className="text-xs text-red-400 mt-1">{errors[id]}</p>}
+      </div>
+    );
+  };
+
+  const SelectField = (props: SelectHTMLAttributes<HTMLSelectElement> & { label: string, id: string, options: readonly string[] }) => {
+    const { label, id, options, ...rest } = props;
+    return (
+      <div>
+        <label htmlFor={id} className="block text-sm font-medium text-gray-400 mb-1">{label}</label>
+        <select
+          id={id}
+          name={id}
+          value={formData[id as keyof typeof formData] as string}
+          onChange={(e) => handleInputChange(id, e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-600 rounded-md bg-gray-700 text-white focus:border-indigo-500"
+          {...rest}
+        >
+          {options.map(option => <option key={option} value={option} className="bg-gray-700 text-white">{option}</option>)}
+        </select>
+      </div>
+    );
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center p-4 z-50">
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-8 border-b border-gray-100">
-          <h2 className="text-lg font-light text-gray-900">{title}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col text-gray-300">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="flex-grow overflow-y-auto">
+          {selectedGameHeader && <img src={selectedGameHeader} alt="Game Header" className="w-full h-48 object-cover" />}
+          
+          <div className="p-6 space-y-4 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-400">Import from Steam</label>
+              <button onClick={handleFetchSteamAppList} disabled={isFetchingAppList} className="text-gray-400 hover:text-white disabled:opacity-50" title="Update Steam games list">
+                <RefreshCw className={`w-4 h-4 ${isFetchingAppList ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
             <div>
-              <label className="block text-sm text-gray-700 mb-3">
-                Game Title
-              </label>
               <input
                 type="text"
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                className={`w-full px-0 py-2 text-sm border-0 border-b focus:outline-none transition-colors ${
-                  errors.title ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-gray-400'
-                }`}
-                placeholder="Enter game title"
+                value={steamSearchTerm}
+                onChange={(e) => setSteamSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-gray-700 border border-gray-600 text-white rounded-md"
+                placeholder="Search Steam..."
+                onFocus={() => steamAppList.length === 0 && handleFetchSteamAppList()}
               />
-              {errors.title && (
-                <div className="text-xs text-red-600 mt-2">{errors.title}</div>
-              )}
+              {steamAppList.length > 0 && <span className="text-xs text-gray-500 mt-1">{steamAppList.length} games cached</span>}
             </div>
-
-            <div>
-              <label className="block text-sm text-gray-700 mb-3">
-                Platform
-              </label>
-              <input
-                type="text"
-                value={formData.platform}
-                onChange={(e) => handleInputChange('platform', e.target.value)}
-                className={`w-full px-0 py-2 text-sm border-0 border-b focus:outline-none transition-colors ${
-                  errors.platform ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-gray-400'
-                }`}
-                placeholder="PC, PlayStation 5, Nintendo Switch"
-              />
-              {errors.platform && (
-                <div className="text-xs text-red-600 mt-2">{errors.platform}</div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-700 mb-3">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value as GameStatus)}
-                className="w-full px-0 py-2 text-sm border-0 border-b border-gray-200 focus:border-gray-400 focus:outline-none bg-transparent"
-              >
-                {GAME_STATUSES.map(status => (
-                  <option key={status} value={status}>{status}</option>
+            {steamSearchResults.length > 0 && (
+              <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-md bg-gray-800">
+                {steamSearchResults.map(app => (
+                  <div key={app.appid} onClick={() => handleFetchSteamInfo(String(app.appid))} className="px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm">
+                    {app.name}
+                  </div>
                 ))}
-              </select>
-            </div>
+              </div>
+            )}
+            {errors.steam && <p className="text-xs text-red-400 mt-1">{errors.steam}</p>}
+          </div>
 
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InputField id="title" label="Title" required />
+              <InputField id="platform" label="Platform" required />
+            </div>
+            <InputField id="genre" label="Genre" required />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <SelectField id="status" label="Status" options={GAME_STATUSES} />
+              <SelectField id="ownership" label="Ownership" options={OWNERSHIP_STATUSES} />
+            </div>
             <div>
-              <label className="block text-sm text-gray-700 mb-3">
-                Ownership
-              </label>
-              <select
-                value={formData.ownership}
-                onChange={(e) => handleInputChange('ownership', e.target.value as OwnershipStatus)}
-                className="w-full px-0 py-2 text-sm border-0 border-b border-gray-200 focus:border-gray-400 focus:outline-none bg-transparent"
-              >
-                {OWNERSHIP_STATUSES.map(ownership => (
-                  <option key={ownership} value={ownership}>{ownership}</option>
-                ))}
-              </select>
+              <label htmlFor="notes" className="block text-sm font-medium text-gray-400 mb-1">Notes</label>
+              <textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => handleInputChange('notes', e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 text-sm bg-gray-700 border border-gray-600 rounded-md text-white"
+              ></textarea>
             </div>
-          </div>
+            <div className="flex items-center">
+              <input id="priority" type="checkbox" checked={formData.priority} onChange={(e) => handleInputChange('priority', e.target.checked)} className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded" />
+              <label htmlFor="priority" className="ml-2 block text-sm text-gray-300">Mark as Priority</label>
+            </div>
+          </form>
+        </div>
 
-          <div>
-            <label className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                checked={formData.priority}
-                onChange={(e) => handleInputChange('priority', e.target.checked)}
-                className="w-4 h-4 text-gray-900 bg-white border-gray-300 focus:ring-0 focus:ring-offset-0"
-              />
-              <span className="text-sm text-gray-700">High Priority</span>
-            </label>
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-700 mb-3">
-              Notes & Analysis
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => handleInputChange('notes', e.target.value)}
-              rows={8}
-              className="w-full px-0 py-2 text-sm border-0 border-b border-gray-200 focus:border-gray-400 focus:outline-none resize-none"
-              placeholder="Game mechanics, level design, narrative, art style..."
-            />
-          </div>
-
-          <div className="flex justify-end space-x-4 pt-8 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 text-sm text-white bg-gray-900 hover:bg-gray-800 transition-colors"
-            >
-              Save
-            </button>
-          </div>
-        </form>
+        <div className="p-4 bg-gray-900 border-t border-gray-700 flex justify-end space-x-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 border border-gray-600 rounded-md hover:bg-gray-600">
+            Cancel
+          </button>
+          <button type="submit" onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700">
+            Save Game
+          </button>
+        </div>
       </div>
     </div>
   );

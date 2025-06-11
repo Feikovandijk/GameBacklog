@@ -2,6 +2,7 @@ export interface Game {
   id: string;
   title: string;
   platform: string;
+  genre: string;
   status: GameStatus;
   ownership: OwnershipStatus;
   priority: boolean;
@@ -15,8 +16,8 @@ export type GameStatus =
   | 'Unfinished' 
   | 'Beaten'
   | 'Completed'
-  | 'Shelved'
-  | 'Endless';
+  | 'Endless'
+  | 'None';
 
 export type OwnershipStatus =
   | 'Physical'
@@ -30,8 +31,8 @@ export const GAME_STATUSES: GameStatus[] = [
   'Unfinished',
   'Beaten', 
   'Completed',
-  'Shelved',
-  'Endless'
+  'Endless',
+  'None'
 ];
 
 export const OWNERSHIP_STATUSES: OwnershipStatus[] = [
