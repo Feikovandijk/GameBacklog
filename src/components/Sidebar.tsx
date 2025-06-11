@@ -28,10 +28,10 @@ const NavItem = ({ icon, children, onClick }: { icon: React.ReactNode, children:
 interface SidebarProps {
   onAddGame: () => void;
   setGames: React.Dispatch<React.SetStateAction<Game[]>>;
-  setFilter: (filter: 'all' | 'wishlist') => void;
+  setView: (view: 'dashboard' | 'kanban' | 'wishlist') => void;
 }
 
-export const Sidebar = ({ onAddGame, setGames, setFilter }: SidebarProps) => {
+export const Sidebar = ({ onAddGame, setGames, setView }: SidebarProps) => {
   const [steamId, setSteamId] = useLocalStorage<string | null>('steamId', null);
 
   const handleSteamLogin = () => {
@@ -65,7 +65,7 @@ export const Sidebar = ({ onAddGame, setGames, setFilter }: SidebarProps) => {
       if (!response.ok) {
         if (response.status === 403) {
           const privacySettingsUrl = 'https://steamcommunity.com/my/edit/settings';
-          alert(`Could not import wishlist. This usually means your Steam profile is private.\n\nPlease ensure your "Game Details" are set to "Public" in your Steam privacy settings and try again.\n\nYou can find your settings here: ${privacySettingsUrl}`);
+          alert(`Could not import wishlist. This usually means your Steam profile is private.\\n\\nPlease ensure your "Game Details" are set to "Public" in your Steam privacy settings and try again.\\n\\nYou can find your settings here: ${privacySettingsUrl}`);
           // Open in new tab for convenience
           window.open(privacySettingsUrl, '_blank');
           return;
@@ -81,7 +81,7 @@ export const Sidebar = ({ onAddGame, setGames, setFilter }: SidebarProps) => {
           id: game.id || String(Math.random()), // The worker provides 'id' as a string
           title: game.title || 'Unknown Title',
           platform: 'PC',
-          status: 'Unplayed',
+          status: 'Inbox',
           ownership: 'Wishlist',
           dateAdded: now,
           dateModified: now,
@@ -120,24 +120,27 @@ export const Sidebar = ({ onAddGame, setGames, setFilter }: SidebarProps) => {
         </div>
 
         <nav className="space-y-2">
-          <NavItem icon={<LayoutDashboard size={20} />} onClick={() => setFilter('all')}>Dashboard</NavItem>
+          <NavItem icon={<LayoutDashboard size={20} />} onClick={() => setView('dashboard')}>Dashboard</NavItem>
+          <NavItem icon={<List size={20} />} onClick={() => setView('kanban')}>Kanban Board</NavItem>
+          <NavItem icon={<Heart size={20} />} onClick={() => setView('wishlist')}>Wishlist</NavItem>
           <NavItem icon={<PlusCircle size={20} />} onClick={onAddGame}>Add Game</NavItem>
-          <NavItem icon={<Heart size={20} />} onClick={() => setFilter('wishlist')}>Wishlist</NavItem>
-          <NavItem icon={<MessageSquare size={20} />}>Reviews</NavItem>
         </nav>
       </div>
 
       <div>
-        {steamId ? (
-          <NavItem icon={<FileUp size={20} />} onClick={handleImportWishlist}>
-            Import Wishlist
-          </NavItem>
-        ) : (
-          <NavItem icon={<LogIn size={20} />} onClick={handleSteamLogin}>
-            Login with Steam
-          </NavItem>
-        )}
-        <NavItem icon={<Settings size={20} />}>Settings</NavItem>
+        <div className="space-y-2 border-t border-gray-700 pt-4 mt-4">
+          <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</h3>
+          {steamId ? (
+            <NavItem icon={<FileUp size={20} />} onClick={handleImportWishlist} key="import-wishlist">
+              Import Wishlist
+            </NavItem>
+          ) : (
+            <NavItem icon={<LogIn size={20} />} onClick={handleSteamLogin} key="login-steam">
+              Login with Steam
+            </NavItem>
+          )}
+          <NavItem icon={<Settings size={20} />}>Settings</NavItem>
+        </div>
       </div>
     </aside>
   );

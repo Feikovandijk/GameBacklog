@@ -27,7 +27,7 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
     title: '',
     platform: '',
     genre: '',
-    status: 'Unplayed' as GameStatus,
+    status: 'Inbox' as GameStatus,
     ownership: 'Digital' as OwnershipStatus,
     priority: false,
     notes: '',

@@ -1,17 +1,42 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Game } from './types/game';
+import { Game, GameStatus } from './types/game';
 import { GameModal } from './components/GameModal';
 import { GameTable } from './components/GameTable';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { Dashboard } from './components/Dashboard';
 import { Sidebar } from './components/Sidebar';
+import { KanbanBoard } from './components/KanbanBoard';
+
+const V1_STATUS_MAP: { [key: string]: GameStatus } = {
+  'Unplayed': 'To Play',
+  'None': 'To Play',
+  'Unfinished': 'Playing',
+  'Beaten': 'Done',
+  'Completed': 'Done',
+  'Endless': 'Playing',
+};
 
 function App() {
   const [games, setGames] = useLocalStorage<Game[]>('gameBacklog', []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | undefined>();
-  const [filter, setFilter] = useState<'all' | 'wishlist'>('all');
+  const [view, setView] = useState<'dashboard' | 'kanban' | 'wishlist'>('dashboard');
   const [steamId, setSteamId] = useLocalStorage<string | null>('steamId', null);
+
+  useEffect(() => {
+    // Migrate old statuses to new ones
+    setGames(prevGames => {
+      return prevGames.map(game => {
+        if (Object.keys(V1_STATUS_MAP).includes(game.status)) {
+          return {
+            ...game,
+            status: V1_STATUS_MAP[game.status as keyof typeof V1_STATUS_MAP] || 'To Play',
+          };
+        }
+        return game;
+      });
+    });
+  }, []);
 
   useEffect(() => {
     // This effect runs once on page load to capture the Steam ID from the URL
@@ -25,8 +50,8 @@ function App() {
   }, [setSteamId]);
 
   const stats = useMemo(() => {
-    const gamesPlayed = games.filter(g => ['Beaten', 'Completed', 'Endless'].includes(g.status)).length;
-    const gamesToBePlayed = games.filter(g => ['Unplayed', 'Unfinished', 'None'].includes(g.status)).length;
+    const gamesPlayed = games.filter(g => g.status === 'Done').length;
+    const gamesToBePlayed = games.filter(g => g.status === 'To Play' || g.status === 'Inbox').length;
     return { gamesPlayed, gamesToBePlayed };
   }, [games]);
 
@@ -59,6 +84,7 @@ function App() {
       const newGame: Game = {
         ...gameData,
         id: generateId(),
+        status: gameData.status || 'Inbox',
         dateAdded: now,
         dateModified: now
       };
@@ -85,15 +111,15 @@ function App() {
   };
 
   const filteredGames = useMemo(() => {
-    if (filter === 'wishlist') {
+    if (view === 'wishlist') {
       return games.filter(game => game.ownership === 'Wishlist');
     }
     return games;
-  }, [games, filter]);
+  }, [games, view]);
 
   return (
-    <div className="flex min-h-screen bg-gray-900 text-gray-300">
-      <Sidebar onAddGame={handleAddGame} setGames={setGames} setFilter={setFilter} />
+    <div className="flex h-screen bg-gray-900 text-gray-300">
+      <Sidebar onAddGame={handleAddGame} setGames={setGames} setView={setView} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-gray-800/50 backdrop-blur-sm p-4 border-b border-gray-700 flex justify-between items-center">
           <input type="text" placeholder="Search..." className="bg-gray-700 text-sm rounded-lg px-4 py-2 w-1/3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -115,18 +141,23 @@ function App() {
           </div>
         </header>
         <main className="flex-1 p-8 overflow-y-auto">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <div className="col-span-1">
-              <Dashboard games={filteredGames} />
+          {(view === 'dashboard' || view === 'wishlist') && (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              <div className="col-span-1">
+                <Dashboard games={filteredGames} />
+              </div>
+              <div className="col-span-1">
+                <GameTable
+                  games={filteredGames}
+                  onEdit={handleEditGame}
+                  onDelete={handleDeleteGame}
+                />
+              </div>
             </div>
-            <div className="col-span-1">
-              <GameTable
-                games={filteredGames}
-                onEdit={handleEditGame}
-                onDelete={handleDeleteGame}
-              />
-            </div>
-          </div>
+          )}
+          {view === 'kanban' && (
+            <KanbanBoard games={games} setGames={setGames} />
+          )}
         </main>
       </div>
 

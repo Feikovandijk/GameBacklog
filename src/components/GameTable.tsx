@@ -30,12 +30,11 @@ export function GameTable({ games, onEdit, onDelete }: GameTableProps) {
 
   const getStatusColor = (status: GameStatus) => {
     const colors: Record<GameStatus, string> = {
-      Unplayed: 'text-gray-400',
-      Unfinished: 'text-blue-400',
-      Beaten: 'text-green-400',
-      Completed: 'text-emerald-400',
-      Endless: 'text-purple-400',
-      None: 'text-gray-500',
+      'Inbox': 'text-gray-400',
+      'To Play': 'text-blue-400',
+      'Playing': 'text-orange-400',
+      'Done': 'text-green-400',
+      'Discarded': 'text-gray-600',
     };
     return colors[status];
   };

@@ -11,13 +11,12 @@ export interface Game {
   dateModified: string;
 }
 
-export type GameStatus = 
-  | 'Unplayed'
-  | 'Unfinished' 
-  | 'Beaten'
-  | 'Completed'
-  | 'Endless'
-  | 'None';
+export type GameStatus =
+  | 'Inbox'
+  | 'To Play'
+  | 'Playing'
+  | 'Done'
+  | 'Discarded';
 
 export type OwnershipStatus =
   | 'Physical'
@@ -27,12 +26,11 @@ export type OwnershipStatus =
   | 'Wishlist';
 
 export const GAME_STATUSES: GameStatus[] = [
-  'Unplayed',
-  'Unfinished',
-  'Beaten', 
-  'Completed',
-  'Endless',
-  'None'
+  'Inbox',
+  'To Play',
+  'Playing',
+  'Done',
+  'Discarded'
 ];
 
 export const OWNERSHIP_STATUSES: OwnershipStatus[] = [

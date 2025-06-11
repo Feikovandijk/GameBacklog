@@ -12,9 +12,11 @@
     "deploy:wishlist": "npm run deploy --prefix wishlist-worker"
   },
   "dependencies": {
+    "@types/react-beautiful-dnd": "^13.1.8",
     "@types/recharts": "^2.0.0",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
+    "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.6.2",
     "recharts": "^2.12.7"
