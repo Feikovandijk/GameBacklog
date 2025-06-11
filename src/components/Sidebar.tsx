@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -6,9 +6,17 @@ import {
   UserCircle, 
   Heart,
   MessageSquare,
-  Download
+  LogIn,
+  Plus,
+  List,
+  Download,
+  Star,
+  ExternalLink,
+  Library,
+  FileUp
 } from 'lucide-react';
 import { Game } from '../types/game';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const NavItem = ({ icon, children, onClick }: { icon: React.ReactNode, children: React.ReactNode, onClick?: () => void }) => (
   <button onClick={onClick} className="w-full flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-md transition-colors text-left">
@@ -24,72 +32,79 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ onAddGame, setGames, setFilter }: SidebarProps) => {
-  const [steamId, setSteamId] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [steamId, setSteamId] = useLocalStorage<string | null>('steamId', null);
 
-  const generateId = () => Math.random().toString(36).substr(2, 9);
+  const handleSteamLogin = () => {
+    // The auth worker will handle the callback and redirect back to our app.
+    const returnTo = `https://game-backlog-auth-worker.feikovandijk.workers.dev/`;
 
-  const handleWishlistImport = async () => {
+    const openIdParams = new URLSearchParams({
+      'openid.ns': 'http://specs.openid.net/auth/2.0',
+      'openid.mode': 'checkid_setup',
+      'openid.return_to': returnTo,
+      'openid.realm': returnTo,
+      'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
+      'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
+    });
+
+    const steamLoginUrl = `https://steamcommunity.com/openid/login?${openIdParams.toString()}`;
+
+    window.location.href = steamLoginUrl;
+  };
+
+  const handleImportWishlist = async () => {
     if (!steamId) {
-      alert('Please enter a Steam ID.');
+      alert('Please log in with Steam first.');
       return;
     }
-    setIsLoading(true);
-    const workerUrl = `https://game-backlog-wishlist-importer.feikovandijk.workers.dev`;
 
     try {
-      const response = await fetch(`${workerUrl}?steamId=${steamId}`);
+      const workerUrl = `https://game-backlog-wishlist-worker.feikovandijk.workers.dev?steamId=${steamId}`;
+      const response = await fetch(workerUrl);
 
       if (!response.ok) {
-        throw new Error(`The server responded with status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      if (typeof data !== 'object' || data === null) {
-        throw new Error('Parsed data is not a valid object.');
+        if (response.status === 403) {
+          const privacySettingsUrl = 'https://steamcommunity.com/my/edit/settings';
+          alert(`Could not import wishlist. This usually means your Steam profile is private.\n\nPlease ensure your "Game Details" are set to "Public" in your Steam privacy settings and try again.\n\nYou can find your settings here: ${privacySettingsUrl}`);
+          // Open in new tab for convenience
+          window.open(privacySettingsUrl, '_blank');
+          return;
+        }
+        throw new Error(`Failed to fetch wishlist. Status: ${response.status}`);
       }
 
-      if (Object.keys(data).length === 0) {
-        alert('Your wishlist is empty or could not be loaded.');
-        return;
-      }
+      const newGamesFromServer = await response.json();
 
-      const appIds = Object.keys(data);
-      const now = new Date().toISOString();
-      const newGames: Game[] = appIds.map(appId => {
-        const gameData = data[appId];
-        return {
-          id: appId,
-          title: gameData.name,
+      if (Array.isArray(newGamesFromServer) && newGamesFromServer.length > 0) {
+        const now = new Date().toISOString();
+        const newGames: Game[] = newGamesFromServer.map((game: Partial<Game>) => ({
+          id: game.id || String(Math.random()), // The worker provides 'id' as a string
+          title: game.title || 'Unknown Title',
           platform: 'PC',
-          genre: gameData.tags?.join(', ') || '',
           status: 'Unplayed',
           ownership: 'Wishlist',
-          priority: gameData.priority > 0,
-          notes: '',
           dateAdded: now,
           dateModified: now,
-        };
-      });
+          rating: 0,
+          playtime: 0,
+          genre: game.genre || '',
+          priority: false,
+          notes: game.notes || '',
+        }));
 
-      setGames(prevGames => {
-        const existingAppIds = new Set(prevGames.map(g => g.id));
-        const trulyNewGames = newGames.filter(g => !existingAppIds.has(g.id));
-        return [...prevGames, ...trulyNewGames];
-      });
+        setGames(prevGames => {
+          const existingIds = new Set(prevGames.map(g => g.id));
+          const uniqueNewGames = newGames.filter(g => !existingIds.has(g.id));
+          return [...prevGames, ...uniqueNewGames];
+        });
 
-      alert(`Imported ${newGames.length} games from your wishlist!`);
-
+        alert(`Successfully imported ${newGames.length} games from your wishlist.`);
+      } else {
+        alert('No new games found on your wishlist, or the data was in an unexpected format.');
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      alert(`An error occurred while importing: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
+      console.error('Error importing Steam wishlist:', error);
+      alert('An error occurred while importing the wishlist.');
     }
   };
 
@@ -110,29 +125,18 @@ export const Sidebar = ({ onAddGame, setGames, setFilter }: SidebarProps) => {
           <NavItem icon={<Heart size={20} />} onClick={() => setFilter('wishlist')}>Wishlist</NavItem>
           <NavItem icon={<MessageSquare size={20} />}>Reviews</NavItem>
         </nav>
-        
-        <div className="mt-6 border-t border-gray-700 pt-6">
-          <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Import</h3>
-          <div className="mt-2 space-y-2">
-            <div className="px-4">
-              <label htmlFor="steamId" className="block text-xs text-gray-400 mb-1">Steam ID</label>
-              <input 
-                type="text" 
-                id="steamId"
-                value={steamId}
-                onChange={(e) => setSteamId(e.target.value)}
-                placeholder="Enter your 64-bit Steam ID"
-                className="w-full bg-gray-700 text-white text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <NavItem icon={<Download size={20} />} onClick={handleWishlistImport}>
-              {isLoading ? 'Importing...' : 'Import Wishlist'}
-            </NavItem>
-          </div>
-        </div>
       </div>
 
       <div>
+        {steamId ? (
+          <NavItem icon={<FileUp size={20} />} onClick={handleImportWishlist}>
+            Import Wishlist
+          </NavItem>
+        ) : (
+          <NavItem icon={<LogIn size={20} />} onClick={handleSteamLogin}>
+            Login with Steam
+          </NavItem>
+        )}
         <NavItem icon={<Settings size={20} />}>Settings</NavItem>
       </div>
     </aside>

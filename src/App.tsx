@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Game } from './types/game';
 import { GameModal } from './components/GameModal';
 import { GameTable } from './components/GameTable';
@@ -11,6 +11,18 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | undefined>();
   const [filter, setFilter] = useState<'all' | 'wishlist'>('all');
+  const [steamId, setSteamId] = useLocalStorage<string | null>('steamId', null);
+
+  useEffect(() => {
+    // This effect runs once on page load to capture the Steam ID from the URL
+    const params = new URLSearchParams(window.location.search);
+    const steamIdFromUrl = params.get('steamId');
+    if (steamIdFromUrl) {
+      setSteamId(steamIdFromUrl);
+      // Clean the URL to remove the query params
+      window.history.replaceState({}, document.title, "/");
+    }
+  }, [setSteamId]);
 
   const stats = useMemo(() => {
     const gamesPlayed = games.filter(g => ['Beaten', 'Completed', 'Endless'].includes(g.status)).length;
