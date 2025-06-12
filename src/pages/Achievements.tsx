@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface PlayerGame {
   appid: number;
@@ -22,9 +22,49 @@ export default function Achievements() {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cacheStatus, setCacheStatus] = useState<{ lastUpdated: number | null, isRefreshAllowed: boolean }>({ lastUpdated: null, isRefreshAllowed: false });
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
 
   const totalAchievements = useMemo(() => games.reduce((acc, g) => acc + g.achievements.unlocked, 0), [games]);
   const totalPlaytimeHours = useMemo(() => Math.round(games.reduce((acc, g) => acc + g.playtime_forever, 0) / 60), [games]);
+
+  const sortedGames = useMemo(() => {
+    const sortableGames = [...games];
+    if (sortConfig) {
+      sortableGames.sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sortConfig.key) {
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          case 'unlocked':
+            aValue = a.achievements.unlocked;
+            bValue = b.achievements.unlocked;
+            break;
+          case 'total':
+            aValue = a.achievements.total;
+            bValue = b.achievements.total;
+            break;
+          case 'percentage':
+            aValue = a.achievements.total > 0 ? a.achievements.unlocked / a.achievements.total : 0;
+            bValue = b.achievements.total > 0 ? b.achievements.unlocked / b.achievements.total : 0;
+            break;
+          case 'playtime':
+            aValue = a.playtime_forever;
+            bValue = b.playtime_forever;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableGames;
+  }, [games, sortConfig]);
 
   const fetchAchievements = async (forceRefresh = false) => {
     if (!user?.steamId) return;
@@ -72,6 +112,14 @@ export default function Achievements() {
     await fetchCacheStatus(); // Update status after refresh
   };
 
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
   if (loading) return <div className="text-center p-8">Loading achievements...</div>;
   if (error) return <div className="text-center p-8 text-red-400">{error}</div>;
 
@@ -107,15 +155,50 @@ export default function Achievements() {
           <table className="min-w-full bg-[#232b32] text-sm">
             <thead>
               <tr className="text-gray-400 border-b border-gray-700">
-                <th className="px-4 py-2 text-left">Title</th>
-                <th className="px-4 py-2">Unlocked</th>
-                <th className="px-4 py-2">Total</th>
-                <th className="px-4 py-2">%</th>
-                <th className="px-4 py-2">Playtime</th>
+                <th className="px-4 py-2 text-left">
+                  <button onClick={() => requestSort('name')} className="flex items-center gap-1 hover:text-white transition-colors">
+                    Title
+                    {sortConfig?.key === 'name' ? (
+                      sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : null}
+                  </button>
+                </th>
+                <th className="px-4 py-2">
+                  <button onClick={() => requestSort('unlocked')} className="flex items-center gap-1 mx-auto hover:text-white transition-colors">
+                    Unlocked
+                    {sortConfig?.key === 'unlocked' ? (
+                      sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : null}
+                  </button>
+                </th>
+                <th className="px-4 py-2">
+                  <button onClick={() => requestSort('total')} className="flex items-center gap-1 mx-auto hover:text-white transition-colors">
+                    Total
+                    {sortConfig?.key === 'total' ? (
+                      sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : null}
+                  </button>
+                </th>
+                <th className="px-4 py-2">
+                  <button onClick={() => requestSort('percentage')} className="flex items-center gap-1 mx-auto hover:text-white transition-colors">
+                    %
+                    {sortConfig?.key === 'percentage' ? (
+                      sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : null}
+                  </button>
+                </th>
+                <th className="px-4 py-2">
+                  <button onClick={() => requestSort('playtime')} className="flex items-center gap-1 mx-auto hover:text-white transition-colors">
+                    Playtime
+                    {sortConfig?.key === 'playtime' ? (
+                      sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : null}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {games.map((g) => (
+              {sortedGames.map((g) => (
                 <tr key={g.appid} className="border-b border-gray-800 hover:bg-[#28313a] transition">
                   <td className="flex items-center gap-3 px-4 py-2">
                     <img
