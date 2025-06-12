@@ -1,42 +1,33 @@
+export type GameStatus = 'backlog' | 'playing' | 'completed' | 'dropped' | 'wishlist';
+
+export type OwnershipStatus = 'owned' | 'wishlist' | 'borrowed';
+
 export interface Game {
   id: string;
   title: string;
+  description: string;
   platform: string;
-  genre: string;
   status: GameStatus;
   ownership: OwnershipStatus;
-  priority: boolean;
-  notes: string;
   dateAdded: string;
   dateModified: string;
+  rating: number;
+  playtime: number;
+  genre: string;
+  priority: boolean;
+  notes: string;
 }
 
-export type GameStatus =
-  | 'Inbox'
-  | 'To Play'
-  | 'Playing'
-  | 'Done'
-  | 'Discarded';
-
-export type OwnershipStatus =
-  | 'Physical'
-  | 'Digital'
-  | 'Subscription'
-  | 'Borrowed'
-  | 'Wishlist';
-
 export const GAME_STATUSES: GameStatus[] = [
-  'Inbox',
-  'To Play',
-  'Playing',
-  'Done',
-  'Discarded'
+  'backlog',
+  'playing',
+  'completed',
+  'dropped',
+  'wishlist'
 ];
 
 export const OWNERSHIP_STATUSES: OwnershipStatus[] = [
-  'Physical',
-  'Digital',
-  'Subscription', 
-  'Borrowed',
-  'Wishlist'
+  'owned',
+  'wishlist',
+  'borrowed'
 ];

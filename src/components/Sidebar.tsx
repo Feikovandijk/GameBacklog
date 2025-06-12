@@ -1,121 +1,62 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  PlusCircle, 
   Settings, 
   UserCircle, 
   Heart,
-  MessageSquare,
   LogIn,
-  Plus,
+  LogOut,
+  FileUp,
+  Trash2,
   List,
-  Download,
-  Star,
-  ExternalLink,
-  Library,
-  FileUp
+  PlusCircle
 } from 'lucide-react';
-import { Game } from '../types/game';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useAuth } from '../contexts/AuthContext';
+import { useGames } from '../contexts/GamesContext';
 
-const NavItem = ({ icon, children, onClick }: { icon: React.ReactNode, children: React.ReactNode, onClick?: () => void }) => (
-  <button onClick={onClick} className="w-full flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-md transition-colors text-left">
+const NavItem = ({ icon, children, onClick, disabled }: { icon: React.ReactNode, children: React.ReactNode, onClick?: () => void, disabled?: boolean }) => (
+  <button 
+    onClick={onClick} 
+    className="w-full flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-md transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+    disabled={disabled}
+  >
     {icon}
     <span className="ml-3">{children}</span>
   </button>
 );
 
 interface SidebarProps {
-  onAddGame: () => void;
-  setGames: React.Dispatch<React.SetStateAction<Game[]>>;
   setView: (view: 'dashboard' | 'kanban' | 'wishlist') => void;
+  onAddGame: () => void;
 }
 
-export const Sidebar = ({ onAddGame, setGames, setView }: SidebarProps) => {
-  const [steamId, setSteamId] = useLocalStorage<string | null>('steamId', null);
-
-  const handleSteamLogin = () => {
-    // The auth worker will handle the callback and redirect back to our app.
-    const returnTo = `https://game-backlog-auth-worker.feikovandijk.workers.dev/`;
-
-    const openIdParams = new URLSearchParams({
-      'openid.ns': 'http://specs.openid.net/auth/2.0',
-      'openid.mode': 'checkid_setup',
-      'openid.return_to': returnTo,
-      'openid.realm': returnTo,
-      'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
-      'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
-    });
-
-    const steamLoginUrl = `https://steamcommunity.com/openid/login?${openIdParams.toString()}`;
-
-    window.location.href = steamLoginUrl;
-  };
-
-  const handleImportWishlist = async () => {
-    if (!steamId) {
-      alert('Please log in with Steam first.');
-      return;
-    }
-
-    try {
-      const workerUrl = `https://game-backlog-wishlist-worker.feikovandijk.workers.dev?steamId=${steamId}`;
-      const response = await fetch(workerUrl);
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          const privacySettingsUrl = 'https://steamcommunity.com/my/edit/settings';
-          alert(`Could not import wishlist. This usually means your Steam profile is private.\\n\\nPlease ensure your "Game Details" are set to "Public" in your Steam privacy settings and try again.\\n\\nYou can find your settings here: ${privacySettingsUrl}`);
-          // Open in new tab for convenience
-          window.open(privacySettingsUrl, '_blank');
-          return;
-        }
-        throw new Error(`Failed to fetch wishlist. Status: ${response.status}`);
-      }
-
-      const newGamesFromServer = await response.json();
-
-      if (Array.isArray(newGamesFromServer) && newGamesFromServer.length > 0) {
-        const now = new Date().toISOString();
-        const newGames: Game[] = newGamesFromServer.map((game: Partial<Game>) => ({
-          id: game.id || String(Math.random()), // The worker provides 'id' as a string
-          title: game.title || 'Unknown Title',
-          platform: 'PC',
-          status: 'Inbox',
-          ownership: 'Wishlist',
-          dateAdded: now,
-          dateModified: now,
-          rating: 0,
-          playtime: 0,
-          genre: game.genre || '',
-          priority: false,
-          notes: game.notes || '',
-        }));
-
-        setGames(prevGames => {
-          const existingIds = new Set(prevGames.map(g => g.id));
-          const uniqueNewGames = newGames.filter(g => !existingIds.has(g.id));
-          return [...prevGames, ...uniqueNewGames];
-        });
-
-        alert(`Successfully imported ${newGames.length} games from your wishlist.`);
-      } else {
-        alert('No new games found on your wishlist, or the data was in an unexpected format.');
-      }
-    } catch (error) {
-      console.error('Error importing Steam wishlist:', error);
-      alert('An error occurred while importing the wishlist.');
-    }
-  };
+export const Sidebar = ({ setView, onAddGame }: SidebarProps) => {
+  const { user, loginWithSteam, logout, loading: authLoading } = useAuth();
+  const { clearGames, importWishlist } = useGames();
 
   return (
     <aside className="w-64 bg-gray-800 p-6 flex flex-col justify-between">
       <div>
         <div className="flex items-center space-x-4 mb-10">
-          <UserCircle size={40} className="text-white" />
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="User Avatar" className="w-10 h-10 rounded-full" />
+          ) : (
+            <UserCircle size={40} className="text-white" />
+          )}
           <div>
-            <h2 className="font-semibold text-white">Backlog</h2>
-            <p className="text-sm text-gray-400">gamer@email.com</p>
+            <h2 className="font-semibold text-white">{user?.displayName || 'Guest'}</h2>
+            {user ? (
+              <p className="text-sm text-gray-400">Logged in</p>
+            ) : (
+              <button
+                onClick={loginWithSteam}
+                disabled={authLoading}
+                className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-50"
+              >
+                <LogIn size={16} />
+                <span>Login with Steam</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -123,23 +64,27 @@ export const Sidebar = ({ onAddGame, setGames, setView }: SidebarProps) => {
           <NavItem icon={<LayoutDashboard size={20} />} onClick={() => setView('dashboard')}>Dashboard</NavItem>
           <NavItem icon={<List size={20} />} onClick={() => setView('kanban')}>Kanban Board</NavItem>
           <NavItem icon={<Heart size={20} />} onClick={() => setView('wishlist')}>Wishlist</NavItem>
-          <NavItem icon={<PlusCircle size={20} />} onClick={onAddGame}>Add Game</NavItem>
+          <NavItem icon={<PlusCircle size={20} />} onClick={onAddGame} disabled={!user}>Add Game</NavItem>
         </nav>
       </div>
 
       <div>
         <div className="space-y-2 border-t border-gray-700 pt-4 mt-4">
           <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</h3>
-          {steamId ? (
-            <NavItem icon={<FileUp size={20} />} onClick={handleImportWishlist} key="import-wishlist">
-              Import Wishlist
-            </NavItem>
+          {user ? (
+            <>
+              <NavItem icon={<FileUp size={20} />} onClick={importWishlist} disabled={authLoading}>
+                Import Wishlist
+              </NavItem>
+              <NavItem icon={<LogOut size={20} />} onClick={logout} disabled={authLoading}>
+                Logout
+              </NavItem>
+            </>
           ) : (
-            <NavItem icon={<LogIn size={20} />} onClick={handleSteamLogin} key="login-steam">
-              Login with Steam
-            </NavItem>
+            <p className="px-4 text-xs text-gray-500">Log in to manage your account.</p>
           )}
           <NavItem icon={<Settings size={20} />}>Settings</NavItem>
+          <NavItem icon={<Trash2 size={20} />} onClick={clearGames} disabled={!user}>Clear All Data</NavItem>
         </div>
       </div>
     </aside>
