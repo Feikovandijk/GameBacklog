@@ -5,16 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start:server": "node server/index.js",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "deploy:auth": "npm run deploy --prefix auth-worker",
-    "deploy:wishlist": "npm run deploy --prefix wishlist-worker"
+    "deploy:wishlist": "npm run deploy --prefix wishlist-worker",
+    "deploy:player-stats": "npm run deploy --prefix player-stats-worker"
   },
   "dependencies": {
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/recharts": "^2.0.0",
     "lucide-react": "^0.344.0",
+    "node-cron": "^4.1.0",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.3.1",
@@ -35,6 +38,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "wrangler": "^4.20.0"
   }
 }

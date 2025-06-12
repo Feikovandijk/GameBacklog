@@ -1,5 +1,5 @@
 {
-  "name": "steam-cache",
+  "name": "player-stats-worker",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -9,11 +9,9 @@
   "author": "",
   "license": "ISC",
   "description": "",
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "node-fetch": "^2.7.0",
-    "sqlite3": "^5.1.7"
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250612.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.20.0"
   }
 }

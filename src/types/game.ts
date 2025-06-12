@@ -16,6 +16,12 @@ export interface Game {
   genre: string;
   priority: boolean;
   notes: string;
+  achievements?: {
+    unlocked: number;
+    total: number;
+    percent: number;
+    lastUnlocked?: string;
+  };
 }
 
 export const GAME_STATUSES: GameStatus[] = [

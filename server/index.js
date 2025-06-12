@@ -1,0 +1,121 @@
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
+const { getCachedAchievements, setCachedAchievements, getCacheStatus, setSyncStatus } = require('./database');
+
+const app = express();
+const port = 3001;
+const WORKER_URL = 'https://game-backlog-player-stats-worker.feikovandijk.workers.dev';
+
+app.use(cors());
+
+// Helper function to add a delay
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const fetchAndCacheAchievements = async (steamId) => {
+  console.log(`[Worker] Fetching fresh achievements for ${steamId}...`);
+  await setSyncStatus(steamId, 'in_progress');
+
+  const gamesResponse = await fetch(`${WORKER_URL}?steamId=${steamId}&type=games`);
+  if (!gamesResponse.ok) {
+    await setSyncStatus(steamId, 'failed', 'Failed to fetch game list from worker');
+    throw new Error('Failed to fetch game list from worker');
+  }
+  const gamesData = await gamesResponse.json();
+  const ownedGames = gamesData.response?.games || [];
+
+  const gamesWithAchievements = [];
+  try {
+    for (const game of ownedGames) {
+      const achievementsResponse = await fetch(`${WORKER_URL}?steamId=${steamId}&type=achievements&appid=${game.appid}`);
+      
+      if (achievementsResponse.status === 429) {
+        console.error(`[Worker] Rate limited while fetching achievements for appid ${game.appid}.`);
+        throw new Error('RATE_LIMITED');
+      }
+
+      if (!achievementsResponse.ok) {
+        // A 400 error from the worker often means the game has no achievements.
+        // We'll log other errors, but not 400s, to keep the console clean.
+        if (achievementsResponse.status !== 400) {
+          console.error(`[Worker] Error fetching achievements for appid ${game.appid}. Status: ${achievementsResponse.status}`);
+        }
+        continue;
+      }
+
+      const achievementsData = await achievementsResponse.json();
+      
+      const achievements = achievementsData.playerstats?.achievements || [];
+      if (achievements.length > 0) {
+        gamesWithAchievements.push({
+          appid: game.appid,
+          name: game.name,
+          playtime_forever: game.playtime_forever,
+          img_icon_url: game.img_icon_url,
+          achievements: {
+            unlocked: achievements.filter(a => a.achieved).length,
+            total: achievements.length,
+          }
+        });
+      }
+      await sleep(200); // Increased sleep time to be safer
+    }
+    
+    setCachedAchievements(steamId, gamesWithAchievements);
+    console.log(`[Cache SAVE] Saved fresh achievements for ${steamId}.`);
+    return gamesWithAchievements;
+  } catch (error) {
+    console.error('An error occurred during achievement fetching loop:', error.message);
+    // Even if there was an error, save the partial data we gathered
+    if (gamesWithAchievements.length > 0) {
+      console.log(`[Cache SAVE] Saving partial data for ${steamId} after error.`);
+      setCachedAchievements(steamId, gamesWithAchievements);
+    }
+
+    if (error.message === 'RATE_LIMITED') {
+      await setSyncStatus(steamId, 'failed', 'Steam API rate limit exceeded. Please try again later.');
+    }
+    
+    // Re-throw the original error to be handled by the route
+    throw error;
+  }
+}
+
+app.get('/api/achievements/:steamId/status', async (req, res) => {
+  try {
+    const { steamId } = req.params;
+    const status = await getCacheStatus(steamId);
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get cache status.' });
+  }
+});
+
+app.get('/api/achievements/:steamId', async (req, res) => {
+  const { steamId } = req.params;
+  const { force } = req.query;
+
+  try {
+    if (!force) {
+      const cachedData = await getCachedAchievements(steamId);
+      if (cachedData && cachedData.length > 0) {
+        console.log(`[Cache HIT] Serving achievements for ${steamId} from cache.`);
+        return res.json(cachedData);
+      }
+    }
+
+    const freshData = await fetchAndCacheAchievements(steamId);
+    res.json(freshData);
+
+  } catch (error) {
+    console.error('Error in route handler:', error.message);
+    if (error.message === 'RATE_LIMITED') {
+      return res.status(429).json({ error: 'Steam API rate limit exceeded. Please try again later.' });
+    }
+    res.status(500).json({ error: 'Failed to fetch achievements.' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server listening at http://localhost:${port}`);
+}); 

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Game } from './types/game';
 import { GameModal } from './components/GameModal';
-import { GameTable } from './components/GameTable';
 import { Dashboard } from './components/Dashboard';
 import { Sidebar } from './components/Sidebar';
 import { KanbanBoard } from './components/KanbanBoard';
@@ -10,11 +9,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GamesProvider, useGames } from './contexts/GamesContext';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
+import Achievements from './pages/Achievements';
 
-const AppContent: React.FC = () => {
+const MainLayout: React.FC = () => {
   const { user } = useAuth();
-  const { games, saveGame, deleteGame, stats } = useGames();
-  const [view, setView] = useState<'dashboard' | 'kanban'>('kanban');
+  const { saveGame } = useGames();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | undefined>();
 
@@ -30,10 +29,7 @@ const AppContent: React.FC = () => {
   return (
     <>
       <div className="flex h-screen bg-gray-900 text-gray-300">
-        <Sidebar
-          setView={(view: 'dashboard' | 'kanban') => setView(view)}
-          onAddGame={() => handleOpenModal()}
-        />
+        <Sidebar onAddGame={() => handleOpenModal()} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="bg-gray-800/50 backdrop-blur-sm p-4 border-b border-gray-700 flex justify-between items-center">
             <input type="text" placeholder="Search..." className="bg-gray-700 text-sm rounded-lg px-4 py-2 w-1/3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -48,23 +44,11 @@ const AppContent: React.FC = () => {
             </div>
           </header>
           <main className="flex-1 p-8 overflow-y-auto">
-            {!user && (
+            {!user ? (
               <div className="text-center text-gray-400">
                 <p>Please log in to manage your game backlog.</p>
               </div>
-            )}
-            {user && (
-              <>
-                {view === 'dashboard' && (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div className="col-span-1">
-                      <Dashboard games={games} />
-                    </div>
-                  </div>
-                )}
-                {view === 'kanban' && <KanbanBoard />}
-              </>
-            )}
+            ) : <Outlet />}
           </main>
         </div>
       </div>
@@ -84,6 +68,11 @@ const AppContent: React.FC = () => {
   );
 };
 
+const DashboardPage = () => {
+  const { games } = useGames();
+  return <Dashboard games={games} />;
+};
+
 const App: React.FC = () => {
   return (
     <Router>
@@ -92,7 +81,12 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/" element={<AppContent />} />
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/kanban" element={<KanbanBoard />} />
+              <Route path="/achievements" element={<Achievements />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </GamesProvider>
       </AuthProvider>

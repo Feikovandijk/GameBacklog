@@ -7,15 +7,17 @@ import {
   LogOut,
   Trash2,
   List,
-  PlusCircle
+  PlusCircle,
+  Trophy
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useGames } from '../contexts/GamesContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-const NavItem = ({ icon, children, onClick, disabled }: { icon: React.ReactNode, children: React.ReactNode, onClick?: () => void, disabled?: boolean }) => (
+const NavItem = ({ icon, children, onClick, disabled, isActive }: { icon: React.ReactNode, children: React.ReactNode, onClick?: () => void, disabled?: boolean, isActive?: boolean }) => (
   <button 
     onClick={onClick} 
-    className="w-full flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-md transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+    className={`w-full flex items-center px-4 py-2 text-gray-300 rounded-md transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? 'bg-gray-700' : 'hover:bg-gray-700'}`}
     disabled={disabled}
   >
     {icon}
@@ -24,13 +26,14 @@ const NavItem = ({ icon, children, onClick, disabled }: { icon: React.ReactNode,
 );
 
 interface SidebarProps {
-  setView: (view: 'dashboard' | 'kanban') => void;
   onAddGame: () => void;
 }
 
-export const Sidebar = ({ setView, onAddGame }: SidebarProps) => {
+export const Sidebar = ({ onAddGame }: SidebarProps) => {
   const { user, loginWithSteam, logout, loading: authLoading } = useAuth();
   const { clearGames } = useGames();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <aside className="w-64 bg-gray-800 p-6 flex flex-col justify-between">
@@ -59,8 +62,9 @@ export const Sidebar = ({ setView, onAddGame }: SidebarProps) => {
         </div>
 
         <nav className="space-y-2">
-          <NavItem icon={<LayoutDashboard size={20} />} onClick={() => setView('dashboard')}>Dashboard</NavItem>
-          <NavItem icon={<List size={20} />} onClick={() => setView('kanban')}>Kanban Board</NavItem>
+          <NavItem icon={<LayoutDashboard size={20} />} onClick={() => navigate('/')} isActive={location.pathname === '/'}>Dashboard</NavItem>
+          <NavItem icon={<List size={20} />} onClick={() => navigate('/kanban')} isActive={location.pathname === '/kanban'}>Kanban Board</NavItem>
+          <NavItem icon={<Trophy size={20} />} onClick={() => navigate('/achievements')} isActive={location.pathname === '/achievements'}>Achievements</NavItem>
           <NavItem icon={<PlusCircle size={20} />} onClick={onAddGame} disabled={!user}>Add Game</NavItem>
         </nav>
       </div>
