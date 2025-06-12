@@ -1,4 +1,4 @@
-export type GameStatus = 'backlog' | 'playing' | 'completed' | 'dropped' | 'wishlist';
+export type GameStatus = 'backlog' | 'playing' | 'beaten' | 'completed' | 'endless' | 'dropped';
 
 export type OwnershipStatus = 'owned' | 'wishlist' | 'borrowed';
 
@@ -16,6 +16,7 @@ export interface Game {
   genre: string;
   priority: boolean;
   notes: string;
+  imageUrl?: string;
   achievements?: {
     unlocked: number;
     total: number;
@@ -27,9 +28,10 @@ export interface Game {
 export const GAME_STATUSES: GameStatus[] = [
   'backlog',
   'playing',
+  'beaten',
   'completed',
+  'endless',
   'dropped',
-  'wishlist'
 ];
 
 export const OWNERSHIP_STATUSES: OwnershipStatus[] = [

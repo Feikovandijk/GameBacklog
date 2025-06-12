@@ -11,7 +11,7 @@ interface SteamApp {
 interface GameModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (game: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>) => void;
+  onSave: (game: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, steamAppId?: string) => void;
   game?: Game;
   title: string;
 }
@@ -22,15 +22,17 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
   const [steamAppList, setSteamAppList] = useLocalStorage<SteamApp[]>('steamAppList', []);
   const [isFetchingAppList, setIsFetchingAppList] = useState(false);
   const [selectedGameHeader, setSelectedGameHeader] = useState<string | null>(null);
+  const [selectedSteamAppId, setSelectedSteamAppId] = useState<string | null>(null);
 
   const initialFormData = {
     title: '',
     platform: '',
     genre: '',
-    status: 'Inbox' as GameStatus,
-    ownership: 'Digital' as OwnershipStatus,
+    status: 'backlog' as GameStatus,
+    ownership: 'owned' as OwnershipStatus,
     priority: false,
     notes: '',
+    imageUrl: '',
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -47,14 +49,27 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
           ownership: game.ownership,
           priority: game.priority,
           notes: game.notes,
+          imageUrl: game.imageUrl || '',
         });
+        
+        if (game.imageUrl) {
+          setSelectedGameHeader(game.imageUrl);
+        } else if (game.id && !isNaN(parseInt(game.id))) {
+          // If it's a steam game (numeric ID) and has no image, fetch it.
+          handleFetchSteamInfo(game.id, true);
+        }
+
       } else {
         setFormData(initialFormData);
       }
       setErrors({});
       setSteamSearchTerm('');
       setSteamSearchResults([]);
-      setSelectedGameHeader(null);
+      // Only clear header image if we are not editing a game
+      if (!game) {
+        setSelectedGameHeader(null);
+        setSelectedSteamAppId(null);
+      }
     }
   }, [game, isOpen]);
 
@@ -86,9 +101,10 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
     }
   }, [steamSearchTerm, steamAppList]);
 
-  const handleFetchSteamInfo = async (appId: string) => {
+  const handleFetchSteamInfo = async (appId: string, onlyFetchHeader = false) => {
     if (!appId) return;
     setErrors({});
+    setSelectedSteamAppId(appId);
     try {
       const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(`https://store.steampowered.com/api/appdetails?appids=${appId}`)}`);
       if (!response.ok) throw new Error('Failed to fetch data from Steam.');
@@ -97,6 +113,10 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
 
       if (gameData) {
         setSelectedGameHeader(gameData.header_image);
+        setFormData(prev => ({ ...prev, imageUrl: gameData.header_image || '' }));
+        
+        if (onlyFetchHeader) return;
+
         const platforms: string[] = [];
         if (gameData.platforms?.windows) platforms.push('PC');
         if (gameData.platforms?.mac) platforms.push('Mac');
@@ -109,7 +129,8 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
           title: gameData.name || prev.title,
           platform: platforms.join(', ') || prev.platform,
           genre: genres,
-          notes: `${gameData.short_description || ''}`
+          notes: `${gameData.short_description || ''}`,
+          imageUrl: gameData.header_image || ''
         }));
       } else {
         throw new Error('Invalid Steam App ID or no data found.');
@@ -135,7 +156,12 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(formData);
+      onSave({
+        ...formData,
+        description: '',
+        rating: 0,
+        playtime: 0
+      }, selectedSteamAppId || undefined);
       onClose();
     }
   };
@@ -201,35 +227,37 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
         <div className="flex-grow overflow-y-auto">
           {selectedGameHeader && <img src={selectedGameHeader} alt="Game Header" className="w-full h-48 object-cover" />}
           
-          <div className="p-6 space-y-4 border-b border-gray-700">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-400">Import from Steam</label>
-              <button onClick={handleFetchSteamAppList} disabled={isFetchingAppList} className="text-gray-400 hover:text-white disabled:opacity-50" title="Update Steam games list">
-                <RefreshCw className={`w-4 h-4 ${isFetchingAppList ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-            <div>
-              <input
-                type="text"
-                value={steamSearchTerm}
-                onChange={(e) => setSteamSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-gray-700 border border-gray-600 text-white rounded-md"
-                placeholder="Search Steam..."
-                onFocus={() => steamAppList.length === 0 && handleFetchSteamAppList()}
-              />
-              {steamAppList.length > 0 && <span className="text-xs text-gray-500 mt-1">{steamAppList.length} games cached</span>}
-            </div>
-            {steamSearchResults.length > 0 && (
-              <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-md bg-gray-800">
-                {steamSearchResults.map(app => (
-                  <div key={app.appid} onClick={() => handleFetchSteamInfo(String(app.appid))} className="px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm">
-                    {app.name}
-                  </div>
-                ))}
+          {!game && (
+            <div className="p-6 space-y-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-400">Import from Steam</label>
+                <button onClick={handleFetchSteamAppList} disabled={isFetchingAppList} className="text-gray-400 hover:text-white disabled:opacity-50" title="Update Steam games list">
+                  <RefreshCw className={`w-4 h-4 ${isFetchingAppList ? 'animate-spin' : ''}`} />
+                </button>
               </div>
-            )}
-            {errors.steam && <p className="text-xs text-red-400 mt-1">{errors.steam}</p>}
-          </div>
+              <div>
+                <input
+                  type="text"
+                  value={steamSearchTerm}
+                  onChange={(e) => setSteamSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-gray-700 border border-gray-600 text-white rounded-md"
+                  placeholder="Search Steam..."
+                  onFocus={() => steamAppList.length === 0 && handleFetchSteamAppList()}
+                />
+                {steamAppList.length > 0 && <span className="text-xs text-gray-500 mt-1">{steamAppList.length} games cached</span>}
+              </div>
+              {steamSearchResults.length > 0 && (
+                <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-md bg-gray-800">
+                  {steamSearchResults.map(app => (
+                    <div key={app.appid} onClick={() => handleFetchSteamInfo(String(app.appid))} className="px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm">
+                      {app.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {errors.steam && <p className="text-xs text-red-400 mt-1">{errors.steam}</p>}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -245,15 +273,23 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
               <label htmlFor="notes" className="block text-sm font-medium text-gray-400 mb-1">Notes</label>
               <textarea
                 id="notes"
+                name="notes"
+                rows={4}
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 text-sm bg-gray-700 border border-gray-600 rounded-md text-white"
-              ></textarea>
+                className="w-full px-3 py-2 text-sm bg-gray-700 border border-gray-600 text-white rounded-md focus:border-indigo-500"
+              />
             </div>
             <div className="flex items-center">
-              <input id="priority" type="checkbox" checked={formData.priority} onChange={(e) => handleInputChange('priority', e.target.checked)} className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded" />
-              <label htmlFor="priority" className="ml-2 block text-sm text-gray-300">Mark as Priority</label>
+              <input
+                id="priority"
+                name="priority"
+                type="checkbox"
+                checked={formData.priority}
+                onChange={(e) => handleInputChange('priority', e.target.checked)}
+                className="h-4 w-4 text-indigo-600 border-gray-600 rounded bg-gray-700 focus:ring-indigo-500"
+              />
+              <label htmlFor="priority" className="ml-2 block text-sm text-gray-300">High Priority</label>
             </div>
           </form>
         </div>

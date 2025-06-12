@@ -5,7 +5,7 @@ import { V1_STATUS_MAP } from '../utils/status-map';
 
 interface GamesContextType {
   games: Game[];
-  saveGame: (gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, editingGame: Game | null) => void;
+  saveGame: (gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, editingGame: Game | null, steamAppId?: string) => void;
   deleteGame: (id: string) => void;
   clearGames: () => void;
   importWishlist: () => Promise<void>;
@@ -57,14 +57,14 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [games, user]);
 
-  const saveGame = useCallback((gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, editingGame: Game | null) => {
+  const saveGame = useCallback((gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, editingGame: Game | null, steamAppId?: string) => {
     const now = new Date().toISOString();
     if (editingGame) {
       setGames(prev => prev.map(g => g.id === editingGame.id ? { ...editingGame, ...gameData, dateModified: now } : g));
     } else {
       const newGame: Game = {
         ...gameData,
-        id: generateId(),
+        id: steamAppId || generateId(),
         dateAdded: now,
         dateModified: now,
       };
