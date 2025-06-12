@@ -10,6 +10,7 @@ import { GamesProvider, useGames } from './contexts/GamesContext';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import Achievements from './pages/Achievements';
+import Wishlist from './pages/Wishlist';
 
 const MainLayout: React.FC = () => {
   const { user } = useAuth();
@@ -85,6 +86,7 @@ const App: React.FC = () => {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/kanban" element={<KanbanBoard />} />
               <Route path="/achievements" element={<Achievements />} />
+              <Route path="/wishlist" element={<Wishlist />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

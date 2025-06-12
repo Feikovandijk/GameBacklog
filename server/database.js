@@ -24,6 +24,23 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
       PRIMARY KEY (user_steam_id, appid),
       FOREIGN KEY (user_steam_id) REFERENCES users(steam_id)
     )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS wishlist_items (
+      id TEXT PRIMARY KEY,
+      user_steam_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      platform TEXT,
+      status TEXT,
+      ownership TEXT,
+      dateAdded TEXT,
+      dateModified TEXT,
+      rating INTEGER,
+      playtime INTEGER,
+      genre TEXT,
+      priority BOOLEAN,
+      notes TEXT,
+      FOREIGN KEY (user_steam_id) REFERENCES users(steam_id)
+    )`);
   });
 });
 
@@ -36,7 +53,7 @@ const getCacheStatus = (steamId) => {
       if (err) return reject(err);
       resolve({
         lastUpdated: row ? row.last_updated : null,
-        isRefreshAllowed: !row || (Date.now() - row.last_updated > CACHE_DURATION_MS),
+        isRefreshAllowed: !row || row.sync_status !== 'success' || (Date.now() - row.last_updated > CACHE_DURATION_MS),
         syncStatus: row ? row.sync_status : null,
         syncErrorMessage: row ? row.sync_error_message : null,
       });
@@ -101,28 +118,90 @@ const setCachedAchievements = (steamId, gamesWithAchievements) => {
 
 const setSyncStatus = (steamId, status, message = null) => {
   return new Promise((resolve, reject) => {
-    db.run(
-      'UPDATE users SET sync_status = ?, sync_error_message = ? WHERE steam_id = ?',
-      [status, message, steamId],
-      function (err) {
-        if (err) return reject(err);
-        // If no rows were updated, it means the user doesn't exist yet.
-        // This can happen if the sync fails before the user row is created.
-        if (this.changes === 0) {
-          const now = Date.now();
-          db.run(
-            'INSERT INTO users (steam_id, last_updated, sync_status, sync_error_message) VALUES (?, ?, ?, ?)',
-            [steamId, now, status, message],
-            (err) => {
-              if (err) return reject(err);
-              resolve();
-            }
-          );
-        } else {
+    const now = Date.now();
+    db.serialize(() => {
+      // Use INSERT OR IGNORE to create a user if they don't exist, without erroring if they do.
+      // We set a placeholder `last_updated` which will be overwritten by the UPDATE.
+      db.run('INSERT OR IGNORE INTO users (steam_id, last_updated) VALUES (?, ?)',
+        [steamId, now],
+        (err) => {
+          if (err) return reject(err);
+        }
+      );
+
+      // Now, update the user with the correct status and a fresh timestamp.
+      // This works for both existing users and the one we may have just created.
+      db.run(
+        'UPDATE users SET sync_status = ?, sync_error_message = ?, last_updated = ? WHERE steam_id = ?',
+        [status, message, now, steamId],
+        (err) => {
+          if (err) return reject(err);
           resolve();
         }
+      );
+    });
+  });
+};
+
+const getWishlist = (steamId) => {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM wishlist_items WHERE user_steam_id = ?', [steamId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+};
+
+const setWishlist = (steamId, games) => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      // Start a transaction
+      db.run('BEGIN TRANSACTION');
+
+      // Delete old wishlist for this user
+      db.run('DELETE FROM wishlist_items WHERE user_steam_id = ?', [steamId], (err) => {
+        if (err) {
+          db.run('ROLLBACK');
+          return reject(err);
+        }
+      });
+
+      // Insert new wishlist items
+      const stmt = db.prepare(`
+        INSERT INTO wishlist_items 
+        (id, user_steam_id, title, platform, status, ownership, dateAdded, dateModified, rating, playtime, genre, priority, notes) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      let errorOccurred = false;
+      for (const game of games) {
+        stmt.run(
+          game.id, steamId, game.title, game.platform, game.status, game.ownership,
+          game.dateAdded, game.dateModified, game.rating, game.playtime, game.genre,
+          game.priority, game.notes,
+          (err) => {
+            if (err) {
+              console.error('Failed to insert wishlist item:', err);
+              errorOccurred = true;
+            }
+          }
+        );
       }
-    );
+      stmt.finalize((err) => {
+        if (err || errorOccurred) {
+           db.run('ROLLBACK');
+           return reject(err || new Error('Error during wishlist insertion.'));
+        }
+        // Commit transaction
+        db.run('COMMIT', (err) => {
+          if (err) {
+            db.run('ROLLBACK');
+            return reject(err);
+          }
+          resolve();
+        });
+      });
+    });
   });
 };
 
@@ -131,4 +210,6 @@ module.exports = {
   setCachedAchievements,
   getCacheStatus,
   setSyncStatus,
+  getWishlist,
+  setWishlist,
 }; 

@@ -8,7 +8,8 @@ import {
   Trash2,
   List,
   PlusCircle,
-  Trophy
+  Trophy,
+  Heart
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useGames } from '../contexts/GamesContext';
@@ -65,6 +66,7 @@ export const Sidebar = ({ onAddGame }: SidebarProps) => {
           <NavItem icon={<LayoutDashboard size={20} />} onClick={() => navigate('/')} isActive={location.pathname === '/'}>Dashboard</NavItem>
           <NavItem icon={<List size={20} />} onClick={() => navigate('/kanban')} isActive={location.pathname === '/kanban'}>Kanban Board</NavItem>
           <NavItem icon={<Trophy size={20} />} onClick={() => navigate('/achievements')} isActive={location.pathname === '/achievements'}>Achievements</NavItem>
+          <NavItem icon={<Heart size={20} />} onClick={() => navigate('/wishlist')} isActive={location.pathname === '/wishlist'}>Wishlist</NavItem>
           <NavItem icon={<PlusCircle size={20} />} onClick={onAddGame} disabled={!user}>Add Game</NavItem>
         </nav>
       </div>

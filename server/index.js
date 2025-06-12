@@ -1,13 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
-const { getCachedAchievements, setCachedAchievements, getCacheStatus, setSyncStatus } = require('./database');
+const { getCachedAchievements, setCachedAchievements, getCacheStatus, setSyncStatus, getWishlist, setWishlist } = require('./database');
 
 const app = express();
 const port = 3001;
 const WORKER_URL = 'https://game-backlog-player-stats-worker.feikovandijk.workers.dev';
 
 app.use(cors());
+app.use(express.json());
 
 // Helper function to add a delay
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -80,6 +81,29 @@ const fetchAndCacheAchievements = async (steamId) => {
     throw error;
   }
 }
+
+app.get('/api/wishlist/:steamId', async (req, res) => {
+  try {
+    const { steamId } = req.params;
+    const wishlist = await getWishlist(steamId);
+    res.json(wishlist);
+  } catch (error) {
+    console.error('Failed to get wishlist:', error);
+    res.status(500).json({ error: 'Failed to get wishlist.' });
+  }
+});
+
+app.post('/api/wishlist/:steamId', async (req, res) => {
+  try {
+    const { steamId } = req.params;
+    const games = req.body;
+    await setWishlist(steamId, games);
+    res.status(200).json({ message: 'Wishlist saved successfully.' });
+  } catch (error) {
+    console.error('Failed to save wishlist:', error);
+    res.status(500).json({ error: 'Failed to save wishlist.' });
+  }
+});
 
 app.get('/api/achievements/:steamId/status', async (req, res) => {
   try {
