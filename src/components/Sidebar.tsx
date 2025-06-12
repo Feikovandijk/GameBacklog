@@ -3,10 +3,8 @@ import {
   LayoutDashboard, 
   Settings, 
   UserCircle, 
-  Heart,
   LogIn,
   LogOut,
-  FileUp,
   Trash2,
   List,
   PlusCircle
@@ -26,13 +24,13 @@ const NavItem = ({ icon, children, onClick, disabled }: { icon: React.ReactNode,
 );
 
 interface SidebarProps {
-  setView: (view: 'dashboard' | 'kanban' | 'wishlist') => void;
+  setView: (view: 'dashboard' | 'kanban') => void;
   onAddGame: () => void;
 }
 
 export const Sidebar = ({ setView, onAddGame }: SidebarProps) => {
   const { user, loginWithSteam, logout, loading: authLoading } = useAuth();
-  const { clearGames, importWishlist } = useGames();
+  const { clearGames } = useGames();
 
   return (
     <aside className="w-64 bg-gray-800 p-6 flex flex-col justify-between">
@@ -63,7 +61,6 @@ export const Sidebar = ({ setView, onAddGame }: SidebarProps) => {
         <nav className="space-y-2">
           <NavItem icon={<LayoutDashboard size={20} />} onClick={() => setView('dashboard')}>Dashboard</NavItem>
           <NavItem icon={<List size={20} />} onClick={() => setView('kanban')}>Kanban Board</NavItem>
-          <NavItem icon={<Heart size={20} />} onClick={() => setView('wishlist')}>Wishlist</NavItem>
           <NavItem icon={<PlusCircle size={20} />} onClick={onAddGame} disabled={!user}>Add Game</NavItem>
         </nav>
       </div>
@@ -73,9 +70,6 @@ export const Sidebar = ({ setView, onAddGame }: SidebarProps) => {
           <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</h3>
           {user ? (
             <>
-              <NavItem icon={<FileUp size={20} />} onClick={importWishlist} disabled={authLoading}>
-                Import Wishlist
-              </NavItem>
               <NavItem icon={<LogOut size={20} />} onClick={logout} disabled={authLoading}>
                 Logout
               </NavItem>

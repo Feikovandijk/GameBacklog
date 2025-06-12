@@ -14,7 +14,7 @@ import AuthCallback from './pages/AuthCallback';
 const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { games, saveGame, deleteGame, stats } = useGames();
-  const [view, setView] = useState<'dashboard' | 'kanban' | 'wishlist'>('kanban');
+  const [view, setView] = useState<'dashboard' | 'kanban'>('kanban');
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | undefined>();
 
@@ -27,20 +27,11 @@ const AppContent: React.FC = () => {
     saveGame(gameData, editingGame || null);
   };
 
-  const filteredGames = React.useMemo(() => {
-    if (view === 'wishlist') {
-      return games.filter(game => game.ownership === 'wishlist');
-    }
-    // For kanban, we want all non-wishlist items. For dashboard, all items.
-    // The components will handle their specific filtering.
-    return games;
-  }, [games, view]);
-
   return (
     <>
       <div className="flex h-screen bg-gray-900 text-gray-300">
         <Sidebar
-          setView={setView}
+          setView={(view: 'dashboard' | 'kanban') => setView(view)}
           onAddGame={() => handleOpenModal()}
         />
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -64,17 +55,10 @@ const AppContent: React.FC = () => {
             )}
             {user && (
               <>
-                {(view === 'dashboard' || view === 'wishlist') && (
+                {view === 'dashboard' && (
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                     <div className="col-span-1">
-                      <Dashboard games={filteredGames} />
-                    </div>
-                    <div className="col-span-1">
-                      <GameTable
-                        games={filteredGames}
-                        onEdit={handleOpenModal}
-                        onDelete={deleteGame}
-                      />
+                      <Dashboard games={games} />
                     </div>
                   </div>
                 )}
@@ -84,16 +68,21 @@ const AppContent: React.FC = () => {
           </main>
         </div>
       </div>
-      <GameModal
-        isOpen={isModalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={handleSaveGame}
-        game={editingGame}
-        title={editingGame ? 'Edit Game' : 'Add Game'}
-      />
+      {isModalOpen && (
+        <GameModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingGame(undefined);
+          }}
+          onSave={handleSaveGame}
+          game={editingGame}
+          title={editingGame ? 'Edit Game' : 'Add Game'}
+        />
+      )}
     </>
   );
-}
+};
 
 const App: React.FC = () => {
   return (
