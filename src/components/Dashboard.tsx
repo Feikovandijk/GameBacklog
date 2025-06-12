@@ -51,16 +51,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ games }) => {
     return acc;
   }, {} as Record<GameStatus, number>);
 
-  const activeBacklogCount = totalGames - (statusCounts['Beaten'] || 0) - (statusCounts['Completed'] || 0);
+  const activeBacklogCount = totalGames - (statusCounts['completed'] || 0);
   const activeBacklogPercentage = totalGames > 0 ? (activeBacklogCount / totalGames) * 100 : 0;
   
   const statusColors: Record<GameStatus, string> = {
-    'Unplayed': '#4ade80', // green-400
-    'Unfinished': '#f87171', // red-400
-    'Beaten': '#fbbf24', // amber-400
-    'Completed': '#facc15', // yellow-400
-    'Endless': '#c084fc', // purple-400
-    'None': '#9ca3af', // gray-400
+    'backlog': '#4ade80', // green-400
+    'playing': '#f87171', // red-400
+    'completed': '#fbbf24', // amber-400
+    'dropped': '#facc15', // yellow-400
+    'wishlist': '#c084fc', // purple-400
   };
 
   const platformCounts = games.reduce((acc, game) => {
