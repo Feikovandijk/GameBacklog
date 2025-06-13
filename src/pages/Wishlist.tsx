@@ -88,10 +88,6 @@ const Wishlist: React.FC = () => {
     fetchWishlist();
   }, [user]);
 
-  // Log env for debugging
-  console.log('import.meta.env:', import.meta.env);
-  console.log('WORKER_URL:', WORKER_URL);
-
   // Import from Steam (requires user to be logged in)
   const handleImport = async () => {
     if (!user?.steamId) return;
@@ -102,11 +98,8 @@ const Wishlist: React.FC = () => {
     setImportLoading(true);
     setImportError(null);
     try {
-      console.log('WORKER_URL:', WORKER_URL);
-      console.log('user.steamId:', user.steamId);
       const res = await fetch(`${WORKER_URL}?steamId=${encodeURIComponent(user.steamId)}`);
       const text = await res.text();
-      console.log('Raw response:', text);
       const imported = JSON.parse(text);
       // Map to Game type and merge, avoiding duplicates
       const importedGames: Game[] = imported.map((g: any) => ({
@@ -114,7 +107,7 @@ const Wishlist: React.FC = () => {
         title: g.title,
         description: '',
         platform: 'PC',
-        status: 'wishlist',
+        status: 'backlog',
         ownership: 'wishlist',
         dateAdded: new Date().toISOString(),
         dateModified: new Date().toISOString(),
@@ -202,7 +195,7 @@ const Wishlist: React.FC = () => {
                   <td className="px-2 py-2 text-center">{game.platform}</td>
                   <td className="px-2 py-2 text-center">{game.genre}</td>
                   <td className="px-2 py-2 text-center">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${game.status === 'wishlist' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'}`}>{game.status}</span>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${game.ownership === 'wishlist' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'}`}>{game.status}</span>
                   </td>
                   <td className="px-2 py-2 text-center">{game.ownership}</td>
                   <td className="px-2 py-2 text-center flex gap-2 justify-center">
