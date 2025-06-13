@@ -57,21 +57,48 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [games, user]);
 
-  const saveGame = useCallback((gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, editingGame: Game | null, steamAppId?: string) => {
+  const saveGame = useCallback(async (gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, editingGame: Game | null, steamAppId?: string) => {
     const now = new Date().toISOString();
+    let finalGameData: Game;
+
     if (editingGame) {
-      setGames(prev => prev.map(g => g.id === editingGame.id ? { ...editingGame, ...gameData, dateModified: now } : g));
+      finalGameData = { ...editingGame, ...gameData, dateModified: now };
+      setGames(prev => prev.map(g => g.id === editingGame.id ? finalGameData : g));
     } else {
-      const newGame: Game = {
+      finalGameData = {
         ...gameData,
         id: steamAppId || generateId(),
         dateAdded: now,
         dateModified: now,
         playtimeGoal: 2,
       };
-      setGames(prev => [...prev, newGame]);
+      setGames(prev => [...prev, finalGameData]);
     }
-  }, []);
+
+    if (steamAppId && user?.steamId) {
+        try {
+            const serverUrl = `http://localhost:3001/api/game-details/${steamAppId}?steamId=${user.steamId}`;
+            const response = await fetch(serverUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch game details from server. Status: ${response.status}`);
+            }
+            const steamData = await response.json();
+
+            setGames(prev => prev.map(g =>
+                g.id === (steamAppId || editingGame?.id)
+                    ? {
+                        ...g,
+                        ...steamData,
+                        dateModified: new Date().toISOString(),
+                      }
+                    : g
+            ));
+        } catch (error) {
+            console.error('Error fetching game details from server:', error);
+            // Optionally, inform the user that fetching details failed
+        }
+    }
+  }, [user]);
 
   const deleteGame = useCallback((id: string) => {
     if (window.confirm('Are you sure you want to delete this game?')) {

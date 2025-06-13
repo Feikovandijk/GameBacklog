@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
-const { getCachedAchievements, setCachedAchievements, getCacheStatus, setSyncStatus, getWishlist, setWishlist } = require('./database');
+const { getCachedAchievements, setCachedAchievements, getCacheStatus, setSyncStatus, getWishlist, setWishlist, getGameDetails, setGameDetails } = require('./database');
 
 const app = express();
 const port = 3001;
@@ -102,6 +102,75 @@ app.post('/api/wishlist/:steamId', async (req, res) => {
   } catch (error) {
     console.error('Failed to save wishlist:', error);
     res.status(500).json({ error: 'Failed to save wishlist.' });
+  }
+});
+
+app.get('/api/game-details/:appId', async (req, res) => {
+  const { appId } = req.params;
+  const { steamId } = req.query; // steamId is needed to get user-specific playtime
+
+  try {
+    const cachedDetails = await getGameDetails(appId);
+    if (cachedDetails) {
+      console.log(`[Cache HIT] Serving game details for ${appId} from cache.`);
+      // We still need to fetch user-specific playtime as it's not in the generic 'games' table
+      const playerStats = await fetch(`${WORKER_URL}?steamId=${steamId}&type=games`).then(res => res.ok ? res.json() : null);
+      const gameInfo = playerStats?.response?.games?.find(g => g.appid.toString() === appId);
+      
+      return res.json({
+        ...cachedDetails,
+        playtime: gameInfo?.playtime_forever || 0,
+        playtime2Weeks: gameInfo?.playtime_2weeks || 0,
+      });
+    }
+
+    console.log(`[Cache MISS] Fetching fresh game details for ${appId}...`);
+    const steamDetailsRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}`);
+    if (!steamDetailsRes.ok) throw new Error('Failed to fetch from Steam API');
+
+    const steamDetailsData = await steamDetailsRes.json();
+    const details = steamDetailsData[appId]?.data;
+
+    if (!steamDetailsData[appId]?.success || !details) {
+      return res.status(404).json({ error: 'Game not found on Steam store.' });
+    }
+    
+    // Also fetch the user's playtime for this game
+    const playerStats = await fetch(`${WORKER_URL}?steamId=${steamId}&type=games`).then(res => res.ok ? res.json() : null);
+    const gameInfo = playerStats?.response?.games?.find(g => g.appid.toString() === appId);
+
+    const gameData = {
+      id: appId,
+      title: details.name,
+      description: details.short_description,
+      imageUrl: details.header_image,
+      releaseDate: details.release_date?.date || null,
+      developer: details.developers?.[0] || null,
+      publisher: details.publishers?.[0] || null,
+      genre: details.genres?.map((g) => g.description).join(', ') || null,
+      // User-specific data that is not cached in the 'games' table
+      playtime: gameInfo?.playtime_forever || 0,
+      playtime2Weeks: gameInfo?.playtime_2weeks || 0,
+    };
+    
+    // Cache the non-user-specific details
+    await setGameDetails({
+      id: gameData.id,
+      title: gameData.title,
+      description: gameData.description,
+      imageUrl: gameData.imageUrl,
+      releaseDate: gameData.releaseDate,
+      developer: gameData.developer,
+      publisher: gameData.publisher,
+      genre: gameData.genre,
+    });
+    console.log(`[Cache SAVE] Saved fresh game details for ${appId}.`);
+    
+    res.json(gameData);
+
+  } catch (error) {
+    console.error(`Error fetching game details for ${appId}:`, error.message);
+    res.status(500).json({ error: 'Failed to fetch game details.' });
   }
 });
 

@@ -41,6 +41,17 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
       notes TEXT,
       FOREIGN KEY (user_steam_id) REFERENCES users(steam_id)
     )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS games (
+      id TEXT PRIMARY KEY,
+      title TEXT,
+      description TEXT,
+      imageUrl TEXT,
+      releaseDate TEXT,
+      developer TEXT,
+      publisher TEXT,
+      genre TEXT
+    )`);
   });
 });
 
@@ -205,6 +216,48 @@ const setWishlist = (steamId, games) => {
   });
 };
 
+const getGameDetails = (appId) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM games WHERE id = ?', [appId], (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+};
+
+const setGameDetails = (gameData) => {
+  return new Promise((resolve, reject) => {
+    const stmt = db.prepare(`
+      INSERT INTO games (id, title, description, imageUrl, releaseDate, developer, publisher, genre)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        title=excluded.title,
+        description=excluded.description,
+        imageUrl=excluded.imageUrl,
+        releaseDate=excluded.releaseDate,
+        developer=excluded.developer,
+        publisher=excluded.publisher,
+        genre=excluded.genre;
+    `);
+
+    stmt.run(
+      gameData.id,
+      gameData.title,
+      gameData.description,
+      gameData.imageUrl,
+      gameData.releaseDate,
+      gameData.developer,
+      gameData.publisher,
+      gameData.genre,
+      (err) => {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
+    stmt.finalize();
+  });
+};
+
 module.exports = {
   getCachedAchievements,
   setCachedAchievements,
@@ -212,4 +265,6 @@ module.exports = {
   setSyncStatus,
   getWishlist,
   setWishlist,
+  getGameDetails,
+  setGameDetails,
 }; 

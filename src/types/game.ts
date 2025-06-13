@@ -11,6 +11,9 @@ export interface Game {
   ownership: OwnershipStatus;
   dateAdded: string;
   dateModified: string;
+  releaseDate?: string;
+  developer?: string;
+  publisher?: string;
   rating: number;
   playtime: number;
   playtimeGoal?: number;
