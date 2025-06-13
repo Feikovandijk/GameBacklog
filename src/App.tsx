@@ -23,8 +23,8 @@ const MainLayout: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleSaveGame = (gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>) => {
-    saveGame(gameData, editingGame || null);
+  const handleSaveGame = (gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, steamAppId?: string) => {
+    saveGame(gameData, editingGame || null, steamAppId);
   };
 
   return (
@@ -69,11 +69,6 @@ const MainLayout: React.FC = () => {
   );
 };
 
-const DashboardPage = () => {
-  const { games } = useGames();
-  return <Dashboard games={games} />;
-};
-
 const App: React.FC = () => {
   return (
     <Router>
@@ -83,7 +78,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route element={<MainLayout />}>
-              <Route path="/" element={<DashboardPage />} />
+              <Route path="/" element={<Dashboard />} />
               <Route path="/kanban" element={<KanbanBoard />} />
               <Route path="/achievements" element={<Achievements />} />
               <Route path="/wishlist" element={<Wishlist />} />

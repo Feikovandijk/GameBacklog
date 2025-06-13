@@ -21,6 +21,10 @@ export const KanbanBoard: React.FC = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | undefined>(undefined);
 
+  const handleTogglePriority = (game: Game) => {
+    saveGame({ ...game, priority: !game.priority }, game);
+  };
+
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
@@ -88,21 +92,32 @@ export const KanbanBoard: React.FC = () => {
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             onClick={() => handleCardClick(game)}
-                            className={`relative group p-3 rounded-md bg-[#232b32] border border-gray-700 hover:border-indigo-500 transition-all cursor-pointer ${snapshot.isDragging ? 'shadow-2xl scale-105' : 'shadow-md'}`}
+                            className={`group p-3 rounded-md bg-[#232b32] border border-gray-700 hover:border-indigo-500 transition-all cursor-pointer ${snapshot.isDragging ? 'shadow-2xl scale-105' : 'shadow-md'}`}
                           >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteGame(game.id);
-                              }}
-                              className="absolute top-1 right-1 z-10 p-1 text-gray-500 hover:text-red-500 rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                              title="Delete Game"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                            <div className="flex justify-between items-start">
-                              <span className="font-semibold text-white">{game.title}</span>
-                              {game.priority && <Star className="w-4 h-4 text-yellow-400 fill-current" />}
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-semibold text-white pr-2 flex-grow">{game.title}</span>
+                              <div className="flex flex-col items-center shrink-0 -mt-1 -mr-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTogglePriority(game);
+                                  }}
+                                  className="p-1 text-gray-500 hover:text-yellow-400"
+                                  title="Toggle Priority"
+                                >
+                                  <Star className={`w-4 h-4 transition-all ${game.priority ? 'text-yellow-400 fill-current' : ''}`} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteGame(game.id);
+                                  }}
+                                  className="p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Delete Game"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                             <p className="text-sm text-gray-400 mt-1">{game.platform}</p>
                           </div>

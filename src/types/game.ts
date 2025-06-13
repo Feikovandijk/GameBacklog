@@ -13,6 +13,8 @@ export interface Game {
   dateModified: string;
   rating: number;
   playtime: number;
+  playtimeGoal?: number;
+  playtime2Weeks?: number;
   genre: string;
   priority: boolean;
   notes: string;
@@ -20,8 +22,6 @@ export interface Game {
   achievements?: {
     unlocked: number;
     total: number;
-    percent: number;
-    lastUnlocked?: string;
   };
 }
 

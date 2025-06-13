@@ -105,6 +105,55 @@ app.post('/api/wishlist/:steamId', async (req, res) => {
   }
 });
 
+app.get('/api/player-game-stats/:steamId/:appId', async (req, res) => {
+  const { steamId, appId } = req.params;
+  try {
+    let playtime_forever = 0;
+    let playtime_2weeks = 0;
+    // Try to get playtime, but don't fail the whole request if this part fails.
+    try {
+      const gamesResponse = await fetch(`${WORKER_URL}?steamId=${steamId}&type=games`);
+      if (gamesResponse.ok) {
+        const gamesData = await gamesResponse.json();
+        const ownedGames = gamesData.response?.games || [];
+        const gameInfo = ownedGames.find(g => g.appid === parseInt(appId, 10));
+        if (gameInfo) {
+          playtime_forever = gameInfo.playtime_forever;
+          playtime_2weeks = gameInfo.playtime_2weeks || 0;
+        }
+      }
+    } catch(e) {
+      console.error(`Could not fetch owned games for playtime stats: ${e.message}`);
+    }
+
+    // Second, get the achievements for that specific game.
+    const achievementsResponse = await fetch(`${WORKER_URL}?steamId=${steamId}&type=achievements&appid=${appId}`);
+    
+    let achievements = { unlocked: 0, total: 0 };
+    if (achievementsResponse.ok) {
+      const achievementsData = await achievementsResponse.json();
+      const achievementList = achievementsData.playerstats?.achievements || [];
+      if (achievementList.length > 0) {
+        achievements = {
+          unlocked: achievementList.filter(a => a.achieved).length,
+          total: achievementList.length,
+        };
+      }
+    }
+    // If fetching achievements fails, we still proceed but with 0 achievements, which is fine.
+
+    res.json({
+      appid: parseInt(appId, 10),
+      playtime_forever,
+      playtime_2weeks,
+      achievements,
+    });
+  } catch (error) {
+    console.error(`Error fetching single game stats for ${steamId}/${appId}:`, error.message);
+    res.status(500).json({ error: 'Failed to fetch game stats.' });
+  }
+});
+
 app.get('/api/achievements/:steamId/status', async (req, res) => {
   try {
     const { steamId } = req.params;

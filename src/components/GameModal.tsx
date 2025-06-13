@@ -2,6 +2,7 @@ import React, { useState, useEffect, InputHTMLAttributes, SelectHTMLAttributes }
 import { X, RefreshCw } from 'lucide-react';
 import { Game, GAME_STATUSES, OWNERSHIP_STATUSES, GameStatus, OwnershipStatus } from '../types/game';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SteamApp {
   appid: number;
@@ -23,6 +24,7 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
   const [isFetchingAppList, setIsFetchingAppList] = useState(false);
   const [selectedGameHeader, setSelectedGameHeader] = useState<string | null>(null);
   const [selectedSteamAppId, setSelectedSteamAppId] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const initialFormData = {
     title: '',
@@ -33,6 +35,9 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
     priority: false,
     notes: '',
     imageUrl: '',
+    playtime: 0,
+    playtime2Weeks: 0,
+    achievements: { unlocked: 0, total: 0 },
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -50,13 +55,17 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
           priority: game.priority,
           notes: game.notes,
           imageUrl: game.imageUrl || '',
+          playtime: game.playtime || 0,
+          playtime2Weeks: game.playtime2Weeks || 0,
+          achievements: game.achievements || { unlocked: 0, total: 0 },
         });
         
-        if (game.imageUrl) {
-          setSelectedGameHeader(game.imageUrl);
-        } else if (game.id && !isNaN(parseInt(game.id))) {
-          // If it's a steam game (numeric ID) and has no image, fetch it.
+        // If it's a Steam game (i.e., has a numeric ID), always refresh its stats and image
+        if (game.id && !isNaN(parseInt(game.id))) {
           handleFetchSteamInfo(game.id, true);
+        } else if (game.imageUrl) {
+          // For non-steam games with a manually added image
+          setSelectedGameHeader(game.imageUrl);
         }
 
       } else {
@@ -112,6 +121,20 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
       const gameData = data[appId].data;
 
       if (gameData) {
+        if (user?.steamId) {
+          try {
+            const statsResponse = await fetch(`http://localhost:3001/api/player-game-stats/${user.steamId}/${appId}`);
+            if (statsResponse.ok) {
+              const statsData = await statsResponse.json();
+              const playtimeHours = Math.round(statsData.playtime_forever / 60);
+              const playtime2WeeksMinutes = statsData.playtime_2weeks || 0;
+              setFormData(prev => ({ ...prev, playtime: playtimeHours, playtime2Weeks: playtime2WeeksMinutes, achievements: statsData.achievements }));
+            }
+          } catch (e) {
+            console.error("Could not pre-fill stats", e);
+          }
+        }
+        
         setSelectedGameHeader(gameData.header_image);
         setFormData(prev => ({ ...prev, imageUrl: gameData.header_image || '' }));
         
@@ -130,7 +153,10 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
           platform: platforms.join(', ') || prev.platform,
           genre: genres,
           notes: `${gameData.short_description || ''}`,
-          imageUrl: gameData.header_image || ''
+          imageUrl: gameData.header_image || '',
+          playtime: gameData.playtime || 0,
+          playtime2Weeks: gameData.playtime2Weeks || 0,
+          achievements: gameData.achievements || { unlocked: 0, total: 0 },
         }));
       } else {
         throw new Error('Invalid Steam App ID or no data found.');
@@ -160,7 +186,6 @@ export function GameModal({ isOpen, onClose, onSave, game, title }: GameModalPro
         ...formData,
         description: '',
         rating: 0,
-        playtime: 0
       }, selectedSteamAppId || undefined);
       onClose();
     }

@@ -67,6 +67,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         id: steamAppId || generateId(),
         dateAdded: now,
         dateModified: now,
+        playtimeGoal: 2,
       };
       setGames(prev => [...prev, newGame]);
     }
@@ -126,6 +127,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           genre: game.genre || '',
           priority: false,
           notes: game.notes || '',
+          playtimeGoal: 2,
         }));
 
         setGames(prevGames => {
