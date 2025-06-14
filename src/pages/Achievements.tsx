@@ -213,7 +213,7 @@ export default function Achievements() {
                   <td className="text-center font-semibold text-green-400">
                     {g.achievements.total > 0 ? Math.round((g.achievements.unlocked / g.achievements.total) * 100) : 0}%
                   </td>
-                  <td className="text-center whitespace-nowrap">{Math.round(g.playtime_forever / 60)}h</td>
+                  <td className="text-center whitespace-nowrap">{(g.playtime_forever / 60).toFixed(1)}h</td>
                 </tr>
               ))}
             </tbody>
