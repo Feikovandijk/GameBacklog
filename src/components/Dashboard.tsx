@@ -10,7 +10,7 @@ const StatItem = ({ label, value }: { label: string, value: React.ReactNode }) =
     <div>
         <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
         <p className="text-sm font-medium text-gray-200 truncate" title={typeof value === 'string' ? value : ''}>{value}</p>
-    </div>
+  </div>
 );
 
 const GameListItem: React.FC<{ game: Game; onClick: () => void; onTogglePriority: () => void, onDelete: () => void }> = ({ game, onClick, onTogglePriority, onDelete }) => {
@@ -57,15 +57,14 @@ const GameListItem: React.FC<{ game: Game; onClick: () => void; onTogglePriority
                 </div>
                 <p className="text-sm text-gray-400 truncate" title={game.platform}>{game.platform}</p>
             </div>
-        </div>
+      </div>
 
-        <div className="flex-grow grid grid-cols-5 gap-4 items-center text-center">
+        <div className="flex-grow grid grid-cols-4 gap-4 items-center text-center">
             <StatItem label="Playtime" value={game.playtime > 0 ? `${Math.round(game.playtime / 60)}h` : 'N/A'} />
-            <StatItem label="Achievements" value={`${game.achievements?.unlocked || 0} / ${game.achievements?.total || 0}`} />
             <StatItem label="Developer" value={game.developer || 'N/A'} />
             <StatItem label="Publisher" value={game.publisher || 'N/A'} />
             <StatItem label="Released" value={game.releaseDate ? formatDate(game.releaseDate) : 'N/A'} />
-        </div>
+      </div>
 
         <div className="flex-none flex items-center gap-4 justify-end" style={{ width: '15%' }}>
             <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(game.status)}`}>
@@ -75,12 +74,12 @@ const GameListItem: React.FC<{ game: Game; onClick: () => void; onTogglePriority
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="p-1 text-gray-500 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100"
               title="Delete Game">
-              <Trash2 className="w-4 h-4" />
-            </button>
+          <Trash2 className="w-4 h-4" />
+        </button>
         </div>
-      </div>
-    );
-  };
+    </div>
+  );
+};
 
 const statusColumns: GameStatus[] = ['backlog', 'playing', 'beaten', 'completed', 'endless', 'dropped'];
 
@@ -111,12 +110,12 @@ export const Dashboard: React.FC = () => {
     setEditingGame(game);
     setModalOpen(true);
   };
-  
+
   const handleCloseModal = () => {
     setModalOpen(false);
     setEditingGame(undefined);
   };
-  
+
   const handleSaveGame = (gameData: Omit<Game, 'id' | 'dateAdded' | 'dateModified'>, steamAppId?: string) => {
     saveGame(gameData, editingGame || null, steamAppId);
     handleCloseModal();
@@ -238,7 +237,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Game Display */}
       {view === 'list' && (
-         <div className="space-y-4">
+            <div className="space-y-4">
             {filteredGames.map(game => (
                 <GameListItem 
                   key={game.id} 
@@ -248,7 +247,7 @@ export const Dashboard: React.FC = () => {
                   onDelete={() => deleteGame(game.id)}
                 />
             ))}
-         </div>
+                  </div>
       )}
        {view === 'board' && (
         <DragDropContext onDragEnd={onDragEnd}>
@@ -297,9 +296,9 @@ export const Dashboard: React.FC = () => {
                                       className="p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                       title="Delete Game"
                                     >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
                                 </div>
                                 <p className="text-sm text-gray-400 mt-1">{game.platform}</p>
                             </div>
@@ -307,30 +306,30 @@ export const Dashboard: React.FC = () => {
                         </Draggable>
                         ))}
                         {provided.placeholder}
-                    </div>
-                    </div>
+              </div>
+            </div>
                 )}
                 </Droppable>
-            ))}
+                ))}
             </div>
         </DragDropContext>
-       )}
+          )}
 
       {filteredGames.length === 0 && view !== 'board' && (
           <div className="text-center py-16">
               <p className="text-gray-400">No games match your filters.</p>
           </div>
       )}
-    </div>
-    {isModalOpen && (
+      </div>
+      {isModalOpen && (
         <GameModal
-            isOpen={isModalOpen}
+          isOpen={isModalOpen}
             onClose={handleCloseModal}
-            onSave={handleSaveGame}
-            game={editingGame}
-            title={editingGame ? 'Edit Game' : 'Add a New Game'}
+          onSave={handleSaveGame}
+          game={editingGame}
+          title={editingGame ? 'Edit Game' : 'Add a New Game'}
         />
-    )}
+      )}
     </>
   );
 }; 

@@ -8,7 +8,8 @@ const port = 3001;
 const WORKER_URL = 'https://game-backlog-player-stats-worker.feikovandijk.workers.dev';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Helper function to add a delay
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -171,6 +172,102 @@ app.get('/api/game-details/:appId', async (req, res) => {
   } catch (error) {
     console.error(`Error fetching game details for ${appId}:`, error.message);
     res.status(500).json({ error: 'Failed to fetch game details.' });
+  }
+});
+
+app.post('/api/game-details/bulk', async (req, res) => {
+  const { appIds, steamId } = req.body;
+
+  if (!appIds || !Array.isArray(appIds)) {
+    return res.status(400).json({ error: 'appIds array is required.' });
+  }
+
+  try {
+    const results = {};
+    const appIdsToFetchFromSteam = [];
+
+    // 1. Check cache first for all games
+    for (const appId of appIds) {
+      const cachedDetails = await getGameDetails(appId);
+      if (cachedDetails) {
+        results[appId] = cachedDetails;
+      } else {
+        appIdsToFetchFromSteam.push(appId);
+      }
+    }
+    
+    console.log(`[Bulk Details] Cache hits: ${Object.keys(results).length}. Cache misses: ${appIdsToFetchFromSteam.length}`);
+
+    // 2. Fetch missing details from Steam in batches
+    if (appIdsToFetchFromSteam.length > 0) {
+        const batchSize = 50; // Steam recommends not sending too many at once
+        for (let i = 0; i < appIdsToFetchFromSteam.length; i += batchSize) {
+            const batch = appIdsToFetchFromSteam.slice(i, i + batchSize);
+            const appIdsString = batch.join(',');
+            
+            const steamDetailsRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appIdsString}&filters=basic,release_date`);
+            if (!steamDetailsRes.ok) {
+                console.error(`[Bulk Details] Failed to fetch batch from Steam. Status: ${steamDetailsRes.status}, Body: `, await steamDetailsRes.text().catch(() => 'Could not read body'));
+                continue;
+            }
+
+            const steamDetailsData = await steamDetailsRes.json();
+
+            for (const appId of batch) {
+                const details = steamDetailsData[appId]?.data;
+                if (steamDetailsData[appId]?.success && details) {
+                    const gameData = {
+                        id: appId,
+                        title: details.name,
+                        description: details.short_description,
+                        imageUrl: details.header_image,
+                        releaseDate: details.release_date?.date || null,
+                        developer: details.developers?.[0] || null,
+                        publisher: details.publishers?.[0] || null,
+                        genre: details.genres?.map((g) => g.description).join(', ') || null,
+                    };
+                    
+                    await setGameDetails(gameData); // Cache it
+                    results[appId] = gameData;
+                }
+            }
+            await sleep(500); // Delay between batches
+        }
+    }
+    
+    let userPlaytimeMap = {};
+    if (steamId) {
+        try {
+            const playerStats = await fetch(`${WORKER_URL}?steamId=${steamId}&type=games`).then(res => res.ok ? res.json() : null);
+            if (playerStats?.response?.games) {
+                playerStats.response.games.forEach(game => {
+                    userPlaytimeMap[game.appid] = {
+                        playtime: game.playtime_forever || 0,
+                        playtime2Weeks: game.playtime_2weeks || 0
+                    };
+                });
+            }
+        } catch (e) {
+            console.error(`[Bulk Details] Could not fetch user playtime stats for ${steamId}: ${e.message}`);
+        }
+    }
+
+    const finalResults = {};
+    for (const appId of appIds) {
+        if (results[appId]) {
+            finalResults[appId] = {
+                ...results[appId],
+                playtime: userPlaytimeMap[appId]?.playtime || 0,
+                playtime2Weeks: userPlaytimeMap[appId]?.playtime2Weeks || 0,
+            };
+        }
+    }
+
+    res.json(finalResults);
+
+  } catch (error) {
+    console.error(`Error fetching bulk game details:`, error.message);
+    res.status(500).json({ error: 'Failed to fetch bulk game details.' });
   }
 });
 

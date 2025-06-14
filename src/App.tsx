@@ -30,13 +30,13 @@ const MainLayout: React.FC = () => {
     <>
       <div className="flex flex-col h-screen bg-gray-900 text-gray-300">
         <TopBar onAddGame={() => handleOpenModal()} />
-        <main className="flex-1 p-8 overflow-y-auto">
-          {!user ? (
-            <div className="text-center text-gray-400">
-              <p>Please log in to manage your game backlog.</p>
-            </div>
-          ) : <Outlet />}
-        </main>
+          <main className="flex-1 p-8 overflow-y-auto">
+            {!user ? (
+              <div className="text-center text-gray-400">
+                <p>Please log in to manage your game backlog.</p>
+              </div>
+            ) : <Outlet />}
+          </main>
       </div>
       {isModalOpen && (
         <GameModal

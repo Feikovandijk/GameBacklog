@@ -3,12 +3,19 @@ import { Game } from '../types/game';
 import { Edit, Trash2, Plus, Inbox, CheckSquare, XSquare, Download, LogIn, ArrowUp, ArrowDown } from 'lucide-react';
 import { GameModal } from '../components/GameModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useGames } from '../contexts/GamesContext';
 
 const WORKER_URL = import.meta.env.VITE_WISHLIST_WORKER_URL;
 const API_BASE_URL = 'http://localhost:3001';
 
+interface GameReleaseInfo {
+  is_released: boolean;
+  release_date: string;
+}
+
 const Wishlist: React.FC = () => {
   const { user, loginWithSteam, loading: authLoading } = useAuth();
+  const { saveGame: saveToMainLibrary } = useGames();
   const [games, setGames] = useState<Game[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingGame, setEditingGame] = useState<Game | null>(null);
@@ -16,6 +23,7 @@ const Wishlist: React.FC = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'dateAdded', direction: 'descending' });
+  const [releaseInfo, setReleaseInfo] = useState<Record<string, GameReleaseInfo>>({});
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -44,7 +52,18 @@ const Wishlist: React.FC = () => {
     clearSelection();
   };
   const handleBulkAddToBacklog = () => {
-    const updatedGames = games.map(g => selected.has(g.id) ? { ...g, status: 'backlog' as const, ownership: 'owned' as const } : g);
+    const gamesToMove = games.filter(g => selected.has(g.id));
+    for (const game of gamesToMove) {
+      const gameDataForLibrary = {
+        ...game,
+        status: 'backlog' as const,
+        ownership: 'owned' as const,
+      };
+      // We don't have the steamAppId here, but saveGame can handle it
+      saveToMainLibrary(gameDataForLibrary, null, !isNaN(Number(game.id)) ? game.id : undefined);
+    }
+    
+    const updatedGames = games.filter(g => !selected.has(g.id));
     setGames(updatedGames);
     saveWishlist(updatedGames);
     clearSelection();
@@ -133,6 +152,49 @@ const Wishlist: React.FC = () => {
     fetchWishlist();
   }, [user]);
 
+  useEffect(() => {
+    const fetchReleaseInfo = async () => {
+      if (!user || games.length === 0) return;
+
+      const appIdsToFetch = games.map(g => g.id).filter(id => !releaseInfo[id]);
+
+      if (appIdsToFetch.length === 0) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/game-details/bulk`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ appIds: appIdsToFetch, steamId: user.steamId }),
+        });
+
+        if (res.ok) {
+          const detailsMap = await res.json();
+          const newReleaseInfo: Record<string, GameReleaseInfo> = {};
+          
+          for (const appId in detailsMap) {
+            const details = detailsMap[appId];
+            if (details) {
+              newReleaseInfo[appId] = {
+                is_released: !details.releaseDate?.toLowerCase().includes('coming soon'),
+                release_date: details.releaseDate || 'N/A',
+              };
+            }
+          }
+
+          if (Object.keys(newReleaseInfo).length > 0) {
+            setReleaseInfo(prev => ({ ...prev, ...newReleaseInfo }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch bulk release info:', error);
+      }
+    };
+
+    fetchReleaseInfo();
+  }, [games, user]);
+
   // Import from Steam (requires user to be logged in)
   const handleImport = async () => {
     if (!user?.steamId) return;
@@ -154,7 +216,7 @@ const Wishlist: React.FC = () => {
         platform: 'PC',
         status: 'backlog',
         ownership: 'wishlist',
-        dateAdded: new Date().toISOString(),
+        dateAdded: g.added ? new Date(g.added * 1000).toISOString() : new Date().toISOString(),
         dateModified: new Date().toISOString(),
         rating: 0,
         playtime: 0,
@@ -237,6 +299,7 @@ const Wishlist: React.FC = () => {
                     Date Added {sortConfig?.key === 'dateAdded' && (sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />)}
                   </button>
                 </th>
+                <th className="px-2 py-3">Release Status</th>
                 <th className="px-2 py-3">Status</th>
                 <th className="px-2 py-3">Actions</th>
               </tr>
@@ -247,15 +310,43 @@ const Wishlist: React.FC = () => {
               ) : sortedGames.map(game => (
                 <tr key={game.id} className="border-b border-gray-800 hover:bg-[#28313a] transition">
                   <td className="px-2 py-2 text-center"><input type="checkbox" checked={selected.has(game.id)} onChange={() => toggleSelect(game.id)} /></td>
-                  <td className="px-4 py-2 font-medium flex items-center gap-2 text-white">{game.title}</td>
+                  <td className="px-4 py-2 font-medium flex items-center gap-4 text-white">
+                    <img
+                      src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.id}/header.jpg`}
+                      alt={game.title}
+                      className="w-48 rounded object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null; // prevent infinite loop
+                        target.src = `https://cdn.akamai.steamstatic.com/steam/apps/${game.id}/capsule_231x87.jpg`;
+                      }}
+                    />
+                    {game.title}
+                  </td>
                   <td className="px-2 py-2 text-center">{game.genre}</td>
                   <td className="px-2 py-2 text-center">{formatDate(game.dateAdded)}</td>
+                  <td className="px-2 py-2 text-center">
+                    {releaseInfo[game.id] ? (
+                      releaseInfo[game.id].is_released
+                        ? <span className="text-green-400">Released</span>
+                        : <span className="text-yellow-400">Unreleased ({releaseInfo[game.id].release_date})</span>
+                    ) : (
+                      'Loading...'
+                    )}
+                  </td>
                   <td className="px-2 py-2 text-center">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${game.ownership === 'wishlist' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'}`}>{game.status}</span>
                   </td>
                   <td className="px-2 py-2 text-center flex gap-2 justify-center">
                     <button className="p-1 text-gray-400 hover:text-green-400" title="Add to Backlog" onClick={() => {
-                      const updatedGames = games.map(g => g.id === game.id ? { ...g, status: 'backlog' as const, ownership: 'owned' as const } : g);
+                      const gameDataForLibrary = {
+                        ...game,
+                        status: 'backlog' as const,
+                        ownership: 'owned' as const,
+                      };
+                      saveToMainLibrary(gameDataForLibrary, null, !isNaN(Number(game.id)) ? game.id : undefined);
+                      
+                      const updatedGames = games.filter(g => g.id !== game.id);
                       setGames(updatedGames);
                       saveWishlist(updatedGames);
                     }}><Plus className="w-4 h-4" /></button>

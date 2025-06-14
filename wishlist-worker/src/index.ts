@@ -37,10 +37,14 @@ export default {
         return new Response(`Failed to fetch wishlist from Steam API. Status: ${wishlistResponse.status}`, { status: wishlistResponse.status, headers: corsHeaders });
       }
       
-      const wishlistJson = await wishlistResponse.json() as { response?: { items?: { appid: number }[] } };
-      const wishlistAppIds = new Set(wishlistJson.response?.items?.map(item => item.appid) || []);
+      const wishlistJson = await wishlistResponse.json() as { response?: { items?: { appid: number, date_added: number }[] } };
+      
+      const wishlistData = new Map<number, { date_added: number }>();
+      wishlistJson.response?.items?.forEach(item => {
+        wishlistData.set(item.appid, { date_added: item.date_added });
+      });
 
-      if (wishlistAppIds.size === 0) {
+      if (wishlistData.size === 0) {
         return new Response(JSON.stringify([]), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
       }
 
@@ -57,10 +61,11 @@ export default {
       
       // Step 3: Filter the master list to find games on the wishlist and format the response.
       const games = allSteamApps
-        .filter(app => wishlistAppIds.has(app.appid))
+        .filter(app => wishlistData.has(app.appid))
         .map(app => ({
           id: String(app.appid),
           title: app.name,
+          added: wishlistData.get(app.appid)?.date_added,
           genre: '', // Genre data is not available from this endpoint
           notes: '',   // Description data is not available from this endpoint
         }));
