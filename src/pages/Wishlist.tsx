@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Game } from '../types/game';
-import { Edit, Trash2, Plus, Inbox, CheckSquare, XSquare, Download, LogIn } from 'lucide-react';
+import { Edit, Trash2, Plus, Inbox, CheckSquare, XSquare, Download, LogIn, ArrowUp, ArrowDown } from 'lucide-react';
 import { GameModal } from '../components/GameModal';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -15,6 +15,7 @@ const Wishlist: React.FC = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'dateAdded', direction: 'descending' });
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -56,6 +57,50 @@ const Wishlist: React.FC = () => {
     }
     setModalOpen(false);
     setEditingGame(null);
+  };
+
+  const sortedGames = useMemo(() => {
+    const sortableGames = [...games];
+    if (sortConfig !== null) {
+      sortableGames.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.key) {
+          case 'title':
+            aValue = a.title.toLowerCase();
+            bValue = b.title.toLowerCase();
+            break;
+          case 'genre':
+            aValue = a.genre?.toLowerCase() ?? '';
+            bValue = b.genre?.toLowerCase() ?? '';
+            break;
+          case 'dateAdded':
+            aValue = new Date(a.dateAdded).getTime();
+            bValue = new Date(b.dateAdded).getTime();
+            break;
+          default: return 0;
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableGames;
+  }, [games, sortConfig]);
+  
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+  
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   const saveWishlist = async (updatedGames: Game[]) => {
@@ -176,28 +221,38 @@ const Wishlist: React.FC = () => {
           <table className="min-w-full bg-[#232b32] text-sm">
             <thead>
               <tr className="text-gray-400 border-b border-gray-700">
-                <th className="px-2 py-3"><input type="checkbox" checked={selected.size === games.length} onChange={e => e.target.checked ? selectAll() : clearSelection()} /></th>
-                <th className="px-4 py-3 text-left">Title</th>
-                <th className="px-2 py-3">Platform</th>
-                <th className="px-2 py-3">Genre</th>
+                <th className="px-2 py-3"><input type="checkbox" checked={selected.size > 0 && selected.size === games.length} onChange={e => e.target.checked ? selectAll() : clearSelection()} /></th>
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => requestSort('title')} className="flex items-center gap-1 hover:text-white transition-colors">
+                    Title {sortConfig?.key === 'title' && (sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />)}
+                  </button>
+                </th>
+                <th className="px-2 py-3">
+                   <button onClick={() => requestSort('genre')} className="flex items-center gap-1 mx-auto hover:text-white transition-colors">
+                    Genre {sortConfig?.key === 'genre' && (sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />)}
+                  </button>
+                </th>
+                <th className="px-2 py-3">
+                   <button onClick={() => requestSort('dateAdded')} className="flex items-center gap-1 mx-auto hover:text-white transition-colors">
+                    Date Added {sortConfig?.key === 'dateAdded' && (sortConfig.direction === 'ascending' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />)}
+                  </button>
+                </th>
                 <th className="px-2 py-3">Status</th>
-                <th className="px-2 py-3">Ownership</th>
                 <th className="px-2 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {games.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-12 text-gray-500">No games in your wishlist inbox.<br />Click "Import from Steam" to get started.</td></tr>
-              ) : games.map(game => (
+              ) : sortedGames.map(game => (
                 <tr key={game.id} className="border-b border-gray-800 hover:bg-[#28313a] transition">
                   <td className="px-2 py-2 text-center"><input type="checkbox" checked={selected.has(game.id)} onChange={() => toggleSelect(game.id)} /></td>
                   <td className="px-4 py-2 font-medium flex items-center gap-2 text-white">{game.title}</td>
-                  <td className="px-2 py-2 text-center">{game.platform}</td>
                   <td className="px-2 py-2 text-center">{game.genre}</td>
+                  <td className="px-2 py-2 text-center">{formatDate(game.dateAdded)}</td>
                   <td className="px-2 py-2 text-center">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${game.ownership === 'wishlist' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'}`}>{game.status}</span>
                   </td>
-                  <td className="px-2 py-2 text-center">{game.ownership}</td>
                   <td className="px-2 py-2 text-center flex gap-2 justify-center">
                     <button className="p-1 text-gray-400 hover:text-green-400" title="Add to Backlog" onClick={() => {
                       const updatedGames = games.map(g => g.id === game.id ? { ...g, status: 'backlog' as const, ownership: 'owned' as const } : g);
