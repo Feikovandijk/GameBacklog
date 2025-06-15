@@ -1,5 +1,0 @@
-name = "game-backlog-wishlist-worker"
-main = "src/index.ts"
-compatibility_date = "2024-05-20" 
-[observability.logs]
-enabled = true
