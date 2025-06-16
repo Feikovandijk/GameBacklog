@@ -1,21 +1,28 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Client, Databases, Query } from 'node-appwrite';
 import config from '../config';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables from the root .env file
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+const client = new Client();
+client
+    .setEndpoint(config.appwrite.endpoint!)
+    .setProject(config.appwrite.projectId!)
+    .setKey(config.appwrite.apiKey!);
+
+const databases = new Databases(client);
 
 const STEAM_API_KEY = config.steamApiKey!;
-const SUPABASE_URL = config.supabaseUrl!;
-const SUPABASE_SERVICE_ROLE_KEY = config.supabaseServiceRoleKey!;
-
-// Initialize Supabase client with service role
-const supabaseAdmin: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
 const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const UPDATE_INTERVAL_DAYS = 7;
-const GAMES_PER_MINUTE_LIMIT = 60; // Adjusted to be safer, ~1 game per second
+const GAMES_PER_MINUTE_LIMIT = 30; // Stay under the 100k/day Steam API limit
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT; // Calculate delay in milliseconds
 
-interface Game {
-  game_id: number;
+interface GameDocument {
   steam_appid: number;
   name: string;
   short_description?: string;
@@ -86,37 +93,55 @@ async function fetchGameDetailsFromSteam(steamAppId: number): Promise<any | null
   }
 }
 
-async function updateGameInSupabase(game: Game, steamData: any) {
-  const isEarlyAccess = steamData.genres?.some(
-    (genre: { id: string; description: string }) => genre.description === "Early Access"
-  ) ?? false;
+async function updateGameInAppwrite(documentId: string, steamData: any) {
+    const isEarlyAccess = steamData.genres?.some(
+        (genre: { id: string; description: string }) => genre.description === "Early Access"
+    ) ?? false;
 
-  const updatedGameData: Partial<Game> = {
-    name: steamData.name || game.name,
-    short_description: steamData.short_description,
-    header_image: steamData.header_image,
-    release_date: steamData.release_date?.date || game.release_date, // Steam often has { date: "YYYY-MM-DD" }
-    last_updated: new Date().toISOString(),
-    developers: steamData.developers,
-    publishers: steamData.publishers,
-    is_early_access: isEarlyAccess,
-    total_reviews: steamData.recommendations?.total,
-  };
+    const gameData: Partial<GameDocument> = {
+        name: steamData.name,
+        short_description: steamData.short_description,
+        header_image: steamData.header_image,
+        release_date: steamData.release_date?.date,
+        last_updated: new Date().toISOString(),
+        developers: steamData.developers,
+        publishers: steamData.publishers,
+        is_early_access: isEarlyAccess,
+        total_reviews: steamData.recommendations?.total,
+    };
 
-  console.log("Data being sent to Supabase:", JSON.stringify(updatedGameData, null, 2));
+    try {
+        await databases.updateDocument(
+            config.appwrite.databaseId!,
+            config.appwrite.gamesCollectionId!,
+            documentId,
+            gameData
+        );
+        console.log(`Successfully updated game ${steamData.name}`);
+        return true;
+    } catch (error) {
+        console.error(`Error updating game ${steamData.name} in Appwrite:`, error);
+        return false;
+    }
+}
 
-  const { error } = await supabaseAdmin
-    .from('games')
-    .update(updatedGameData)
-    .eq('game_id', game.game_id);
+async function fetchAllStaleDocuments(queries: string[]): Promise<any[]> {
+    const documents = [];
+    let offset = 0;
+    const limit = 100; // Appwrite's max limit per request
+    let response;
 
-  if (error) {
-    console.error(
-      `Error updating game ${game.game_id} (${game.name}) in Supabase:`, error
-    );
-  } else {
-    console.log(`Successfully updated game ${game.game_id} (${game.name})`);
-  }
+    do {
+        response = await databases.listDocuments(
+            config.appwrite.databaseId!,
+            config.appwrite.gamesCollectionId!,
+            [...queries, Query.limit(limit), Query.offset(offset)]
+        );
+        documents.push(...response.documents);
+        offset += limit;
+    } while (response.documents.length > 0);
+
+    return documents;
 }
 
 async function runRefreshService() {
@@ -126,15 +151,16 @@ async function runRefreshService() {
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() - UPDATE_INTERVAL_DAYS);
 
-    const { data: staleGames, error: fetchError } = await supabaseAdmin
-      .from('games')
-      .select('game_id, steam_appid, name, last_updated, short_description, header_image, release_date, developers, publishers, is_early_access, total_reviews')
-      .or(`last_updated.is.null,last_updated.lt.${thresholdDate.toISOString()}`);
+    console.log("Fetching stale games from Appwrite...");
+    
+    const neverUpdatedGames = await fetchAllStaleDocuments([Query.isNull('last_updated')]);
+    const oldGames = await fetchAllStaleDocuments([Query.lessThan('last_updated', thresholdDate.toISOString())]);
 
-    if (fetchError) {
-      console.error("Error fetching stale games:", fetchError);
-      throw new Error(`Failed to fetch stale games: ${fetchError.message}`);
-    }
+    // Combine and deduplicate the results
+    const allStaleGames = [...neverUpdatedGames, ...oldGames];
+    const staleGamesMap = new Map();
+    allStaleGames.forEach(game => staleGamesMap.set(game.$id, game));
+    const staleGames = Array.from(staleGamesMap.values());
 
     if (!staleGames || staleGames.length === 0) {
       console.log("No stale games to update.");
@@ -144,22 +170,24 @@ async function runRefreshService() {
     console.log(`Found ${staleGames.length} stale games to update.`);
 
     let updatedCount = 0;
-    for (const [index, game] of (staleGames as Game[]).entries()) {
+    for (const [index, game] of staleGames.entries()) {
       if (!game.steam_appid) {
         console.warn(
-          `Game ${game.game_id} (${game.name}) has no steam_appid, skipping.`
+          `Game document ${game.$id} has no steam_appid, skipping.`
         );
         continue;
       }
 
       console.log(
-        `Processing game: ${game.name} (ID: ${game.game_id}, Steam AppID: ${game.steam_appid})`
+        `Processing game: ${game.name} (Document ID: ${game.$id}, Steam AppID: ${game.steam_appid})`
       );
       const steamData = await fetchGameDetailsFromSteam(game.steam_appid);
 
       if (steamData) {
-        await updateGameInSupabase(game, steamData);
-        updatedCount++;
+        const success = await updateGameInAppwrite(game.$id, steamData);
+        if(success) {
+            updatedCount++;
+        }
       }
 
       if (index < staleGames.length - 1) {
@@ -173,11 +201,31 @@ async function runRefreshService() {
     console.log(
       `Steam refresh completed. Updated ${updatedCount} of ${staleGames.length} games.`
     );
+    
+    if (updatedCount > 0) {
+        console.log(`Incrementing updatedGames stat by ${updatedCount}...`);
+        await incrementStat('updatedGames', updatedCount);
+    }
 
   } catch (e: any) {
     console.error("Error in Steam refresh service:", e);
     process.exit(1); // Exit with error for schedulers to pick up failure
   }
+}
+
+async function incrementStat(key: string, incrementBy: number = 1) {
+    const dbId = config.appwrite.databaseId!;
+    const statsCollectionId = 'statistics';
+    try {
+        const existing = await databases.listDocuments(dbId, statsCollectionId, [Query.equal('key', key)]);
+        if (existing.documents.length > 0) {
+            const doc = existing.documents[0];
+            const newCount = doc.count + incrementBy;
+            await databases.updateDocument(dbId, statsCollectionId, doc.$id, { count: newCount });
+        }
+    } catch (e) {
+        console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
+    }
 }
 
 // Autorun the service when the script is executed

@@ -17,6 +17,9 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
+.logo.vite:hover {
+  filter: drop-shadow(0 0 2em #747bff);
+}
 
 @keyframes logo-spin {
   from {
@@ -39,4 +42,54 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* DashboardStats Component Styles */
+.dashboard-stats {
+  background-color: #2a2a2a;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  color: #ffffff;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.dashboard-stats h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #444;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-card {
+  background-color: #333333;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border-left: 5px solid #61dafb;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.stat-title {
+  font-size: 0.9rem;
+  color: #cccccc;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.error-message {
+  color: #ff6b6b;
 }

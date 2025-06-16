@@ -1,14 +1,21 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Client, Databases, ID, Query } from 'node-appwrite';
 import config from '../config';
+import dotenv from 'dotenv';
+import path from 'path';
 
-const SUPABASE_URL = config.supabaseUrl!;
-const SUPABASE_SERVICE_ROLE_KEY = config.supabaseServiceRoleKey!;
+// Load environment variables from the root .env file
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-// Initialize Supabase client with service role
-const supabaseAdmin: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const client = new Client();
+client
+    .setEndpoint(config.appwrite.endpoint!)
+    .setProject(config.appwrite.projectId!)
+    .setKey(config.appwrite.apiKey!);
+
+const databases = new Databases(client);
 
 const STEAM_API_GET_APP_LIST_URL = "https://api.steampowered.com/ISteamApps/GetAppList/v2/";
-const GAMES_PER_MINUTE_LIMIT = 50;
+const GAMES_PER_MINUTE_LIMIT = 3000;
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 
 interface SteamApp {
@@ -37,15 +44,30 @@ async function fetchAllSteamApps(): Promise<SteamApp[]> {
 }
 
 async function getExistingSteamAppIds(): Promise<number[]> {
-    const { data, error } = await supabaseAdmin
-        .from('games')
-        .select('steam_appid');
+    try {
+        let allGames: any[] = [];
+        let offset = 0;
+        const limit = 100; // Appwrite max limit per request
+        let response;
 
-    if (error) {
-        console.error("Error fetching existing steam_appids:", error);
+        do {
+            response = await databases.listDocuments(
+                config.appwrite.databaseId!,
+                config.appwrite.gamesCollectionId!,
+                [
+                    Query.limit(limit),
+                    Query.offset(offset)
+                ]
+            );
+            allGames = allGames.concat(response.documents);
+            offset += limit;
+        } while (response.documents.length > 0);
+        
+        return allGames.map(game => game.steam_appid).filter(id => id != null);
+    } catch (error) {
+        console.error("Error fetching existing steam_appids from Appwrite:", error);
         return [];
     }
-    return data.map(game => game.steam_appid).filter(id => id != null);
 }
 
 
@@ -74,19 +96,26 @@ async function runSyncService() {
     for (const [index, app] of newApps.entries()) {
       console.log(`[${index + 1}/${newApps.length}] Syncing game: ${app.name} (Steam AppID: ${app.appid})`);
 
-      const { error } = await supabaseAdmin
-        .from('games')
-        .insert({ steam_appid: app.appid, name: app.name });
-
-      if (error) {
-        if (error.code === '23505') { // unique_violation
+      try {
+        await databases.createDocument(
+            config.appwrite.databaseId!,
+            config.appwrite.gamesCollectionId!,
+            ID.unique(),
+            {
+                steam_appid: app.appid,
+                name: app.name
+            }
+        );
+        syncedCount++;
+        console.log(`Successfully inserted ${app.name}`);
+        await incrementStat(databases, 'totalGames');
+      } catch (error: any) {
+        // Appwrite throws an error for unique constraint violations (409 Conflict)
+        if (error.code === 409) {
             console.warn(`Game with steam_appid ${app.appid} already exists. Skipping.`);
         } else {
             console.error(`Error inserting game ${app.name} (ID: ${app.appid}):`, error);
         }
-      } else {
-        syncedCount++;
-        console.log(`Successfully inserted ${app.name}`);
       }
       
       if (index < newApps.length - 1) {
@@ -100,6 +129,24 @@ async function runSyncService() {
     console.error("Error in Steam sync service:", e);
     process.exit(1);
   }
+}
+
+async function incrementStat(databases: Databases, key: string, incrementBy: number = 1) {
+    const dbId = config.appwrite.databaseId!;
+    const statsCollectionId = 'statistics';
+    try {
+        const existing = await databases.listDocuments(dbId, statsCollectionId, [Query.equal('key', key)]);
+        if (existing.documents.length > 0) {
+            const doc = existing.documents[0];
+            const newCount = doc.count + incrementBy;
+            await databases.updateDocument(dbId, statsCollectionId, doc.$id, { count: newCount });
+        }
+        // If the stat doc doesn't exist, we don't create it here. 
+        // The recalculate script is the source of truth for creating stats.
+    } catch (e) {
+        // Log error but don't crash the sync service
+        console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
+    }
 }
 
 if (require.main === module) {

@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
+import { Client, Databases, Query } from 'node-appwrite';
 import config from './config';
 
 interface AuthenticatedRequest extends Request {
@@ -13,9 +14,18 @@ const port = config.port;
 app.use(cors());
 app.use(express.json());
 
-const supabase = createClient(config.supabaseUrl!, config.supabaseAnonKey!);
+// Appwrite Client Setup
+const appwriteClient = new Client()
+    .setEndpoint(config.appwrite.endpoint!)
+    .setProject(config.appwrite.projectId!)
+    .setKey(config.appwrite.apiKey!);
+const appwriteDatabases = new Databases(appwriteClient);
 
-// Middleware to authenticate user
+// Supabase client (can be removed if fully migrated)
+// const supabase = createClient(config.supabaseUrl!, config.supabaseAnonKey!);
+
+// Middleware to authenticate user (currently Supabase)
+/*
 const authenticateUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -37,8 +47,33 @@ const authenticateUser = async (req: AuthenticatedRequest, res: Response, next: 
   req.user = user; // Add user to request object
   next();
 };
+*/
+
+// NEW: GET /api/stats - Retrieves stats about the games database
+app.get('/api/stats', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const databaseId = config.appwrite.databaseId!;
+    const statsCollectionId = 'statistics';
+
+    const statsDocs = await appwriteDatabases.listDocuments(databaseId, statsCollectionId);
+    
+    const stats = statsDocs.documents.reduce((acc, doc) => {
+      acc[doc.key] = doc.count;
+      return acc;
+    }, {} as Record<string, number>);
+
+    res.json({
+      totalGames: stats.totalGames || 0,
+      updatedGames: stats.updatedGames || 0,
+    });
+  } catch (error: any) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats', details: error.message });
+  }
+});
 
 // GET /api/games - Retrieves all games for the currently authenticated user
+/*
 app.get('/api/games', authenticateUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.user.id;
 
@@ -69,8 +104,10 @@ app.get('/api/games', authenticateUser, async (req: AuthenticatedRequest, res: R
     res.status(500).json({ error: 'Failed to fetch games', details: error.message });
   }
 });
+*/
 
 // POST /api/user_games - Allows an authenticated user to upsert a game's status
+/*
 app.post('/api/user_games', authenticateUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.user.id;
   const { game_id, status } = req.body;
@@ -94,6 +131,7 @@ app.post('/api/user_games', authenticateUser, async (req: AuthenticatedRequest, 
     res.status(500).json({ error: 'Failed to upsert game status', details: error.message });
   }
 });
+*/
 
 app.listen(port, () => {
   console.log(`API server listening at http://localhost:${port}`);
