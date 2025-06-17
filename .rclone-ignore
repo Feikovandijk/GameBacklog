@@ -1,0 +1,18 @@
+# Ignore all node_modules directories
+/node_modules/
+**/node_modules/
+
+# Ignore all .DS_Store files (useful for macOS)
+.DS_Store
+**/.DS_Store
+
+# Ignore build artifacts or dist folders if you have them
+/dist/
+**/dist/
+
+/build/
+**/build/
+
+# Ignore .env files
+.env
+**/.env 

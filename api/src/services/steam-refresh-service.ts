@@ -120,11 +120,28 @@ async function updateGameInAppwrite(documentId: string, steamData: any) {
         (genre: { id: string; description: string }) => genre.description === "Early Access"
     ) ?? false;
 
+    let releaseDateForDb: string | undefined;
+    const steamReleaseDate = steamData.release_date;
+
+    // Only process the date if the game is not marked as "coming soon"
+    if (steamReleaseDate && !steamReleaseDate.coming_soon && steamReleaseDate.date) {
+        const parsedDate = new Date(steamReleaseDate.date);
+        // Check if the parsed date is valid
+        if (!isNaN(parsedDate.getTime())) {
+            releaseDateForDb = parsedDate.toISOString();
+        } else {
+            // The date string is not a recognizable format
+            console.warn(`Could not parse '${steamReleaseDate.date}' as a date for game '${steamData.name}'. Release date will be left unchanged.`);
+        }
+    } else if (steamReleaseDate?.coming_soon) {
+        console.log(`'${steamData.name}' is marked as 'coming soon', release date will not be set.`);
+    }
+
     const gameData: Partial<GameDocument> = {
         name: steamData.name,
         short_description: steamData.short_description,
         header_image: steamData.header_image,
-        release_date: steamData.release_date?.date,
+        release_date: releaseDateForDb,
         last_updated: new Date().toISOString(),
         developers: steamData.developers,
         publishers: steamData.publishers,
@@ -213,6 +230,8 @@ async function runRefreshService() {
         const success = await updateGameInAppwrite(game.$id, steamData);
         if(success) {
             updatedCount++;
+            // Increment the stat immediately after a successful update
+            await incrementStat('updatedGames');
         }
       }
 
@@ -227,11 +246,6 @@ async function runRefreshService() {
     console.log(
       `Steam refresh completed. Updated ${updatedCount} of ${staleGames.length} games.`
     );
-    
-    if (updatedCount > 0) {
-        console.log(`Incrementing updatedGames stat by ${updatedCount}...`);
-        await incrementStat('updatedGames', updatedCount);
-    }
 
   } catch (e: any) {
     console.error("Error in Steam refresh service:", e);

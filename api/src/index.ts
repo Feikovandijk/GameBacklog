@@ -72,6 +72,28 @@ app.get('/api/stats', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+app.get('/api/games/most-reviewed', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const databaseId = config.appwrite.databaseId!;
+    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+
+    const response = await appwriteDatabases.listDocuments(
+      databaseId,
+      gamesCollectionId,
+      [
+        Query.orderDesc('total_reviews'),
+        Query.limit(10),
+        Query.select(['$id', 'name', 'header_image', 'total_reviews', 'steam_appid'])
+      ]
+    );
+
+    res.json(response.documents);
+  } catch (error: any) {
+    console.error('Error fetching most reviewed games:', error);
+    res.status(500).json({ error: 'Failed to fetch most reviewed games', details: error.message });
+  }
+});
+
 // GET /api/games - Retrieves all games for the currently authenticated user
 /*
 app.get('/api/games', authenticateUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
