@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: game-backlog-api
+    container_name: api
+    restart: unless-stopped
+    ports:
+      - "6543:6543"
+    env_file:
+      - .env
+    volumes:
+      - ./api/src:/app/src # Mount only src for dev
+    command: npm run dev
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  sync-games:
+    image: game-backlog-api
+    build:
+      context: ./api
+    container_name: sync-games
+    env_file: .env
+    command: npm run sync-games
+
+  refresh-games:
+    image: game-backlog-api
+    build:
+      context: ./api
+    container_name: refresh-games
+    env_file: .env
+    command: npm run refresh-games 

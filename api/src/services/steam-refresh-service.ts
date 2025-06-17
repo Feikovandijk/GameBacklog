@@ -35,6 +35,28 @@ interface GameDocument {
   total_reviews?: number;
 }
 
+async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                return response;
+            }
+            // Don't retry on client errors (4xx) or server errors that are not rate-limiting (e.g. 500)
+            if (response.status >= 400 && response.status < 500) {
+                 console.warn(`Request to ${url} failed with status ${response.status}. Not retrying.`);
+                 return response; // Return the failed response to be handled by the caller
+            }
+             console.warn(`Request to ${url} failed with status ${response.status}. Retrying in ${backoff / 1000}s...`);
+        } catch (error: any) {
+            console.warn(`Request to ${url} failed with error: ${error.message}. Retrying in ${backoff / 1000}s...`);
+        }
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        backoff *= 2; // Exponential backoff
+    }
+    throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
+}
+
 async function fetchGameDetailsFromSteam(steamAppId: number): Promise<any | null> {
   const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
   const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
@@ -44,8 +66,8 @@ async function fetchGameDetailsFromSteam(steamAppId: number): Promise<any | null
 
   try {
     const [appDetailsResponse, reviewResponse] = await Promise.all([
-      fetch(appDetailsUrl),
-      fetch(reviewUrl)
+      fetchWithRetry(appDetailsUrl),
+      fetchWithRetry(reviewUrl)
     ]);
 
     if (!appDetailsResponse.ok) {
@@ -125,49 +147,53 @@ async function updateGameInAppwrite(documentId: string, steamData: any) {
     }
 }
 
-async function fetchAllStaleDocuments(queries: string[]): Promise<any[]> {
-    const documents = [];
-    let offset = 0;
-    const limit = 100; // Appwrite's max limit per request
-    let response;
-
-    do {
-        response = await databases.listDocuments(
-            config.appwrite.databaseId!,
-            config.appwrite.gamesCollectionId!,
-            [...queries, Query.limit(limit), Query.offset(offset)]
-        );
-        documents.push(...response.documents);
-        offset += limit;
-    } while (response.documents.length > 0);
-
-    return documents;
-}
-
 async function runRefreshService() {
   console.log("Local Steam refresh service started.");
 
   try {
+    const PROCESSING_LIMIT = 500; // Process up to 500 games per run
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() - UPDATE_INTERVAL_DAYS);
 
-    console.log("Fetching stale games from Appwrite...");
+    console.log("Fetching a batch of stale games from Appwrite...");
     
-    const neverUpdatedGames = await fetchAllStaleDocuments([Query.isNull('last_updated')]);
-    const oldGames = await fetchAllStaleDocuments([Query.lessThan('last_updated', thresholdDate.toISOString())]);
+    // Fetch newest games that have never been updated
+    const neverUpdatedResponse = await databases.listDocuments(
+        config.appwrite.databaseId!,
+        config.appwrite.gamesCollectionId!,
+        [
+            Query.isNull('last_updated'),
+            Query.orderDesc('steam_appid'),
+            Query.limit(PROCESSING_LIMIT)
+        ]
+    );
 
-    // Combine and deduplicate the results
-    const allStaleGames = [...neverUpdatedGames, ...oldGames];
+    // Fetch newest games that were updated long ago
+    const oldGamesResponse = await databases.listDocuments(
+        config.appwrite.databaseId!,
+        config.appwrite.gamesCollectionId!,
+        [
+            Query.lessThan('last_updated', thresholdDate.toISOString()),
+            Query.orderDesc('steam_appid'),
+            Query.limit(PROCESSING_LIMIT)
+        ]
+    );
+
+    // Combine, deduplicate, and get the top N newest games to process
+    const allStaleGames = [...neverUpdatedResponse.documents, ...oldGamesResponse.documents];
     const staleGamesMap = new Map();
     allStaleGames.forEach(game => staleGamesMap.set(game.$id, game));
-    const staleGames = Array.from(staleGamesMap.values());
+    
+    const staleGames = Array.from(staleGamesMap.values())
+        .sort((a, b) => (b.steam_appid || 0) - (a.steam_appid || 0))
+        .slice(0, PROCESSING_LIMIT);
 
     if (!staleGames || staleGames.length === 0) {
       console.log("No stale games to update.");
       return;
     }
 
-    console.log(`Found ${staleGames.length} stale games to update.`);
+    console.log(`Found ${staleGames.length} stale games to update. Starting with highest Steam AppID.`);
 
     let updatedCount = 0;
     for (const [index, game] of staleGames.entries()) {

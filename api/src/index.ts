@@ -133,6 +133,6 @@ app.post('/api/user_games', authenticateUser, async (req: AuthenticatedRequest, 
 });
 */
 
-app.listen(port, () => {
-  console.log(`API server listening at http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`API server listening on port ${port}`);
 });
