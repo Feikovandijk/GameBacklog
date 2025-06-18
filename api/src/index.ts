@@ -94,6 +94,35 @@ app.get('/api/games/most-reviewed', async (req: Request, res: Response): Promise
   }
 });
 
+app.get('/api/games/search', async (req: Request, res: Response): Promise<void> => {
+  const searchQuery = req.query.q as string;
+
+  if (!searchQuery) {
+    res.status(400).json({ error: 'Search query (q) is required' });
+    return;
+  }
+
+  try {
+    const databaseId = config.appwrite.databaseId!;
+    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+
+    const response = await appwriteDatabases.listDocuments(
+      databaseId,
+      gamesCollectionId,
+      [
+        Query.search('name', searchQuery),
+        Query.equal('steam_app_type', 'game'), // Only search for actual games
+        Query.limit(5)
+      ]
+    );
+
+    res.json(response.documents);
+  } catch (error: any) {
+    console.error('Error searching games:', error);
+    res.status(500).json({ error: 'Failed to search games', details: error.message });
+  }
+});
+
 // GET /api/games - Retrieves all games for the currently authenticated user
 /*
 app.get('/api/games', authenticateUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {

@@ -85,13 +85,100 @@
 
 .stat-value {
   font-size: 2rem;
-  font-weight: 600;
+  font-weight: bold;
   margin: 0;
-  color: #ffffff;
+}
+
+/* Styles for GameSearch component */
+.game-search {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+}
+
+.game-search h2 {
+  margin-top: 0;
+  border-bottom: 2px solid #444;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1.1rem;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background-color: #333;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.search-results {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  background-color: #333;
+  padding: 0.75rem;
+  border-radius: 4px;
+  gap: 1rem;
+}
+
+.result-game-image {
+  width: 120px;
+  height: auto;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.result-game-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.result-game-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #fff;
+}
+
+.result-game-info h4 a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.result-game-info h4 a:hover {
+  color: #61dafb;
+}
+
+.result-game-info p {
+    margin: 0;
+    color: #aaa;
+}
+
+.no-results-message {
+  color: #fff;
 }
 
 .error-message {
   color: #ff6b6b;
+}
+
+.dashboard-stats h2,
+.game-search h2,
+.most-reviewed-games h2 {
+  color: #fff;
 }
 
 /* Styles for MostReviewedGames component */
