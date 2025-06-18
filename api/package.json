@@ -10,7 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "refresh-games": "ts-node src/services/steam-refresh-service.ts",
     "sync-games": "ts-node src/services/steam-sync-service.ts",
-    "setup-db": "ts-node src/scripts/setup-appwrite.ts",
+    "setup-appwrite": "ts-node src/scripts/setup-appwrite.ts",
     "recalculate-stats": "ts-node src/scripts/recalculate-stats.ts"
   },
   "keywords": [],

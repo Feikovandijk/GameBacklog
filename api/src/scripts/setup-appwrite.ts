@@ -51,6 +51,15 @@ async function setupAppwrite() {
             { id: 'publishers', create: () => databases.createStringAttribute(databaseId, collectionId, 'publishers', 255, false, undefined, true) },
             { id: 'is_early_access', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'is_early_access', false, false) },
             { id: 'total_reviews', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'total_reviews', false) },
+            { id: 'steam_app_type', create: () => databases.createStringAttribute(databaseId, collectionId, 'steam_app_type', 32, false) },
+            { id: 'price_final', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'price_final', false) },
+            { id: 'price_currency', create: () => databases.createStringAttribute(databaseId, collectionId, 'price_currency', 8, false) },
+            { id: 'price_initial', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'price_initial', false) },
+            { id: 'discount_percent', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'discount_percent', false) },
+            { id: 'total_positive', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'total_positive', false) },
+            { id: 'total_negative', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'total_negative', false) },
+            { id: 'review_score_desc', create: () => databases.createStringAttribute(databaseId, collectionId, 'review_score_desc', 64, false) },
+            { id: 'current_players', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'current_players', false) },
         ];
 
         for (const attr of attributes) {
@@ -171,7 +180,69 @@ async function setupStatsCollection() {
     }
 }
 
+async function setupReviewHistoryCollection() {
+    console.log('\nStarting Review History collection setup...');
+
+    const client = new Client();
+    client
+        .setEndpoint(config.appwrite.endpoint!)
+        .setProject(config.appwrite.projectId!)
+        .setKey(config.appwrite.apiKey!);
+
+    const databases = new Databases(client);
+    const databaseId = config.appwrite.databaseId!;
+    const collectionId = 'review_history';
+    const collectionName = 'Review History';
+
+    try {
+        // 1. Create collection if it doesn't exist
+        try {
+            await databases.getCollection(databaseId, collectionId);
+            console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
+        } catch (e: any) {
+            if (e.code === 404) {
+                console.log(`Collection '${collectionName}' not found. Creating...`);
+                await databases.createCollection(databaseId, collectionId, collectionName);
+                console.log(`Collection '${collectionName}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else { throw e; }
+        }
+
+        // 2. Create attributes
+        const attributes = [
+            { id: 'game_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'game_id', 64, true) },
+            { id: 'date', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'date', true) },
+            { id: 'total_reviews', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'total_reviews', true) }
+        ];
+
+        for (const attr of attributes) {
+            try {
+                await attr.create();
+                console.log(`- Attribute '${attr.id}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e: any) {
+                if (e.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+
+        // 3. Create index on 'game_id'
+        try {
+            await databases.createIndex(databaseId, collectionId, 'game_id_idx', IndexType.Key, ['game_id']);
+            console.log("- Index on 'game_id' created successfully.");
+        } catch (e: any) {
+            if (e.code === 409) { console.log("- Index on 'game_id' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        console.log('Review History collection setup completed.');
+    } catch (error: any) {
+        console.error('\nAn error occurred during review history collection setup:', error.message);
+        process.exit(1);
+    }
+}
+
 // Autorun the setup when the script is executed
 if (require.main === module) {
-    setupAppwrite().then(setupStatsCollection);
+    setupAppwrite().then(setupStatsCollection).then(setupReviewHistoryCollection);
 } 
