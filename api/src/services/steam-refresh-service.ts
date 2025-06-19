@@ -1,4 +1,5 @@
 import { Client, Databases, Query, ID } from 'node-appwrite';
+import SteamUser from 'steam-user';
 import config from '../config';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -13,6 +14,11 @@ client
     .setKey(config.appwrite.apiKey!);
 
 const databases = new Databases(client);
+const steamUser = new SteamUser();
+steamUser.setOptions({
+    enablePicsCache: true, // Required for getProductInfo
+    changelistUpdateInterval: 0 // We don't need automatic updates
+});
 
 const STEAM_API_KEY = config.steamApiKey!;
 
@@ -42,6 +48,15 @@ interface GameDocument {
   total_negative?: number | null;
   review_score_desc?: string | null;
   current_players?: number | null;
+  tags?: string[] | null;
+  controller_support?: string | null;
+  metacritic_score?: number | null;
+  metacritic_url?: string | null;
+  platforms_windows?: boolean | null;
+  platforms_mac?: boolean | null;
+  platforms_linux?: boolean | null;
+  categories?: string[] | null;
+  has_steam_achievements?: boolean | null;
 }
 
 // Define a type for the Steam API's game data to avoid using 'any'
@@ -71,6 +86,20 @@ interface SteamGameData {
     review_score_desc: string;
   };
   player_count?: number;
+  pics_info?: any; // To hold data from node-steam-user
+  metacritic?: {
+    score: number;
+    url: string;
+  };
+  platforms?: {
+    windows: boolean;
+    mac: boolean;
+    linux: boolean;
+  };
+  categories?: { id: number; description: string }[];
+  achievements?: {
+    total: number;
+  };
 }
 
 async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
@@ -103,12 +132,20 @@ async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: St
   console.log(`Fetching app details from: ${appDetailsUrl.replace(STEAM_API_KEY, 'YOUR_STEAM_KEY')}`);
   console.log(`Fetching reviews from: ${reviewUrl}`);
   console.log(`Fetching player count from: ${playersUrl}`);
+  console.log(`Fetching PICS data for: ${steamAppId}`);
 
   try {
-    const [appDetailsResponse, reviewResponse, playersResponse] = await Promise.all([
+    const productInfoPromise = new Promise<{ err: Error | null; apps: any; packages: any; }>((resolve) => {
+        steamUser.getProductInfo([steamAppId], [], false, (err, apps, packages) => {
+            resolve({ err, apps, packages });
+        });
+    });
+
+    const [appDetailsResponse, reviewResponse, playersResponse, picsResponse] = await Promise.all([
       fetchWithRetry(appDetailsUrl),
       fetchWithRetry(reviewUrl),
-      fetchWithRetry(playersUrl)
+      fetchWithRetry(playersUrl),
+      productInfoPromise
     ]);
 
     if (!appDetailsResponse.ok) {
@@ -166,6 +203,12 @@ async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: St
 
         if (playersData) {
             gameData.player_count = playersData.player_count;
+        }
+        
+        if (picsResponse.err) {
+            console.warn(`Could not fetch PICS data for ${steamAppId}:`, picsResponse.err.message);
+        } else {
+            gameData.pics_info = picsResponse.apps[steamAppId];
         }
 
         return { data: gameData, type: 'game' };
@@ -229,6 +272,14 @@ async function updateGameInAppwrite(documentId: string, steamData: SteamGameData
 
         const price = steamData.price_overview;
         const reviews = steamData.recommendations;
+        const picsInfo = steamData.pics_info?.appinfo;
+        const categories = steamData.categories?.map(c => c.description) ?? [];
+        const hasSteamAchievements = categories.includes("Steam Achievements");
+
+        let tags: string[] | undefined;
+        if (picsInfo?.common?.tags) {
+            tags = Object.values(picsInfo.common.tags);
+        }
 
         const gameData: Partial<GameDocument> = {
             name: steamData.name,
@@ -250,6 +301,17 @@ async function updateGameInAppwrite(documentId: string, steamData: SteamGameData
             total_negative: reviews?.negative ?? null,
             review_score_desc: reviews?.review_score_desc ?? null,
             current_players: steamData.player_count ?? null,
+            // From PICS
+            tags: tags ?? null,
+            controller_support: picsInfo?.common?.controller_support ?? null,
+            // New Features
+            metacritic_score: steamData.metacritic?.score ?? null,
+            metacritic_url: steamData.metacritic?.url ?? null,
+            platforms_windows: steamData.platforms?.windows ?? null,
+            platforms_mac: steamData.platforms?.mac ?? null,
+            platforms_linux: steamData.platforms?.linux ?? null,
+            categories: categories.length > 0 ? categories : null,
+            has_steam_achievements: hasSteamAchievements,
         };
 
         try {
@@ -261,6 +323,11 @@ async function updateGameInAppwrite(documentId: string, steamData: SteamGameData
             );
             console.log(`Successfully updated game ${steamData.name}`);
             
+            if (hasSteamAchievements) {
+              console.log(`Game ${steamData.name} has achievements. Syncing...`);
+              await syncGameAchievements(documentId, steamData.steam_appid);
+            }
+
             // After successful update, record the review count for trend analysis
             if (reviews?.total) {
               await recordReviewHistory(documentId, reviews.total);
@@ -300,6 +367,20 @@ async function runRefreshService() {
   let totalProcessedCount = 0;
 
   try {
+    console.log("Logging into Steam anonymously...");
+    steamUser.logOn({ anonymous: true });
+
+    await new Promise<void>((resolve, reject) => {
+        steamUser.on('loggedOn', () => {
+            console.log("Logged into Steam successfully.");
+            resolve();
+        });
+        steamUser.on('error', (err) => {
+            console.error("Steam login error:", err);
+            reject(err);
+        });
+    });
+
     const PROCESSING_LIMIT = 500; // Process up to 500 games per batch
 
     while (true) {
@@ -390,10 +471,12 @@ async function runRefreshService() {
     }
 
     console.log(`\nSteam refresh completed. Total games updated: ${totalUpdatedCount}.`);
+    steamUser.logOff();
 
   } catch (e) {
     const error = e as Error;
     console.error("Error in Steam refresh service:", error.message);
+    steamUser.logOff();
     process.exit(1); // Exit with error for schedulers to pick up failure
   }
 }
@@ -410,6 +493,120 @@ async function incrementStat(key: string, incrementBy: number = 1) {
         }
     } catch (e) {
         console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
+    }
+}
+
+interface Achievement {
+    name: string; // This is the API name
+    displayName: string;
+    description: string;
+    hidden: boolean;
+    icon: string;
+    icongray: string;
+    percent?: number; // from the global stats endpoint
+}
+
+interface AchievementDocument {
+    game_id: string; // FK to games collection document $id
+    steam_appid: number;
+    api_name: string;
+    display_name: string;
+    description?: string | null;
+    icon?: string | null;
+    icon_gray?: string | null;
+    hidden?: boolean | null;
+    global_percentage?: number | null;
+}
+
+async function syncGameAchievements(documentId: string, steamAppId: number) {
+    const schemaUrl = `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${STEAM_API_KEY}&appid=${steamAppId}&l=english`;
+    const percentagesUrl = `https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${steamAppId}`;
+
+    try {
+        const [schemaResponse, percentagesResponse] = await Promise.all([
+            fetchWithRetry(schemaUrl),
+            fetchWithRetry(percentagesUrl)
+        ]);
+
+        if (!schemaResponse.ok) {
+            console.warn(`Could not fetch achievement schema for appid ${steamAppId}. Status: ${schemaResponse.status}`);
+            return;
+        }
+
+        const schemaData = await schemaResponse.json();
+        const achievements: Achievement[] = schemaData.game?.availableGameStats?.achievements ?? [];
+
+        if (achievements.length === 0) {
+            console.log(`No achievements found for appid ${steamAppId}.`);
+            return;
+        }
+
+        const percentagesData: any = {};
+        if (percentagesResponse.ok) {
+            const percentagesJson = await percentagesResponse.json();
+            if (percentagesJson?.achievementpercentages?.achievements) {
+                percentagesJson.achievementpercentages.achievements.forEach((ach: { name: string; percent: any }) => {
+                    const percentValue = parseFloat(ach.percent);
+                    if (!isNaN(percentValue)) {
+                        percentagesData[ach.name] = percentValue;
+                    } else {
+                        console.warn(`Could not parse achievement percent for ${ach.name} as a float. Value was: ${ach.percent}`);
+                    }
+                });
+            }
+        } else {
+            console.warn(`Could not fetch achievement percentages for appid ${steamAppId}.`);
+        }
+
+        const achievementsToCreate: AchievementDocument[] = achievements.map(ach => ({
+            game_id: documentId,
+            steam_appid: steamAppId,
+            api_name: ach.name,
+            display_name: ach.displayName,
+            description: ach.description || null,
+            icon: ach.icon || null,
+            icon_gray: ach.icongray || null,
+            hidden: !!ach.hidden,
+            global_percentage: percentagesData[ach.name] ?? null,
+        }));
+
+        // Delete all old achievements for the game to ensure data is fresh
+        let hasMore = true;
+        let cursor;
+        while (hasMore) {
+            const queries: any[] = [Query.equal('steam_appid', steamAppId), Query.limit(100)];
+            if (cursor) {
+                queries.push(Query.cursorAfter(cursor));
+            }
+            const oldAchievements = await databases.listDocuments(config.appwrite.databaseId!, 'achievements', queries);
+            if (oldAchievements.documents.length > 0) {
+                const deletePromises = oldAchievements.documents.map(doc =>
+                    databases.deleteDocument(config.appwrite.databaseId!, 'achievements', doc.$id)
+                );
+                await Promise.all(deletePromises);
+                cursor = oldAchievements.documents[oldAchievements.documents.length - 1].$id;
+            } else {
+                hasMore = false;
+            }
+        }
+        
+        // Create new ones in batches
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < achievementsToCreate.length; i += BATCH_SIZE) {
+            const batch = achievementsToCreate.slice(i, i + BATCH_SIZE);
+            const createPromises = batch.map(ach => databases.createDocument(
+                config.appwrite.databaseId!,
+                'achievements',
+                ID.unique(),
+                ach
+            ));
+            await Promise.all(createPromises);
+        }
+
+        console.log(`Successfully synced ${achievementsToCreate.length} achievements for appid ${steamAppId}.`);
+
+    } catch (error) {
+        console.error(`Error syncing achievements for appid ${steamAppId}:`, error);
     }
 }
 

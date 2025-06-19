@@ -61,6 +61,15 @@ async function setupAppwrite() {
             { id: 'total_negative', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'total_negative', false) },
             { id: 'review_score_desc', create: () => databases.createStringAttribute(databaseId, collectionId, 'review_score_desc', 64, false) },
             { id: 'current_players', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'current_players', false) },
+            { id: 'tags', create: () => databases.createStringAttribute(databaseId, collectionId, 'tags', 64, false, undefined, true) },
+            { id: 'controller_support', create: () => databases.createStringAttribute(databaseId, collectionId, 'controller_support', 32, false) },
+            { id: 'metacritic_score', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'metacritic_score', false) },
+            { id: 'metacritic_url', create: () => databases.createUrlAttribute(databaseId, collectionId, 'metacritic_url', false) },
+            { id: 'platforms_windows', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'platforms_windows', false) },
+            { id: 'platforms_mac', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'platforms_mac', false) },
+            { id: 'platforms_linux', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'platforms_linux', false) },
+            { id: 'categories', create: () => databases.createStringAttribute(databaseId, collectionId, 'categories', 128, false, undefined, true) },
+            { id: 'has_steam_achievements', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'has_steam_achievements', false) },
         ];
 
         for (const attr of attributes) {
@@ -260,7 +269,94 @@ async function setupReviewHistoryCollection() {
     }
 }
 
-// Autorun the setup when the script is executed
-if (require.main === module) {
-    setupAppwrite().then(setupStatsCollection).then(setupReviewHistoryCollection);
-} 
+async function setupAchievementsCollection() {
+    console.log('\nStarting Achievements collection setup...');
+
+    const client = new Client();
+    client
+        .setEndpoint(config.appwrite.endpoint!)
+        .setProject(config.appwrite.projectId!)
+        .setKey(config.appwrite.apiKey!);
+
+    const databases = new Databases(client);
+    const databaseId = config.appwrite.databaseId!;
+    const collectionId = 'achievements';
+    const collectionName = 'Achievements';
+
+    try {
+        // 1. Create collection if it doesn't exist
+        try {
+            await databases.getCollection(databaseId, collectionId);
+            console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
+                console.log(`Collection '${collectionName}' not found. Creating...`);
+                await databases.createCollection(databaseId, collectionId, collectionName);
+                console.log(`Collection '${collectionName}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else { throw e; }
+        }
+
+        // 2. Create attributes
+        const attributes = [
+            { id: 'game_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'game_id', 64, true) },
+            { id: 'steam_appid', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'steam_appid', true) },
+            { id: 'api_name', create: () => databases.createStringAttribute(databaseId, collectionId, 'api_name', 255, true) },
+            { id: 'display_name', create: () => databases.createStringAttribute(databaseId, collectionId, 'display_name', 255, false) },
+            { id: 'description', create: () => databases.createStringAttribute(databaseId, collectionId, 'description', 1000, false) },
+            { id: 'icon', create: () => databases.createUrlAttribute(databaseId, collectionId, 'icon', false) },
+            { id: 'icon_gray', create: () => databases.createUrlAttribute(databaseId, collectionId, 'icon_gray', false) },
+            { id: 'hidden', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'hidden', false) },
+            { id: 'global_percentage', create: () => databases.createFloatAttribute(databaseId, collectionId, 'global_percentage', false) },
+        ];
+
+        for (const attr of attributes) {
+            try {
+                await attr.create();
+                console.log(`- Attribute '${attr.id}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+
+        // Add a final delay before creating indexes to ensure attributes are ready
+        await new Promise(resolve => setTimeout(resolve, 1000)); 
+
+        // 3. Create indexes
+        try {
+            await databases.createIndex(databaseId, collectionId, 'steam_appid_idx', IndexType.Key, ['steam_appid']);
+            console.log("- Index on 'steam_appid' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'steam_appid' already exists. Skipping."); }
+            else { throw e; }
+        }
+        try {
+            await databases.createIndex(databaseId, collectionId, 'game_id_idx', IndexType.Key, ['game_id']);
+            console.log("- Index on 'game_id' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'game_id' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        console.log('Achievements collection setup completed.');
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during achievements collection setup:', message);
+        process.exit(1);
+    }
+}
+
+async function main() {
+    await setupAppwrite();
+    await setupStatsCollection();
+    await setupReviewHistoryCollection();
+    await setupAchievementsCollection();
+}
+
+main(); 
