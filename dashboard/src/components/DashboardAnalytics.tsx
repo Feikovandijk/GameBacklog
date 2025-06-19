@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LineChart, Line,
   PieChart, Pie, Cell,
 } from 'recharts';
+import ChartCard from './ChartCard';
 
 interface AnalyticsData {
   earlyAccessCount: number;
@@ -30,9 +31,14 @@ const DashboardAnalytics: React.FC = () => {
         }
         const data: AnalyticsData = await response.json();
         setAnalytics(data);
-      } catch (e: any) {
-        setError(e.message);
-        console.error("Error fetching analytics:", e);
+      } catch (e) {
+        if (e instanceof Error) {
+            setError(e.message);
+            console.error("Error fetching analytics:", e);
+        } else {
+            setError("An unknown error occurred.");
+            console.error("An unknown error occurred while fetching analytics:", e);
+        }
       } finally {
         setLoading(false);
       }
@@ -41,16 +47,16 @@ const DashboardAnalytics: React.FC = () => {
     fetchAnalytics();
   }, []);
 
+  const releaseYearData = useMemo(() => {
+    if (!analytics) return [];
+    return Object.entries(analytics.releaseYearDistribution)
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
+  }, [analytics]);
+
   if (loading) return <p>Loading analytics...</p>;
   if (error) return <p className="error-message">Error loading analytics: {error}</p>;
   if (!analytics) return <p>No analytics data available.</p>;
-  
-  const releaseYearData = useMemo(() => 
-    Object.entries(analytics.releaseYearDistribution)
-      .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => parseInt(a.year) - parseInt(b.year)),
-    [analytics.releaseYearDistribution]
-  );
 
   return (
     <div className="dashboard-analytics">
@@ -61,43 +67,37 @@ const DashboardAnalytics: React.FC = () => {
                 <p className="stat-value">{analytics.earlyAccessCount}</p>
             </div>
             
-            <ChartCard
-                title="Top 10 Developers"
-                chartType="BarChart"
-                data={analytics.developerDistribution}
-                margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-            >
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} stroke="#fff" />
-                <YAxis stroke="#fff" />
-                <Bar dataKey="count" fill="#8884d8" />
+            <ChartCard title="Top 10 Developers">
+                <BarChart data={analytics.developerDistribution} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} stroke="#fff" />
+                    <YAxis stroke="#fff" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="count" fill="#8884d8" />
+                </BarChart>
             </ChartCard>
 
-            <div className="chart-card">
-                <h3>Top 10 Publishers</h3>
-                 <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                        <Pie data={analytics.publisherDistribution} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="count" nameKey="name" label>
-                             {analytics.publisherDistribution.map((_entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                    </PieChart>
-                </ResponsiveContainer>
-            </div>
+            <ChartCard title="Top 10 Publishers">
+                <PieChart>
+                    <Pie data={analytics.publisherDistribution} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="count" nameKey="name" label>
+                         {analytics.publisherDistribution.map((_entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                </PieChart>
+            </ChartCard>
             
-            <div className="chart-card full-width">
-                <h3>Game Releases by Year</h3>
-                <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={releaseYearData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="year" stroke="#fff" />
-                        <YAxis stroke="#fff" />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="count" stroke="#82ca9d" />
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
+            <ChartCard title="Game Releases by Year" className="full-width" height={400}>
+                <LineChart data={releaseYearData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" stroke="#fff" />
+                    <YAxis stroke="#fff" />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="count" stroke="#82ca9d" />
+                </LineChart>
+            </ChartCard>
         </div>
     </div>
   );
