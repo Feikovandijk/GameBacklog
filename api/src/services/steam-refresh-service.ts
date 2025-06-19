@@ -20,7 +20,11 @@ steamUser.setOptions({
     changelistUpdateInterval: 0 // We don't need automatic updates
 });
 
-const STEAM_API_KEY = config.steamApiKey!;
+const STEAM_API_KEY = config.steamApiKeys[config.worker.id] || config.steamApiKey;
+
+if (!STEAM_API_KEY) {
+    throw new Error(`[Worker ${config.worker.id}] Steam API key is missing. Ensure STEAM_API_KEY_${config.worker.id} or a fallback STEAM_API_KEY is defined in your .env file.`);
+}
 
 const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
 const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
@@ -129,7 +133,7 @@ async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: St
   const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
   const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
 
-  console.log(`Fetching app details from: ${appDetailsUrl.replace(STEAM_API_KEY, 'YOUR_STEAM_KEY')}`);
+  console.log(`Fetching app details from: ${appDetailsUrl.replace(STEAM_API_KEY!, 'YOUR_STEAM_KEY')}`);
   console.log(`Fetching reviews from: ${reviewUrl}`);
   console.log(`Fetching player count from: ${playersUrl}`);
   console.log(`Fetching PICS data for: ${steamAppId}`);
@@ -372,57 +376,46 @@ async function runRefreshService() {
 
     await new Promise<void>((resolve, reject) => {
         steamUser.on('loggedOn', () => {
-            console.log("Logged into Steam successfully.");
+            console.log(`[Worker ${config.worker.id}/${config.worker.total}] Logged into Steam successfully.`);
             resolve();
         });
         steamUser.on('error', (err) => {
-            console.error("Steam login error:", err);
+            console.error(`[Worker ${config.worker.id}/${config.worker.total}] Steam login error:`, err);
             reject(err);
         });
     });
 
-    const PROCESSING_LIMIT = 500; // Process up to 500 games per batch
+    const BATCH_SIZE = 250; // Number of games each worker will process in its batch
+    let currentOffset = config.worker.id * BATCH_SIZE;
 
     while (true) {
       const thresholdDate = new Date();
       thresholdDate.setDate(thresholdDate.getDate() - UPDATE_INTERVAL_DAYS);
 
-      console.log("\nFetching a random batch of stale games from Appwrite...");
+      console.log(`\n[Worker ${config.worker.id}/${config.worker.total}] Fetching batch of games starting from offset ${currentOffset}...`);
 
       // --- Fetch a batch of games that have never been updated ---
-      const neverUpdatedCountResponse = await databases.listDocuments(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, [Query.isNull('last_updated'), Query.limit(1)]);
-      const neverUpdatedTotal = neverUpdatedCountResponse.total;
-      const neverUpdatedOffset = neverUpdatedTotal > PROCESSING_LIMIT ? Math.floor(Math.random() * (neverUpdatedTotal - PROCESSING_LIMIT)) : 0;
-      
-      console.log(`Found ${neverUpdatedTotal} never-updated games. Fetching batch from random offset ${neverUpdatedOffset}.`);
-
       const neverUpdatedResponse = await databases.listDocuments(
           config.appwrite.databaseId!,
           config.appwrite.gamesCollectionId!,
           [
               Query.isNull('last_updated'),
               Query.orderDesc('steam_appid'),
-              Query.limit(PROCESSING_LIMIT),
-              Query.offset(neverUpdatedOffset)
+              Query.limit(BATCH_SIZE),
+              Query.offset(currentOffset)
           ]
       );
 
       // --- Fetch a batch of games that were updated long ago ---
       const oldGamesFilter = [Query.lessThan('last_updated', thresholdDate.toISOString()), Query.equal('steam_app_type', 'game')];
-      const oldGamesCountResponse = await databases.listDocuments(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, [...oldGamesFilter, Query.limit(1)]);
-      const oldGamesTotal = oldGamesCountResponse.total;
-      const oldGamesOffset = oldGamesTotal > PROCESSING_LIMIT ? Math.floor(Math.random() * (oldGamesTotal - PROCESSING_LIMIT)) : 0;
-
-      console.log(`Found ${oldGamesTotal} outdated games. Fetching batch from random offset ${oldGamesOffset}.`);
-
       const oldGamesResponse = await databases.listDocuments(
           config.appwrite.databaseId!,
           config.appwrite.gamesCollectionId!,
           [
               ...oldGamesFilter,
               Query.orderDesc('steam_appid'),
-              Query.limit(PROCESSING_LIMIT),
-              Query.offset(oldGamesOffset)
+              Query.limit(BATCH_SIZE),
+              Query.offset(currentOffset)
           ]
       );
 
@@ -433,23 +426,23 @@ async function runRefreshService() {
       
       const staleGames = Array.from(staleGamesMap.values())
           .sort((a, b) => (b.steam_appid || 0) - (a.steam_appid || 0))
-          .slice(0, PROCESSING_LIMIT);
+          .slice(0, BATCH_SIZE);
 
       if (staleGames.length === 0) {
-        console.log("No more stale games to update. Service will now exit.");
+        console.log(`[Worker ${config.worker.id}/${config.worker.total}] No more stale games found at this offset. Worker will exit.`);
         break; // Exit the while loop
       }
       
       totalProcessedCount += staleGames.length;
-      console.log(`Found ${staleGames.length} stale games. Starting batch processing...`);
+      console.log(`[Worker ${config.worker.id}/${config.worker.total}] Found ${staleGames.length} games. Starting batch processing...`);
 
       for (const [index, game] of staleGames.entries()) {
         if (!game.steam_appid) {
-          console.warn(`Game document ${game.$id} has no steam_appid, skipping.`);
+          console.warn(`[Worker ${config.worker.id}/${config.worker.total}] Game document ${game.$id} has no steam_appid, skipping.`);
           continue;
         }
 
-        console.log(`Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`);
+        console.log(`[Worker ${config.worker.id}/${config.worker.total}] Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`);
         const steamResponse = await fetchGameDetailsFromSteam(game.steam_appid);
 
         if (steamResponse.type) {
@@ -462,20 +455,23 @@ async function runRefreshService() {
         }
 
         if (index < staleGames.length - 1) {
-          console.log(`Waiting for ${DELAY_MS / 1000} seconds before next Steam API call...`);
+          console.log(`[Worker ${config.worker.id}/${config.worker.total}] Waiting for ${DELAY_MS / 1000} seconds before next Steam API call...`);
           await new Promise(resolve => setTimeout(resolve, DELAY_MS));
         }
       }
       
-      console.log(`Batch finished. Total updated so far: ${totalUpdatedCount}. Total processed so far: ${totalProcessedCount}.`);
+      console.log(`[Worker ${config.worker.id}/${config.worker.total}] Batch finished. Total updated by this worker: ${totalUpdatedCount}.`);
+
+      // Move to the next block of work
+      currentOffset += config.worker.total * BATCH_SIZE;
     }
 
-    console.log(`\nSteam refresh completed. Total games updated: ${totalUpdatedCount}.`);
+    console.log(`\n[Worker ${config.worker.id}/${config.worker.total}] Steam refresh completed.`);
     steamUser.logOff();
 
   } catch (e) {
     const error = e as Error;
-    console.error("Error in Steam refresh service:", error.message);
+    console.error(`[Worker ${config.worker.id}/${config.worker.total}] Error in Steam refresh service:`, error.message);
     steamUser.logOff();
     process.exit(1); // Exit with error for schedulers to pick up failure
   }
