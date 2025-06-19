@@ -1,6 +1,7 @@
 // @ts-check
 
 // Using require for typescript-eslint in a .cjs file
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const tseslint = require('typescript-eslint');
 
 // Using module.exports for a .cjs file

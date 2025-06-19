@@ -1,4 +1,4 @@
-import { Client, Databases, Query, ID, AppwriteException } from 'node-appwrite';
+import { Client, Databases, Query, ID } from 'node-appwrite';
 import config from '../config';
 import dotenv from 'dotenv';
 import path from 'path';
