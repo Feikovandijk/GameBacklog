@@ -541,7 +541,7 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
             return;
         }
 
-        let percentagesData: any = {};
+        const percentagesData: any = {};
         if (percentagesResponse.ok) {
             const percentagesJson = await percentagesResponse.json();
             if (percentagesJson?.achievementpercentages?.achievements) {
