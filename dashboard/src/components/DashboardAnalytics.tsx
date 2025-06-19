@@ -45,9 +45,12 @@ const DashboardAnalytics: React.FC = () => {
   if (error) return <p className="error-message">Error loading analytics: {error}</p>;
   if (!analytics) return <p>No analytics data available.</p>;
   
-  const releaseYearData = Object.entries(analytics.releaseYearDistribution)
-    .map(([year, count]) => ({ year, count }))
-    .sort((a, b) => parseInt(a.year) - parseInt(b.year));
+  const releaseYearData = useMemo(() => 
+    Object.entries(analytics.releaseYearDistribution)
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => parseInt(a.year) - parseInt(b.year)),
+    [analytics.releaseYearDistribution]
+  );
 
   return (
     <div className="dashboard-analytics">
