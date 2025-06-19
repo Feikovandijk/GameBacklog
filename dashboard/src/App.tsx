@@ -2,6 +2,7 @@ import './App.css'
 import DashboardStats from './components/DashboardStats'
 import MostReviewedGames from './components/MostReviewedGames'
 import GameSearch from './components/GameSearch'
+import DashboardAnalytics from './components/DashboardAnalytics'
 
 function App() {
 
@@ -13,6 +14,7 @@ function App() {
       <main>
         <GameSearch />
         <DashboardStats />
+        <DashboardAnalytics />
         <MostReviewedGames />
       </main>
     </>

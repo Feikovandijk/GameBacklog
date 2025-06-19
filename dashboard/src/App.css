@@ -252,3 +252,39 @@
   margin: 0;
   color: #aaa;
 }
+
+/* Styles for DashboardAnalytics component */
+.dashboard-analytics {
+  background-color: #2a2a2a;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.dashboard-analytics h2, .chart-card h3 {
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.chart-card {
+    background-color: #333;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.chart-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.recharts-text, .recharts-legend-item-text {
+    fill: #fff !important;
+}
