@@ -1,44 +1,60 @@
 version: '3.8'
 
+# This Docker Compose file is a blueprint for deploying the application to a production environment.
+# Platforms like Render, Railway, or Komodo will not use this file directly, but you will
+# configure your services on their dashboards using the same concepts defined here:
+# services, build contexts, start commands, and environment variables.
+
 services:
+  #----------------------------------------------------------------------------------
+  # API Service
+  # Corresponds to your backend worker/service on a PaaS.
+  #----------------------------------------------------------------------------------
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
-    image: game-backlog-api
-    container_name: api
+    # On a PaaS, you would have one service with the "Start Command": npm run start
+    # and a separate "Cron Job" service with the command: npm run sync-games
     restart: unless-stopped
-    ports:
-      - "6543:6543"
     env_file:
-      - .env
+      - ./.env
+    ports:
+      - "8080:8080"
+    # In production, the code is baked into the image. This volume is for development.
+    # We mount the source code to see changes without rebuilding the image.
     volumes:
-      - ./api/src:/app/src # Mount only src for dev
-    command: npm run dev
+      - ./api:/app
+      - /app/node_modules
 
+  #----------------------------------------------------------------------------------
+  # Dashboard Service
+  # Corresponds to your frontend "Static Site" or "Web Service" on a PaaS.
+  #----------------------------------------------------------------------------------
   dashboard:
     build:
-      context: .
-      dockerfile: dashboard/Dockerfile
-    container_name: dashboard
+      context: ./dashboard
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8080:80"
+      # Maps the container's port 80 (Nginx) to the host's port 80
+      - "80:80"
     depends_on:
-      - api
+      - api # Ensures the API starts before the dashboard.
 
-  sync-games:
-    image: game-backlog-api
-    build:
-      context: ./api
-    container_name: sync-games
-    env_file: .env
-    command: npm run sync-games
+  #----------------------------------------------------------------------------------
+  # Watchtower Service (Optional but Recommended for self-hosting)
+  # Automatically updates your running containers to the latest image from a registry.
+  # PaaS platforms have this auto-deploy functionality built-in.
+  #----------------------------------------------------------------------------------
+  watchtower:
+    image: containrrr/watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # This command tells Watchtower to check for new images every 5 minutes (300 seconds).
+    command: --interval 300
 
-  refresh-games:
-    image: game-backlog-api
-    build:
-      context: ./api
-    container_name: refresh-games
-    env_file: .env
-    command: npm run refresh-games 
+volumes:
+  appwrite_data:
+  appwrite_cache: 
