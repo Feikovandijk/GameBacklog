@@ -368,7 +368,6 @@ async function updateGameInAppwrite(documentId: string, steamData: SteamGameData
 async function runRefreshService() {
   console.log("Local Steam refresh service started. It will run continuously until all games are updated.");
   let totalUpdatedCount = 0;
-  let totalProcessedCount = 0;
 
   try {
     console.log("Logging into Steam anonymously...");
@@ -433,7 +432,6 @@ async function runRefreshService() {
         break; // Exit the while loop
       }
       
-      totalProcessedCount += staleGames.length;
       console.log(`[Worker ${config.worker.id}/${config.worker.total}] Found ${staleGames.length} games. Starting batch processing...`);
 
       for (const [index, game] of staleGames.entries()) {
