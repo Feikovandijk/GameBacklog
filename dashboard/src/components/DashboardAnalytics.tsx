@@ -58,19 +58,16 @@ const DashboardAnalytics: React.FC = () => {
                 <p className="stat-value">{analytics.earlyAccessCount}</p>
             </div>
             
-            <div className="chart-card">
-                <h3>Top 10 Developers</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={analytics.developerDistribution} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} stroke="#fff" />
-                        <YAxis stroke="#fff" />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="count" fill="#8884d8" />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
+            <ChartCard
+                title="Top 10 Developers"
+                chartType="BarChart"
+                data={analytics.developerDistribution}
+                margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+            >
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} stroke="#fff" />
+                <YAxis stroke="#fff" />
+                <Bar dataKey="count" fill="#8884d8" />
+            </ChartCard>
 
             <div className="chart-card">
                 <h3>Top 10 Publishers</h3>
