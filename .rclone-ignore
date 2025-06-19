@@ -16,3 +16,5 @@
 # Ignore .env files
 .env
 **/.env 
+
+# command: rclone sync . nuc:Gamebacklog --exclude-from .rclone-ignore --progress 

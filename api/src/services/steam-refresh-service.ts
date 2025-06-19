@@ -20,7 +20,7 @@ const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
 const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const UPDATE_INTERVAL_DAYS = 7;
 const GAMES_PER_MINUTE_LIMIT = 30; // Stay under the 100k/day Steam API limit
-const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT; // Calculate delay in milliseconds
+const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 
 interface GameDocument {
   steam_appid: number;
@@ -42,6 +42,35 @@ interface GameDocument {
   total_negative?: number | null;
   review_score_desc?: string | null;
   current_players?: number | null;
+}
+
+// Define a type for the Steam API's game data to avoid using 'any'
+interface SteamGameData {
+  type: string;
+  name: string;
+  steam_appid: number;
+  short_description: string;
+  header_image: string;
+  release_date: {
+    coming_soon: boolean;
+    date: string;
+  };
+  developers: string[];
+  publishers: string[];
+  price_overview?: {
+    currency: string;
+    initial: number;
+    final: number;
+    discount_percent: number;
+  };
+  genres: { id: string; description:string }[];
+  recommendations?: {
+    total: number;
+    positive: number;
+    negative: number;
+    review_score_desc: string;
+  };
+  player_count?: number;
 }
 
 async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
@@ -66,7 +95,7 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
     throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
 }
 
-async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: any | null, type: string | null }> {
+async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: SteamGameData | null, type: string | null }> {
   const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
   const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
   const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
@@ -177,7 +206,7 @@ async function recordReviewHistory(documentId: string, totalReviews: number) {
     }
 }
 
-async function updateGameInAppwrite(documentId: string, steamData: any, steamAppType: string) {
+async function updateGameInAppwrite(documentId: string, steamData: SteamGameData | null, steamAppType: string) {
     if (steamData && steamAppType === 'game') {
         // This is a valid game, do a full update
         const isEarlyAccess = steamData.genres?.some(
@@ -233,7 +262,9 @@ async function updateGameInAppwrite(documentId: string, steamData: any, steamApp
             console.log(`Successfully updated game ${steamData.name}`);
             
             // After successful update, record the review count for trend analysis
-            await recordReviewHistory(documentId, reviews?.total);
+            if (reviews?.total) {
+              await recordReviewHistory(documentId, reviews.total);
+            }
 
             return true;
         } catch (error) {
@@ -275,28 +306,42 @@ async function runRefreshService() {
       const thresholdDate = new Date();
       thresholdDate.setDate(thresholdDate.getDate() - UPDATE_INTERVAL_DAYS);
 
-      console.log("\nFetching a new batch of stale games from Appwrite...");
+      console.log("\nFetching a random batch of stale games from Appwrite...");
 
-      // Fetch newest games that have never been updated
+      // --- Fetch a batch of games that have never been updated ---
+      const neverUpdatedCountResponse = await databases.listDocuments(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, [Query.isNull('last_updated'), Query.limit(1)]);
+      const neverUpdatedTotal = neverUpdatedCountResponse.total;
+      const neverUpdatedOffset = neverUpdatedTotal > PROCESSING_LIMIT ? Math.floor(Math.random() * (neverUpdatedTotal - PROCESSING_LIMIT)) : 0;
+      
+      console.log(`Found ${neverUpdatedTotal} never-updated games. Fetching batch from random offset ${neverUpdatedOffset}.`);
+
       const neverUpdatedResponse = await databases.listDocuments(
           config.appwrite.databaseId!,
           config.appwrite.gamesCollectionId!,
           [
               Query.isNull('last_updated'),
               Query.orderDesc('steam_appid'),
-              Query.limit(PROCESSING_LIMIT)
+              Query.limit(PROCESSING_LIMIT),
+              Query.offset(neverUpdatedOffset)
           ]
       );
 
-      // Fetch newest games that were updated long ago, but only if they are actual games
+      // --- Fetch a batch of games that were updated long ago ---
+      const oldGamesFilter = [Query.lessThan('last_updated', thresholdDate.toISOString()), Query.equal('steam_app_type', 'game')];
+      const oldGamesCountResponse = await databases.listDocuments(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, [...oldGamesFilter, Query.limit(1)]);
+      const oldGamesTotal = oldGamesCountResponse.total;
+      const oldGamesOffset = oldGamesTotal > PROCESSING_LIMIT ? Math.floor(Math.random() * (oldGamesTotal - PROCESSING_LIMIT)) : 0;
+
+      console.log(`Found ${oldGamesTotal} outdated games. Fetching batch from random offset ${oldGamesOffset}.`);
+
       const oldGamesResponse = await databases.listDocuments(
           config.appwrite.databaseId!,
           config.appwrite.gamesCollectionId!,
           [
-              Query.lessThan('last_updated', thresholdDate.toISOString()),
-              Query.equal('steam_app_type', 'game'), // Only re-check actual games
+              ...oldGamesFilter,
               Query.orderDesc('steam_appid'),
-              Query.limit(PROCESSING_LIMIT)
+              Query.limit(PROCESSING_LIMIT),
+              Query.offset(oldGamesOffset)
           ]
       );
 
@@ -323,9 +368,7 @@ async function runRefreshService() {
           continue;
         }
 
-        console.log(
-          `Processing game: ${game.name} (Document ID: ${game.$id}, Steam AppID: ${game.steam_appid})`
-        );
+        console.log(`Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`);
         const steamResponse = await fetchGameDetailsFromSteam(game.steam_appid);
 
         if (steamResponse.type) {
@@ -348,7 +391,7 @@ async function runRefreshService() {
 
     console.log(`\nSteam refresh completed. Total games updated: ${totalUpdatedCount}.`);
 
-  } catch (e: any) {
+  } catch (e) {
     console.error("Error in Steam refresh service:", e);
     process.exit(1); // Exit with error for schedulers to pick up failure
   }

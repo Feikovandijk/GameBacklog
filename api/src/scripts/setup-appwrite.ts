@@ -1,4 +1,4 @@
-import { Client, Databases, ID, IndexType } from 'node-appwrite';
+import { Client, Databases, IndexType, AppwriteException } from 'node-appwrite';
 import config from '../config';
 
 // This script sets up the 'games' collection in your Appwrite database.
@@ -25,8 +25,9 @@ async function setupAppwrite() {
         try {
             await databases.getCollection(databaseId, collectionId);
             console.log(`Collection '${collectionName}' (${collectionId}) already exists. Proceeding to check attributes...`);
-        } catch (e: any) {
-            if (e.code === 404) { // Not found
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) { // Not found
                  console.log(`Collection '${collectionName}' not found. Creating...`);
                  await databases.createCollection(databaseId, collectionId, collectionName);
                  console.log(`Collection '${collectionName}' created successfully.`);
@@ -34,7 +35,7 @@ async function setupAppwrite() {
                  await new Promise(resolve => setTimeout(resolve, 1000));
             } else {
                 console.error("An unexpected error occurred while checking for the collection:");
-                throw e;
+                throw error;
             }
         }
 
@@ -68,12 +69,13 @@ async function setupAppwrite() {
                 console.log(`- Attribute '${attr.id}' created successfully.`);
                 // Appwrite needs some time to process attribute creation before creating the next one
                 await new Promise(resolve => setTimeout(resolve, 500));
-            } catch (e: any) {
-                if (e.code === 409) { // Conflict - attribute already exists
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { // Conflict - attribute already exists
                     console.log(`- Attribute '${attr.id}' already exists. Skipping.`);
                 } else {
                     console.error(`\nError creating attribute '${attr.id}':`);
-                    throw e; // Stop script on other errors
+                    throw error; // Stop script on other errors
                 }
             }
         }
@@ -84,35 +86,43 @@ async function setupAppwrite() {
             // Key for the index, type, attributes array, orders array (optional)
             await databases.createIndex(databaseId, collectionId, 'steam_appid_unique', IndexType.Unique, ['steam_appid']);
             console.log("- Index on 'steam_appid' created successfully.");
-        } catch (e: any) {
-             if (e.code === 409) { // Conflict - index already exists
+        } catch (e) {
+             const error = e as AppwriteException;
+             if (error.code === 409) { // Conflict - index already exists
                  console.log("- Index on 'steam_appid' already exists. Skipping.");
              } else {
                  console.error("\nError creating index on 'steam_appid':");
-                 throw e;
+                 throw error;
              }
         }
 
         try {
             await databases.createIndex(databaseId, collectionId, 'last_updated_idx', IndexType.Key, ['last_updated']);
             console.log("- Index on 'last_updated' created successfully.");
-        } catch (e: any) {
-            if (e.code === 409) {
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) {
                 console.log("- Index on 'last_updated' already exists. Skipping.");
             } else {
                 console.error("\nError creating index on 'last_updated':");
-                throw e;
+                throw error;
             }
         }
         
         console.log('\nAppwrite database setup completed successfully!');
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('\nAn error occurred during Appwrite setup:');
-        console.error('Error Code:', error.code);
-        console.error('Error Message:', error.message);
-        if (error.response) {
-            console.error('Full Response:', error.response);
+        if (error instanceof AppwriteException) {
+          console.error('Error Code:', error.code);
+          console.error('Error Message:', error.message);
+          if (error.response) {
+              console.error('Full Response:', error.response);
+          }
+        } else if (error instanceof Error) {
+            console.error('Error Message:', error.message);
+        } else {
+            console.error(error);
         }
         process.exit(1);
     }
@@ -138,8 +148,9 @@ async function setupStatsCollection() {
         try {
             await databases.getCollection(databaseId, collectionId);
             console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
-        } catch (e: any) {
-            if (e.code === 404) {
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
                 console.log(`Collection '${collectionName}' not found. Creating...`);
                 await databases.createCollection(databaseId, collectionId, collectionName);
                 console.log(`Collection '${collectionName}' created successfully.`);
@@ -158,8 +169,9 @@ async function setupStatsCollection() {
                 await attr.create();
                 console.log(`- Attribute '${attr.id}' created successfully.`);
                 await new Promise(resolve => setTimeout(resolve, 500));
-            } catch (e: any) {
-                if (e.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
                 else { throw e; }
             }
         }
@@ -168,14 +180,16 @@ async function setupStatsCollection() {
         try {
             await databases.createIndex(databaseId, collectionId, 'key_unique', IndexType.Unique, ['key']);
             console.log("- Index on 'key' created successfully.");
-        } catch (e: any) {
-            if (e.code === 409) { console.log("- Index on 'key' already exists. Skipping."); }
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'key' already exists. Skipping."); }
             else { throw e; }
         }
 
         console.log('Statistics collection setup completed.');
-    } catch (error: any) {
-        console.error('\nAn error occurred during statistics collection setup:', error.message);
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during statistics collection setup:', message);
         process.exit(1);
     }
 }
@@ -199,8 +213,9 @@ async function setupReviewHistoryCollection() {
         try {
             await databases.getCollection(databaseId, collectionId);
             console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
-        } catch (e: any) {
-            if (e.code === 404) {
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
                 console.log(`Collection '${collectionName}' not found. Creating...`);
                 await databases.createCollection(databaseId, collectionId, collectionName);
                 console.log(`Collection '${collectionName}' created successfully.`);
@@ -220,8 +235,9 @@ async function setupReviewHistoryCollection() {
                 await attr.create();
                 console.log(`- Attribute '${attr.id}' created successfully.`);
                 await new Promise(resolve => setTimeout(resolve, 500));
-            } catch (e: any) {
-                if (e.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
                 else { throw e; }
             }
         }
@@ -230,14 +246,16 @@ async function setupReviewHistoryCollection() {
         try {
             await databases.createIndex(databaseId, collectionId, 'game_id_idx', IndexType.Key, ['game_id']);
             console.log("- Index on 'game_id' created successfully.");
-        } catch (e: any) {
-            if (e.code === 409) { console.log("- Index on 'game_id' already exists. Skipping."); }
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'game_id' already exists. Skipping."); }
             else { throw e; }
         }
 
         console.log('Review History collection setup completed.');
-    } catch (error: any) {
-        console.error('\nAn error occurred during review history collection setup:', error.message);
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during review history collection setup:', message);
         process.exit(1);
     }
 }

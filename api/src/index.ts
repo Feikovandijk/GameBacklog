@@ -1,12 +1,7 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
-import { Client, Databases, Query } from 'node-appwrite';
+import { Client, Databases, Query, AppwriteException } from 'node-appwrite';
 import config from './config';
-
-interface AuthenticatedRequest extends Request {
-  user?: any; // You can define a more specific type for user
-}
 
 const app = express();
 const port = config.port;
@@ -21,36 +16,8 @@ const appwriteClient = new Client()
     .setKey(config.appwrite.apiKey!);
 const appwriteDatabases = new Databases(appwriteClient);
 
-// Supabase client (can be removed if fully migrated)
-// const supabase = createClient(config.supabaseUrl!, config.supabaseAnonKey!);
-
-// Middleware to authenticate user (currently Supabase)
-/*
-const authenticateUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    res.status(401).json({ error: 'Authorization header missing' });
-    return;
-  }
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    res.status(401).json({ error: 'Token missing' });
-    return;
-  }
-
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-
-  if (error || !user) {
-    res.status(401).json({ error: 'Invalid or expired token', details: error?.message });
-    return;
-  }
-  req.user = user; // Add user to request object
-  next();
-};
-*/
-
 // NEW: GET /api/stats - Retrieves stats about the games database
-app.get('/api/stats', async (req: Request, res: Response): Promise<void> => {
+app.get('/api/stats', async (_req: Request, res: Response): Promise<void> => {
   try {
     const databaseId = config.appwrite.databaseId!;
     const statsCollectionId = 'statistics';
@@ -66,13 +33,14 @@ app.get('/api/stats', async (req: Request, res: Response): Promise<void> => {
       totalGames: stats.totalGames || 0,
       updatedGames: stats.updatedGames || 0,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching stats:', error);
-    res.status(500).json({ error: 'Failed to fetch stats', details: error.message });
+    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: 'Failed to fetch stats', details: errorMessage });
   }
 });
 
-app.get('/api/games/most-reviewed', async (req: Request, res: Response): Promise<void> => {
+app.get('/api/games/most-reviewed', async (_req: Request, res: Response): Promise<void> => {
   try {
     const databaseId = config.appwrite.databaseId!;
     const gamesCollectionId = config.appwrite.gamesCollectionId!;
@@ -88,9 +56,10 @@ app.get('/api/games/most-reviewed', async (req: Request, res: Response): Promise
     );
 
     res.json(response.documents);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching most reviewed games:', error);
-    res.status(500).json({ error: 'Failed to fetch most reviewed games', details: error.message });
+    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: 'Failed to fetch most reviewed games', details: errorMessage });
   }
 });
 
