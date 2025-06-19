@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import debounce from 'lodash.debounce';
 
 interface SearchResultGame {
@@ -15,10 +15,9 @@ const GameSearch: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const performSearch = async (searchQuery: string) => {
+  const performSearch = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 3) {
       setResults([]);
-      setIsLoading(false);
       return;
     }
     setIsLoading(true);
@@ -41,14 +40,18 @@ const GameSearch: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const debouncedSearch = useCallback(
-    debounce((searchQuery: string) => {
-      performSearch(searchQuery);
-    }, 500),
+  const debouncedSearch = useMemo(
+    () => debounce(performSearch, 500),
     [performSearch]
   );
+
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = e.target.value;
