@@ -14,62 +14,7 @@ client
 
 const databases = new Databases(client);
 
-const STEAM_API_GET_APP_LIST_URL = "https://api.steampowered.com/ISteamApps/GetAppList/v2/";
-const GAMES_PER_MINUTE_LIMIT = 3000;
-const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
-
-interface SteamApp {
-  appid: number;
-  name: string;
-}
-
-async function fetchAllSteamApps(): Promise<SteamApp[]> {
-  try {
-    console.log("Fetching all Steam apps...");
-    const response = await fetch(STEAM_API_GET_APP_LIST_URL);
-    if (!response.ok) {
-      console.error(`Steam API request failed: ${response.status} ${response.statusText}`);
-      return [];
-    }
-    const data = await response.json();
-    if (data.applist && data.applist.apps) {
-      console.log(`Successfully fetched ${data.applist.apps.length} apps from Steam.`);
-      return data.applist.apps;
-    }
-    return [];
-  } catch (error) {
-    console.error("Error fetching all Steam apps:", error);
-    return [];
-  }
-}
-
-async function getExistingSteamAppIds(): Promise<number[]> {
-    try {
-        let allGames: any[] = [];
-        let offset = 0;
-        const limit = 100; // Appwrite max limit per request
-        let response;
-
-        do {
-            response = await databases.listDocuments(
-                config.appwrite.databaseId!,
-                config.appwrite.gamesCollectionId!,
-                [
-                    Query.limit(limit),
-                    Query.offset(offset)
-                ]
-            );
-            allGames = allGames.concat(response.documents);
-            offset += limit;
-        } while (response.documents.length > 0);
-        
-        return allGames.map(game => game.steam_appid).filter(id => id != null);
-    } catch (error) {
-        console.error("Error fetching existing steam_appids from Appwrite:", error);
-        return [];
-    }
-}
-
+// Fetches the full list of all Steam games
 async function fetchSteamGames(): Promise<Array<{ appid: number; name: string }>> {
     const url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/";
     try {
@@ -85,6 +30,7 @@ async function fetchSteamGames(): Promise<Array<{ appid: number; name: string }>
     }
 }
 
+// Fetches all game IDs currently in the Appwrite database
 async function getExistingGameIds(): Promise<Set<number>> {
     const existingIds = new Set<number>();
     let hasMore = true;
@@ -120,6 +66,7 @@ async function getExistingGameIds(): Promise<Set<number>> {
     return existingIds;
 }
 
+// Adds new games to the Appwrite database in batches
 async function addNewGames(newGames: Array<{ appid: number; name: string }>) {
     const BATCH_SIZE = 100; // Appwrite recommends batches of 100
     for (let i = 0; i < newGames.length; i += BATCH_SIZE) {
@@ -181,29 +128,13 @@ async function runSyncService() {
         console.log("Steam sync completed successfully.");
 
     } catch (error) {
-        console.error("A critical error occurred in the sync service:", error);
+        const message = error instanceof Error ? error.message : 'An unknown error occurred';
+        console.error("A critical error occurred in the sync service:", message);
         process.exit(1);
     }
 }
 
-async function incrementStat(databases: Databases, key: string, incrementBy: number = 1) {
-    const dbId = config.appwrite.databaseId!;
-    const statsCollectionId = 'statistics';
-    try {
-        const existing = await databases.listDocuments(dbId, statsCollectionId, [Query.equal('key', key)]);
-        if (existing.documents.length > 0) {
-            const doc = existing.documents[0];
-            const newCount = doc.count + incrementBy;
-            await databases.updateDocument(dbId, statsCollectionId, doc.$id, { count: newCount });
-        }
-        // If the stat doc doesn't exist, we don't create it here. 
-        // The recalculate script is the source of truth for creating stats.
-    } catch (e) {
-        // Log error but don't crash the sync service
-        console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
-    }
-}
-
+// Autorun the service when the script is executed
 if (require.main === module) {
     runSyncService();
 } 

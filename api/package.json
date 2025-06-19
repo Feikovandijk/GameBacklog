@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "ts-node-dev src/index.ts",
-    "build": "tsc --noEmit",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "refresh-games": "ts-node src/services/steam-refresh-service.ts",
     "sync-games": "ts-node src/services/steam-sync-service.ts",
@@ -28,10 +28,10 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.10.4",
+    "eslint": "^9.4.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3",
-    "eslint": "^9.4.0",
     "typescript-eslint": "latest"
   }
 }

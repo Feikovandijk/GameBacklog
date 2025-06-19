@@ -1,4 +1,4 @@
-import { Client, Databases, Query, ID } from 'node-appwrite';
+import { Client, Databases, Query, ID, AppwriteException } from 'node-appwrite';
 import config from '../config';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -392,7 +392,8 @@ async function runRefreshService() {
     console.log(`\nSteam refresh completed. Total games updated: ${totalUpdatedCount}.`);
 
   } catch (e) {
-    console.error("Error in Steam refresh service:", e);
+    const error = e as Error;
+    console.error("Error in Steam refresh service:", error.message);
     process.exit(1); // Exit with error for schedulers to pick up failure
   }
 }
