@@ -31,15 +31,24 @@ const GameSearch: React.FC = () => {
       }
       const data: SearchResultGame[] = await response.json();
       setResults(data);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError("An unknown error occurred");
+      }
       console.error("Error searching games:", e);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const debouncedSearch = useCallback(debounce(performSearch, 500), []);
+  const debouncedSearch = useCallback(
+    debounce((searchQuery: string) => {
+      performSearch(searchQuery);
+    }, 500),
+    [performSearch]
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = e.target.value;

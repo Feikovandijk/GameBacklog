@@ -22,8 +22,12 @@ const MostReviewedGames: React.FC = () => {
         }
         const data: Game[] = await response.json();
         setGames(data);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+            setError(e.message);
+        } else {
+            setError("An unknown error occurred");
+        }
         console.error("Error fetching most reviewed games:", e);
       }
     };
