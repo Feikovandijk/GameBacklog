@@ -33,7 +33,7 @@ services:
   #----------------------------------------------------------------------------------
   dashboard:
     build:
-      context: ./dashboard
+      context: ./devdashboard
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:

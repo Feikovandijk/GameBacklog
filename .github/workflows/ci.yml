@@ -30,10 +30,13 @@ jobs:
 
       # ----------------- Dashboard Checks -----------------
       - name: Dashboard - Install Dependencies
-        run: npm install --prefix dashboard
+        run: npm install --prefix devdashboard
 
       - name: Dashboard - Run Linter
-        run: npm run --prefix dashboard lint
+        run: npm run --prefix devdashboard lint
 
       - name: Dashboard - Run Build
-        run: npm run --prefix dashboard build 
+        run: npm run --prefix devdashboard build
+
+      - name: Build and Push API Image
+        uses: docker/build-push-action@v2 

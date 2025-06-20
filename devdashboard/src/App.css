@@ -86,7 +86,7 @@
 .stat-value {
   font-size: 2rem;
   font-weight: bold;
-  margin: 0;
+  color: #fff;
 }
 
 /* Styles for GameSearch component */
@@ -269,22 +269,221 @@
     margin-bottom: 1rem;
 }
 
-.analytics-grid {
+.analytics-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: 1fr;
     gap: 1.5rem;
-}
-
-.chart-card {
-    background-color: #333;
-    padding: 1rem;
-    border-radius: 8px;
-}
-
-.chart-card.full-width {
     grid-column: 1 / -1;
 }
 
-.recharts-text, .recharts-legend-item-text {
+@media (min-width: 768px) {
+    .analytics-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.chart-card {
+    background-color: #2a2a2a;
+    padding: 1rem;
+    border-radius: 8px;
+}
+.chart-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #eee;
+    font-size: 1.1rem;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+}
+.recharts-surface {
+    overflow: visible;
+}
+
+.recharts-default-legend {
+    text-align: center !important;
+    margin-top: 10px !important;
+}
+
+.recharts-text, .recharts-cartesian-axis-tick-value {
     fill: #fff !important;
 }
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.grid-span-2 {
+    grid-column: span 2 / span 2;
+}
+
+/* Styles for LatestAchievements component */
+.latest-achievements-container {
+    background-color: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    grid-column: 1 / -1; /* Make it span full width in a grid */
+}
+
+.latest-achievements-container h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #444;
+  padding-bottom: 0.5rem;
+  color: #fff;
+}
+
+.latest-achievements-container .subtitle {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.game-list .game-item {
+  border: 1px solid #444;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.game-header {
+  background-color: #333;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+
+.game-header:hover {
+  background-color: #3a3a3a;
+}
+
+.game-name {
+  color: #eee;
+}
+
+.game-info {
+  font-size: 0.85rem;
+  color: #bbb;
+}
+
+.achievements-table-container {
+  padding: 1rem;
+  background-color: #2c2c2c;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.achievements-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.achievements-table th,
+.achievements-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #444;
+  color: #fff;
+}
+
+.achievements-table th {
+  background-color: #383838;
+  color: #bbb;
+}
+
+.achievements-table code {
+  background-color: #444;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.achievement-icon {
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+}
+
+.achievement-description {
+  max-width: 300px;
+  white-space: pre-wrap; /* Allows text to wrap */
+  word-break: break-word;
+  color: #ccc;
+}
+
+/* Scrollbar styling for webkit browsers */
+.achievements-table-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.achievements-table-container::-webkit-scrollbar-track {
+  background: #2c2c2c;
+}
+
+.achievements-table-container::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 4px;
+}
+
+.achievements-table-container::-webkit-scrollbar-thumb:hover {
+  background-color: #777;
+}
+
+/* Styles for LastSyncedGames component */
+.last-synced-container {
+    background-color: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    grid-column: 1 / -1; /* Make it span full width in a grid */
+}
+
+.last-synced-container h2, .last-synced-container h3 {
+    color: #fff;
+    margin-top: 0;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+}
+
+.last-synced-container .game-name small {
+    color: #bbb;
+    font-weight: normal;
+}
+
+.game-details-container {
+    padding: 1rem;
+    background-color: #2c2c2c;
+}
+
+.game-data-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    color: #eee;
+}
+
+.data-key {
+    font-weight: bold;
+    color: #bbb;
+    text-align: right;
+}
+
+.data-value .value-null { color: #888; }
+.data-value .value-true { color: #8f8; }
+.data-value .value-false { color: #f88; }
+.data-value a { color: #6af; text-decoration: none; }
+.data-value a:hover { text-decoration: underline; }

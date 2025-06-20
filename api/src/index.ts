@@ -69,74 +69,59 @@ let cacheTimestamp: number = 0;
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
 app.get('/api/analytics', async (_req: Request, res: Response): Promise<Response | void> => {
-    // Check if a valid cache exists
     if (analyticsCache && (Date.now() - cacheTimestamp < CACHE_DURATION_MS)) {
         console.log("Serving analytics from cache.");
         return res.json(analyticsCache);
     }
 
-    console.log("Generating new analytics data. This may take a while...");
+    console.log("Generating new analytics data...");
     try {
         const databaseId = config.appwrite.databaseId!;
         const gamesCollectionId = config.appwrite.gamesCollectionId!;
 
         const allGames = await fetchAllDocuments(
-            databaseId, 
+            databaseId,
             gamesCollectionId,
-            [Query.equal('steam_app_type', 'game')]
+            [
+                Query.equal('steam_app_type', 'game'),
+                Query.select(['release_date', 'categories'])
+            ]
         );
-
-        // Calculate analytics
-        const earlyAccessCount = allGames.filter(g => g.is_early_access).length;
 
         const releaseYearDistribution = allGames.reduce((acc, game) => {
             if (game.release_date) {
                 const year = new Date(game.release_date).getFullYear();
-                if (year && year > 1980 && year <= new Date().getFullYear()) { // Filter out invalid or future dates
+                if (year && year > 1980 && year <= new Date().getFullYear()) {
                     acc[year] = (acc[year] || 0) + 1;
                 }
             }
             return acc;
         }, {} as Record<string, number>);
 
-        const developerDistribution = allGames.reduce((acc, game) => {
-            if (game.developers) {
-                game.developers.forEach((dev: string) => {
-                    acc[dev] = (acc[dev] || 0) + 1;
-                });
-            }
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const publisherDistribution = allGames.reduce((acc, game) => {
-            if (game.publishers) {
-                game.publishers.forEach((pub: string) => {
-                    acc[pub] = (acc[pub] || 0) + 1;
+        const genreDistribution = allGames.reduce((acc, game) => {
+            if (game.categories) {
+                game.categories.forEach((cat: string) => {
+                    // Exclude irrelevant or overly broad categories
+                    if (cat !== "Steam Achievements" && cat !== "Steam Cloud" && cat !== "Single-player") {
+                         acc[cat] = (acc[cat] || 0) + 1;
+                    }
                 });
             }
             return acc;
         }, {} as Record<string, number>);
 
-        // Filter out blocklisted developers/publishers for a cleaner list
-        const DEVELOPER_BLOCKLIST = ['', ''];
-        const PUBLISHER_BLOCKLIST = ['', ''];
-
-        const getTopN = (dist: Record<string, number>, n: number, blocklist: string[] = []) => {
+        const getTopN = (dist: Record<string, number>, n: number) => {
             return Object.entries(dist)
-                .filter(([name]) => !blocklist.includes(name))
                 .sort(([, a], [, b]) => b - a)
                 .slice(0, n)
                 .map(([name, count]) => ({ name, count }));
         };
 
         const analyticsData = {
-            earlyAccessCount,
             releaseYearDistribution,
-            developerDistribution: getTopN(developerDistribution, 10, DEVELOPER_BLOCKLIST),
-            publisherDistribution: getTopN(publisherDistribution, 10, PUBLISHER_BLOCKLIST)
+            genreDistribution: getTopN(genreDistribution, 10),
         };
         
-        // Store in cache
         analyticsCache = analyticsData;
         cacheTimestamp = Date.now();
 
@@ -198,6 +183,105 @@ app.get('/api/games/search', async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     console.error('Error searching games:', error);
     res.status(500).json({ error: 'Failed to search games', details: error.message });
+  }
+});
+
+app.get('/api/latest-games-with-achievements', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const databaseId = config.appwrite.databaseId!;
+    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+    const achievementsCollectionId = 'achievements'; // As seen in steam-refresh-service
+
+    // 1. Fetch the 5 most recently updated games that have achievements
+    const latestGamesResponse = await appwriteDatabases.listDocuments(
+      databaseId,
+      gamesCollectionId,
+      [
+        Query.orderDesc('last_updated'),
+        Query.equal('has_steam_achievements', true),
+        Query.limit(5),
+        Query.select(['$id', 'name', 'steam_appid', 'last_updated'])
+      ]
+    );
+
+    const latestGames = latestGamesResponse.documents;
+
+    // 2. For each game, fetch its achievements
+    const gamesWithAchievements = await Promise.all(
+      latestGames.map(async (game) => {
+        const achievementsResponse = await appwriteDatabases.listDocuments(
+          databaseId,
+          achievementsCollectionId,
+          [
+            Query.equal('steam_appid', game.steam_appid),
+            Query.limit(500) // Assuming a game won't have more than 500 achievements
+          ]
+        );
+
+        return {
+          ...game,
+          achievements: achievementsResponse.documents,
+        };
+      })
+    );
+
+    res.json(gamesWithAchievements);
+
+  } catch (error) {
+    console.error('Error fetching latest games with achievements:', error);
+    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: 'Failed to fetch latest games with achievements', details: errorMessage });
+  }
+});
+
+app.get('/api/latest-synced-games', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const databaseId = config.appwrite.databaseId!;
+    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+    const achievementsCollectionId = 'achievements';
+
+    // 1. Fetch the 10 most recently updated games
+    const latestGamesResponse = await appwriteDatabases.listDocuments(
+      databaseId,
+      gamesCollectionId,
+      [
+        Query.isNotNull('last_updated'), // Ensure the game has been synced at least once
+        Query.orderDesc('last_updated'),
+        Query.limit(10),
+      ]
+    );
+
+    const latestGames = latestGamesResponse.documents;
+
+    // 2. For each game, fetch its achievements if it has any
+    const gamesWithDetails = await Promise.all(
+      latestGames.map(async (game) => {
+        let achievements: any[] = [];
+        if (game.has_steam_achievements) {
+          const achievementsResponse = await appwriteDatabases.listDocuments(
+            databaseId,
+            achievementsCollectionId,
+            [
+              Query.equal('steam_appid', game.steam_appid),
+              Query.limit(1000) // Generous limit for achievements
+            ]
+          );
+          achievements = achievementsResponse.documents;
+        }
+
+        return {
+          ...game,
+          achievements,
+        };
+      })
+    );
+
+    res.json(gamesWithDetails);
+
+  } catch (error) {
+    console.error('Error fetching latest synced games:', error);
+    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: 'Failed to fetch latest synced games', details: errorMessage });
   }
 });
 
