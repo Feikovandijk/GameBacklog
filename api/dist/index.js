@@ -26,26 +26,6 @@ const appwriteClient = new node_appwrite_1.Client()
     .setProject(config_1.default.appwrite.projectId)
     .setKey(config_1.default.appwrite.apiKey);
 const appwriteDatabases = new node_appwrite_1.Databases(appwriteClient);
-// Helper to fetch all documents from a collection with pagination
-function fetchAllDocuments(databaseId_1, collectionId_1) {
-    return __awaiter(this, arguments, void 0, function* (databaseId, collectionId, queries = []) {
-        const documents = [];
-        let cursor = undefined;
-        while (true) {
-            const currentQueries = [...queries, node_appwrite_1.Query.limit(1000)]; // Fetch in batches of 1000
-            if (cursor) {
-                currentQueries.push(node_appwrite_1.Query.cursorAfter(cursor));
-            }
-            const response = yield appwriteDatabases.listDocuments(databaseId, collectionId, currentQueries);
-            if (response.documents.length === 0) {
-                break;
-            }
-            documents.push(...response.documents);
-            cursor = response.documents[response.documents.length - 1].$id;
-        }
-        return documents;
-    });
-}
 // NEW: GET /api/stats - Retrieves stats about the games database
 app.get('/api/stats', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {

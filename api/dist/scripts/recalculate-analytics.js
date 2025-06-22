@@ -51,7 +51,7 @@ function updateStat(key, value) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const existing = yield databases.listDocuments(DATABASE_ID, STATS_COLLECTION_ID, [node_appwrite_1.Query.equal('key', key)]);
-            const statObject = { key, value: JSON.stringify(value), count: 0 };
+            const statObject = { key, count: JSON.stringify(value) };
             if (existing.documents.length > 0) {
                 yield databases.updateDocument(DATABASE_ID, STATS_COLLECTION_ID, existing.documents[0].$id, statObject);
             }

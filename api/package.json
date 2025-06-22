@@ -16,7 +16,7 @@
     "analytics:recalculate": "node dist/scripts/recalculate-analytics.js",
     "setup-appwrite": "ts-node src/scripts/setup-appwrite.ts",
     "recalculate-stats": "ts-node src/scripts/recalculate-stats.ts",
-    "lint": "eslint ."
+    "lint": "eslint src/**/*.ts"
   },
   "keywords": [],
   "author": "",

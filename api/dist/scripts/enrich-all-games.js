@@ -30,21 +30,34 @@ steamUser.setOptions({
     enablePicsCache: true,
     changelistUpdateInterval: 0
 });
-const STEAM_API_KEY = (config_1.default.steamApiKeys && config_1.default.steamApiKeys.length > 0) ? config_1.default.steamApiKeys[0] : config_1.default.steamApiKey;
+const workerId = parseInt(process.env.WORKER_ID || '0', 10);
+const totalWorkers = parseInt(process.env.TOTAL_WORKERS || '1', 10);
+const STEAM_API_KEY = config_1.default.steamApiKeys[workerId] || config_1.default.steamApiKey;
 if (!STEAM_API_KEY) {
-    throw new Error(`Steam API key is missing. Ensure STEAM_API_KEY or STEAM_API_KEY_0 is defined in your .env file.`);
+    throw new Error(`[Worker ${workerId}] Steam API key is missing. Ensure STEAM_API_KEY_${workerId} or a fallback STEAM_API_KEY is defined in your .env file.`);
 }
 const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
 const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const GAMES_PER_MINUTE_LIMIT = 40; // Stay under the 100k/day Steam API limit
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
+let rateLimitRetryCount = 0; // State for exponential backoff on 429s
 function fetchWithRetry(url_1) {
     return __awaiter(this, arguments, void 0, function* (url, retries = 3, backoff = 1000) {
         for (let i = 0; i < retries; i++) {
             try {
                 const response = yield fetch(url);
-                if (response.ok)
+                if (response.ok) {
+                    rateLimitRetryCount = 0; // Reset on a successful request
                     return response;
+                }
+                if (response.status === 429) {
+                    const backoffMinutes = 5 * Math.pow(2, rateLimitRetryCount);
+                    rateLimitRetryCount++;
+                    console.warn(`[Worker ${workerId}] Rate limit hit (429). Pausing for ${backoffMinutes} minutes...`);
+                    yield new Promise(resolve => setTimeout(resolve, backoffMinutes * 60 * 1000));
+                    i--; // This makes the loop retry the current attempt after the long pause
+                    continue;
+                }
                 if (response.status >= 400 && response.status < 500) {
                     console.warn(`Request to ${url.replace(STEAM_API_KEY, 'YOUR_STEAM_KEY')} failed with status ${response.status}. Not retrying.`);
                     return response;
@@ -157,36 +170,36 @@ function mergeApiData(picsData, webData) {
 // --- Main Backfill Logic ---
 function enrichAllGames() {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Starting one-time enrichment for all games...");
+        console.log(`[Worker ${workerId}/${totalWorkers}] Starting one-time enrichment...`);
         let totalUpdatedCount = 0;
         let totalProcessedCount = 0;
         try {
-            console.log("Logging into Steam anonymously...");
+            console.log(`[Worker ${workerId}/${totalWorkers}] Logging into Steam anonymously...`);
             steamUser.logOn({ anonymous: true });
             yield new Promise((resolve, reject) => {
-                steamUser.on('loggedOn', () => { console.log(`Logged into Steam successfully.`); resolve(); });
-                steamUser.on('error', (err) => { console.error(`Steam login error:`, err); reject(err); });
+                steamUser.on('loggedOn', () => { console.log(`[Worker ${workerId}/${totalWorkers}] Logged into Steam successfully.`); resolve(); });
+                steamUser.on('error', (err) => { console.error(`[Worker ${workerId}/${totalWorkers}] Steam login error:`, err); reject(err); });
             });
             const BATCH_SIZE = 100;
-            let cursor = undefined;
+            let page = 0;
             let hasMore = true;
             while (hasMore) {
-                console.log(`\nFetching batch of games (processed so far: ${totalProcessedCount})...`);
-                const queries = [node_appwrite_1.Query.limit(BATCH_SIZE)];
-                if (cursor) {
-                    queries.push(node_appwrite_1.Query.cursorAfter(cursor));
-                }
-                const gameBatch = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, queries);
+                const offset = (workerId * BATCH_SIZE) + (page * totalWorkers * BATCH_SIZE);
+                console.log(`\n[Worker ${workerId}/${totalWorkers}] Fetching batch of games from offset ${offset} (processed by this worker: ${totalProcessedCount})...`);
+                const gameBatch = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, [
+                    node_appwrite_1.Query.limit(BATCH_SIZE),
+                    node_appwrite_1.Query.offset(offset)
+                ]);
                 if (gameBatch.documents.length === 0) {
                     hasMore = false;
                     continue;
                 }
                 for (const [index, game] of gameBatch.documents.entries()) {
                     if (!game.steam_appid) {
-                        console.warn(`Game document ${game.$id} has no steam_appid, skipping.`);
+                        console.warn(`[Worker ${workerId}] Game document ${game.$id} has no steam_appid, skipping.`);
                         continue;
                     }
-                    console.log(`(${totalProcessedCount + 1}) Processing game: ${game.name} (ID: ${game.steam_appid})`);
+                    console.log(`[Worker ${workerId}] (${totalProcessedCount + 1}) Processing game: ${game.name} (ID: ${game.steam_appid})`);
                     const picsPromise = new Promise((resolve) => {
                         steamUser.getProductInfo([game.steam_appid], [], false, (err, apps) => { var _a; return resolve((_a = apps === null || apps === void 0 ? void 0 : apps[game.steam_appid]) !== null && _a !== void 0 ? _a : null); });
                     });
@@ -199,25 +212,26 @@ function enrichAllGames() {
                         totalUpdatedCount++;
                     }
                     else {
-                        console.warn(`- Could not get PICS data for ${game.name}, skipping update.`);
+                        console.warn(`[Worker ${workerId}] Could not get PICS data for ${game.name}, skipping update.`);
                     }
                     totalProcessedCount++;
                     if (index < gameBatch.documents.length - 1) {
                         yield new Promise(resolve => setTimeout(resolve, DELAY_MS));
                     }
                 }
-                cursor = gameBatch.documents[gameBatch.documents.length - 1].$id;
+                page++;
             }
-            console.log(`\nEnrichment complete! Processed: ${totalProcessedCount}, Updated: ${totalUpdatedCount}`);
+            console.log(`\n[Worker ${workerId}/${totalWorkers}] Enrichment complete! Processed: ${totalProcessedCount}, Updated: ${totalUpdatedCount}`);
             steamUser.logOff();
         }
         catch (e) {
             const error = e;
-            console.error(`\nError during enrichment service:`, error.message);
+            console.error(`\n[Worker ${workerId}/${totalWorkers}] Error during enrichment service:`, error.message);
             console.error(error.stack);
             steamUser.logOff();
             process.exit(1);
         }
     });
 }
-enrichAllGames();
+// Execute the enrichment process
+void enrichAllGames();

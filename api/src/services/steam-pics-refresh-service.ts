@@ -64,49 +64,6 @@ interface GameDocument {
   positive_rating_percentage?: number | null;
 }
 
-// Define a type for the Steam API's game data to avoid using 'any'
-interface SteamGameData {
-  type: string;
-  name: string;
-  steam_appid: number;
-  short_description: string;
-  header_image: string;
-  release_date: {
-    coming_soon: boolean;
-    date: string;
-  };
-  developers: string[];
-  publishers: string[];
-  price_overview?: {
-    currency: string;
-    initial: number;
-    final: number;
-    discount_percent: number;
-  };
-  genres: { id: string; description:string }[];
-  recommendations?: {
-    total: number;
-    positive: number;
-    negative: number;
-    review_score_desc: string;
-  };
-  player_count?: number;
-  pics_info?: any; // To hold data from node-steam-user
-  metacritic?: {
-    score: number;
-    url: string;
-  };
-  platforms?: {
-    windows: boolean;
-    mac: boolean;
-    linux: boolean;
-  };
-  categories?: { id: number; description: string }[];
-  achievements?: {
-    total: number;
-  };
-}
-
 async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
     for (let i = 0; i < retries; i++) {
         try {
@@ -128,29 +85,6 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
         backoff *= 2;
     }
     throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
-}
-
-async function recordReviewHistory(documentId: string, totalReviews: number) {
-    if (typeof totalReviews !== 'number') return; // Don't record if no review data
-
-    const historyData = {
-        game_id: documentId,
-        date: new Date().toISOString(),
-        total_reviews: totalReviews,
-    };
-
-    try {
-        await databases.createDocument(
-            config.appwrite.databaseId!,
-            'review_history',
-            ID.unique(),
-            historyData
-        );
-        console.log(`Successfully recorded review history for document ${documentId}.`);
-    } catch (error) {
-        // Don't block the main process for history failures, just log it
-        console.error(`[Worker ${config.worker.id}] Failed to record review history for doc ${documentId}:`, error);
-    }
 }
 
 async function getLatestChangenumber(): Promise<number> {
@@ -189,7 +123,6 @@ interface ProductChanges {
 
 function formatPicsDataToGameDocument(appId: number, picsData: any): Partial<GameDocument> {
     const common = picsData.appinfo?.common ?? {};
-    const package_groups = picsData.appinfo?.package_groups ?? [];
     const developers: string[] = [], publishers: string[] = [];
     if (common.associations) {
         Object.values(common.associations).forEach((assoc: any) => {
@@ -660,5 +593,5 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
     steamUser.logOff();
 }
 
-// Autorun the service when the script is executed
-runPicsRefreshService(); 
+// Execute the PICS refresh service
+void runPicsRefreshService();

@@ -298,4 +298,5 @@ async function enrichAllGames() {
     }
 }
 
-enrichAllGames(); 
+// Execute the enrichment process
+void enrichAllGames();
