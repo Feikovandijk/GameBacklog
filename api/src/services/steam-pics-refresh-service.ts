@@ -291,15 +291,15 @@ function mergeApiData(picsData: Partial<GameDocument>, webData: WebApiData | nul
 
     mergedData.short_description = webData.short_description ?? mergedData.short_description;
     
-    mergedData.total_reviews = reviews?.total_reviews ?? null,
-    mergedData.price_final = price?.final ?? null,
-    mergedData.price_currency = price?.currency ?? null,
-    mergedData.price_initial = price?.initial ?? null,
-    mergedData.discount_percent = price?.discount_percent ?? null,
-    mergedData.total_positive = reviews?.total_positive ?? null,
-    mergedData.total_negative = reviews?.total_negative ?? null,
-    mergedData.review_score_desc = reviews?.review_score_desc ?? null,
-    mergedData.current_players = webData.player_count ?? null,
+    mergedData.total_reviews = reviews?.total_reviews ?? null;
+    mergedData.price_final = price?.final ?? null;
+    mergedData.price_currency = price?.currency ?? null;
+    mergedData.price_initial = price?.initial ?? null;
+    mergedData.discount_percent = price?.discount_percent ?? null;
+    mergedData.total_positive = reviews?.total_positive ?? null;
+    mergedData.total_negative = reviews?.total_negative ?? null;
+    mergedData.review_score_desc = reviews?.review_score_desc ?? null;
+    mergedData.current_players = webData.player_count ?? null;
     
     // Web API sometimes has better metacritic data
     mergedData.metacritic_score = webData.metacritic?.score ?? mergedData.metacritic_score;
