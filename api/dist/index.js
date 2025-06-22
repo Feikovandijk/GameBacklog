@@ -218,9 +218,15 @@ app.get('/api/latest-steam-games', (_req, res) => __awaiter(void 0, void 0, void
         const databaseId = config_1.default.appwrite.databaseId;
         const gamesCollectionId = config_1.default.appwrite.gamesCollectionId;
         const response = yield appwriteDatabases.listDocuments(databaseId, gamesCollectionId, [
-            node_appwrite_1.Query.orderDesc('steam_appid'),
+            node_appwrite_1.Query.orderDesc('release_date'),
             node_appwrite_1.Query.limit(10),
-            node_appwrite_1.Query.select(['name', 'steam_appid'])
+            node_appwrite_1.Query.select([
+                'name',
+                'steam_appid',
+                'header_image',
+                'total_reviews',
+                'release_date'
+            ])
         ]);
         res.json(response.documents);
     }

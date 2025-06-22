@@ -11,6 +11,8 @@
     "sync-games": "node dist/services/steam-sync-service.js",
     "refresh-games": "node dist/scripts/steam-refresh-service.js",
     "refresh-games:pics": "ts-node src/services/steam-pics-refresh-service.ts",
+    "enrich-games:worker-0": "WORKER_ID=0 TOTAL_WORKERS=2 ts-node src/scripts/enrich-all-games.ts",
+    "enrich-games:worker-1": "WORKER_ID=1 TOTAL_WORKERS=2 ts-node src/scripts/enrich-all-games.ts",
     "analytics:recalculate": "node dist/scripts/recalculate-analytics.js",
     "setup-appwrite": "ts-node src/scripts/setup-appwrite.ts",
     "recalculate-stats": "ts-node src/scripts/recalculate-stats.ts",

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runRefreshService = runRefreshService;
+exports.runPicsRefreshService = runPicsRefreshService;
 const node_appwrite_1 = require("node-appwrite");
 const steam_user_1 = __importDefault(require("steam-user"));
 const config_1 = __importDefault(require("../config"));
@@ -37,9 +37,9 @@ if (!STEAM_API_KEY) {
 }
 const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
 const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
-const UPDATE_INTERVAL_DAYS = 7;
 const GAMES_PER_MINUTE_LIMIT = 30; // Stay under the 100k/day Steam API limit
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
+const STATE_DOCUMENT_ID = 'steam_changenumber';
 function fetchWithRetry(url_1) {
     return __awaiter(this, arguments, void 0, function* (url, retries = 3, backoff = 1000) {
         for (let i = 0; i < retries; i++) {
@@ -48,18 +48,19 @@ function fetchWithRetry(url_1) {
                 if (response.ok) {
                     return response;
                 }
-                // Don't retry on client errors (4xx) or server errors that are not rate-limiting (e.g. 500)
                 if (response.status >= 400 && response.status < 500) {
-                    console.warn(`Request to ${url} failed with status ${response.status}. Not retrying.`);
-                    return response; // Return the failed response to be handled by the caller
+                    console.warn(`Request to ${url.replace(STEAM_API_KEY, 'YOUR_STEAM_KEY')} failed with status ${response.status}. Not retrying.`);
+                    const errorBody = yield response.text();
+                    console.warn(`Steam API Error Body: ${errorBody}`);
+                    return response;
                 }
-                console.warn(`Request to ${url} failed with status ${response.status}. Retrying in ${backoff / 1000}s...`);
+                console.warn(`Request to ${url.replace(STEAM_API_KEY, 'YOUR_STEAM_KEY')} failed with status ${response.status}. Retrying in ${backoff / 1000}s...`);
             }
             catch (error) {
-                console.warn(`Request to ${url} failed with error: ${error.message}. Retrying in ${backoff / 1000}s...`);
+                console.warn(`Request to ${url.replace(STEAM_API_KEY, 'YOUR_STEAM_KEY')} failed with error: ${error.message}. Retrying in ${backoff / 1000}s...`);
             }
             yield new Promise(resolve => setTimeout(resolve, backoff));
-            backoff *= 2; // Exponential backoff
+            backoff *= 2;
         }
         throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
     });
@@ -274,88 +275,289 @@ function updateGameInAppwrite(documentId, steamData, steamAppType) {
         }
     });
 }
-function runRefreshService() {
+function getLatestChangenumber() {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Local Steam refresh service started. It will run continuously until all games are updated.");
+        try {
+            const doc = yield databases.getDocument(config_1.default.appwrite.databaseId, 'steam_state', STATE_DOCUMENT_ID);
+            return doc.changenumber;
+        }
+        catch (error) {
+            if (error.code === 404) {
+                console.log('Changenumber document not found, will start from scratch.');
+                return 0;
+            }
+            throw error;
+        }
+    });
+}
+function saveLatestChangenumber(changenumber) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield databases.updateDocument(config_1.default.appwrite.databaseId, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
+            console.log(`Successfully saved new changenumber: ${changenumber}`);
+        }
+        catch (error) {
+            if (error.code === 404) {
+                console.log('Changenumber document not found, creating a new one.');
+                yield databases.createDocument(config_1.default.appwrite.databaseId, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
+                console.log(`Successfully created and saved new changenumber: ${changenumber}`);
+            }
+            else {
+                console.error(`Error saving new changenumber ${changenumber}:`, error);
+            }
+        }
+    });
+}
+function formatPicsDataToGameDocument(appId, picsData) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+    const common = (_b = (_a = picsData.appinfo) === null || _a === void 0 ? void 0 : _a.common) !== null && _b !== void 0 ? _b : {};
+    const extended = (_d = (_c = picsData.appinfo) === null || _c === void 0 ? void 0 : _c.extended) !== null && _d !== void 0 ? _d : {};
+    const developers = [];
+    const publishers = [];
+    if (common.associations) {
+        Object.values(common.associations).forEach((assoc) => {
+            if (assoc.type === 'developer') {
+                developers.push(assoc.name);
+            }
+            else if (assoc.type === 'publisher') {
+                publishers.push(assoc.name);
+            }
+        });
+    }
+    const oslist = ((_e = common.oslist) === null || _e === void 0 ? void 0 : _e.split(',')) || [];
+    let releaseDateForDb = null;
+    const steamReleaseTimestamp = common.steam_release_date;
+    if (steamReleaseTimestamp) {
+        // The timestamp is in seconds, so we multiply by 1000 for milliseconds
+        const parsedDate = new Date(parseInt(steamReleaseTimestamp, 10) * 1000);
+        if (!isNaN(parsedDate.getTime())) {
+            releaseDateForDb = parsedDate.toISOString();
+        }
+    }
+    // PICS provides tag IDs. The actual names aren't in this response.
+    const tags = common.store_tags ? Object.values(common.store_tags) : [];
+    // PICS provides category IDs in the format "category_X". We'll store them as is.
+    const categories = common.category ? Object.keys(common.category) : [];
+    const hasSteamAchievements = categories.includes("category_22"); // Category 22 is "Steam Achievements"
+    let headerImageUrl = null;
+    if ((_f = common.header_image) === null || _f === void 0 ? void 0 : _f.english) {
+        headerImageUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/${common.header_image.english}`;
+    }
+    return {
+        steam_appid: appId,
+        name: common.name,
+        last_updated: new Date().toISOString(),
+        steam_app_type: (_h = (_g = common.type) === null || _g === void 0 ? void 0 : _g.toLowerCase()) !== null && _h !== void 0 ? _h : 'unknown',
+        // From PICS 'common'
+        developers: developers.length > 0 ? developers : null,
+        publishers: publishers.length > 0 ? publishers : null,
+        release_date: releaseDateForDb,
+        header_image: headerImageUrl,
+        platforms_windows: oslist.includes('windows'),
+        platforms_mac: oslist.includes('macos'),
+        platforms_linux: oslist.includes('linux'),
+        tags: tags.length > 0 ? tags : null,
+        categories: categories.length > 0 ? categories : null,
+        has_steam_achievements: hasSteamAchievements,
+        controller_support: (_j = common.controller_support) !== null && _j !== void 0 ? _j : null,
+        metacritic_score: (_l = (_k = common.metacritic) === null || _k === void 0 ? void 0 : _k.score) !== null && _l !== void 0 ? _l : null,
+        metacritic_url: (_o = (_m = common.metacritic) === null || _m === void 0 ? void 0 : _m.url) !== null && _o !== void 0 ? _o : null,
+        is_early_access: common.releasestate === 'prerelease',
+        // Fields not available in getProductInfo that were in the old method
+        short_description: null,
+        total_reviews: null,
+        price_final: null,
+        price_currency: null,
+        price_initial: null,
+        discount_percent: null,
+        total_positive: null,
+        total_negative: null,
+        review_score_desc: null,
+        current_players: null,
+        // Fields available in PICS but not the old method
+        positive_rating_percentage: common.review_percentage ? parseInt(common.review_percentage, 10) : null,
+    };
+}
+function fetchGameDetailsFromWebAPI(steamAppId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
+        const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
+        const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
+        try {
+            const [appDetailsResponse, reviewResponse, playersResponse] = yield Promise.all([
+                fetchWithRetry(appDetailsUrl),
+                fetchWithRetry(reviewUrl),
+                fetchWithRetry(playersUrl),
+            ]);
+            if (!appDetailsResponse.ok) {
+                console.error(`Web API request failed for appid ${steamAppId}: ${appDetailsResponse.status} ${appDetailsResponse.statusText}`);
+                return null;
+            }
+            const appDetailsJson = yield appDetailsResponse.json();
+            const appDetails = appDetailsJson[steamAppId];
+            if (!(appDetails === null || appDetails === void 0 ? void 0 : appDetails.success)) {
+                console.warn(`Web API indicated unsuccessful fetch for appid ${steamAppId}.`);
+                return null;
+            }
+            const gameData = appDetails.data;
+            if (reviewResponse.ok) {
+                const reviewJson = yield reviewResponse.json();
+                if (reviewJson.success) {
+                    gameData.review_summary = reviewJson.query_summary;
+                }
+            }
+            if (playersResponse.ok) {
+                const playersJson = yield playersResponse.json();
+                if (((_a = playersJson.response) === null || _a === void 0 ? void 0 : _a.result) === 1) {
+                    gameData.player_count = playersJson.response.player_count;
+                }
+            }
+            return gameData;
+        }
+        catch (error) {
+            console.error(`Error fetching game details for appid ${steamAppId} from Web API:`, error);
+            return null;
+        }
+    });
+}
+function mergeApiData(picsData, webData) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+    const mergedData = Object.assign({}, picsData);
+    if (!webData) {
+        return mergedData;
+    }
+    const reviews = webData.review_summary;
+    const price = webData.price_overview;
+    mergedData.short_description = (_a = webData.short_description) !== null && _a !== void 0 ? _a : mergedData.short_description;
+    mergedData.total_reviews = (_b = reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) !== null && _b !== void 0 ? _b : null,
+        mergedData.price_final = (_c = price === null || price === void 0 ? void 0 : price.final) !== null && _c !== void 0 ? _c : null,
+        mergedData.price_currency = (_d = price === null || price === void 0 ? void 0 : price.currency) !== null && _d !== void 0 ? _d : null,
+        mergedData.price_initial = (_e = price === null || price === void 0 ? void 0 : price.initial) !== null && _e !== void 0 ? _e : null,
+        mergedData.discount_percent = (_f = price === null || price === void 0 ? void 0 : price.discount_percent) !== null && _f !== void 0 ? _f : null,
+        mergedData.total_positive = (_g = reviews === null || reviews === void 0 ? void 0 : reviews.total_positive) !== null && _g !== void 0 ? _g : null,
+        mergedData.total_negative = (_h = reviews === null || reviews === void 0 ? void 0 : reviews.total_negative) !== null && _h !== void 0 ? _h : null,
+        mergedData.review_score_desc = (_j = reviews === null || reviews === void 0 ? void 0 : reviews.review_score_desc) !== null && _j !== void 0 ? _j : null,
+        mergedData.current_players = (_k = webData.player_count) !== null && _k !== void 0 ? _k : null,
+        // Web API sometimes has better metacritic data
+        mergedData.metacritic_score = (_m = (_l = webData.metacritic) === null || _l === void 0 ? void 0 : _l.score) !== null && _m !== void 0 ? _m : mergedData.metacritic_score;
+    mergedData.metacritic_url = (_p = (_o = webData.metacritic) === null || _o === void 0 ? void 0 : _o.url) !== null && _p !== void 0 ? _p : mergedData.metacritic_url;
+    // The positive rating percentage can be calculated more accurately from web data
+    if ((reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) && reviews.total_reviews > 0) {
+        mergedData.positive_rating_percentage = Math.round((reviews.total_positive / reviews.total_reviews) * 100);
+    }
+    return mergedData;
+}
+function runPicsRefreshService() {
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log("Steam PICS refresh service started.");
         let totalUpdatedCount = 0;
         try {
             console.log("Logging into Steam anonymously...");
             steamUser.logOn({ anonymous: true });
             yield new Promise((resolve, reject) => {
                 steamUser.on('loggedOn', () => {
-                    console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Logged into Steam successfully.`);
+                    console.log(`Logged into Steam successfully.`);
                     resolve();
                 });
                 steamUser.on('error', (err) => {
-                    console.error(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Steam login error:`, err);
+                    console.error(`Steam login error:`, err);
                     reject(err);
                 });
             });
-            const BATCH_SIZE = 250; // Number of games each worker will process in its batch
-            let currentOffset = config_1.default.worker.id * BATCH_SIZE;
-            while (true) {
-                const thresholdDate = new Date();
-                thresholdDate.setDate(thresholdDate.getDate() - UPDATE_INTERVAL_DAYS);
-                console.log(`\n[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Fetching batch of games starting from offset ${currentOffset}...`);
-                // --- Fetch a batch of games that have never been updated ---
-                const neverUpdatedResponse = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, [
-                    node_appwrite_1.Query.isNull('last_updated'),
-                    node_appwrite_1.Query.orderDesc('steam_appid'),
-                    node_appwrite_1.Query.limit(BATCH_SIZE),
-                    node_appwrite_1.Query.offset(currentOffset)
-                ]);
-                // --- Fetch a batch of games that were updated long ago ---
-                const oldGamesFilter = [node_appwrite_1.Query.lessThan('last_updated', thresholdDate.toISOString()), node_appwrite_1.Query.equal('steam_app_type', 'game')];
-                const oldGamesResponse = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, [
-                    ...oldGamesFilter,
-                    node_appwrite_1.Query.orderDesc('steam_appid'),
-                    node_appwrite_1.Query.limit(BATCH_SIZE),
-                    node_appwrite_1.Query.offset(currentOffset)
-                ]);
-                // Combine, deduplicate, and get the top N newest games to process
-                const allStaleGames = [...neverUpdatedResponse.documents, ...oldGamesResponse.documents];
-                const staleGamesMap = new Map();
-                allStaleGames.forEach(game => staleGamesMap.set(game.$id, game));
-                const staleGames = Array.from(staleGamesMap.values())
-                    .sort((a, b) => (b.steam_appid || 0) - (a.steam_appid || 0))
-                    .slice(0, BATCH_SIZE);
-                if (staleGames.length === 0) {
-                    console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] No more stale games found at this offset. Worker will exit.`);
-                    break; // Exit the while loop
-                }
-                console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Found ${staleGames.length} games. Starting batch processing...`);
-                for (const [index, game] of staleGames.entries()) {
-                    if (!game.steam_appid) {
-                        console.warn(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Game document ${game.$id} has no steam_appid, skipping.`);
-                        continue;
-                    }
-                    console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`);
-                    const steamResponse = yield fetchGameDetailsFromSteam(game.steam_appid);
-                    if (steamResponse.type) {
-                        const success = yield updateGameInAppwrite(game.$id, steamResponse.data, steamResponse.type);
-                        if (success) {
-                            totalUpdatedCount++;
-                            // Increment the stat immediately after a successful update
-                            yield incrementStat('updatedGames');
-                        }
-                    }
-                    if (index < staleGames.length - 1) {
-                        console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Waiting for ${DELAY_MS / 1000} seconds before next Steam API call...`);
-                        yield new Promise(resolve => setTimeout(resolve, DELAY_MS));
-                    }
-                }
-                console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Batch finished. Total updated by this worker: ${totalUpdatedCount}.`);
-                // Move to the next block of work
-                currentOffset += config_1.default.worker.total * BATCH_SIZE;
+            const lastChangenumber = yield getLatestChangenumber();
+            console.log(`Last known changenumber is ${lastChangenumber}. Fetching changes...`);
+            const productChanges = yield new Promise((resolve, reject) => {
+                steamUser.getProductChanges(lastChangenumber, (err, currentChangenumber, appChanges, packageChanges) => {
+                    if (err)
+                        return reject(err);
+                    resolve({ currentChangenumber, appChanges, packageChanges });
+                });
+            });
+            const { currentChangenumber, appChanges } = productChanges;
+            if (appChanges.length === 0 && currentChangenumber === lastChangenumber) {
+                console.log("No new changes from Steam. Exiting.");
+                steamUser.logOff();
+                return;
             }
-            console.log(`\n[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Steam refresh completed.`);
-            steamUser.logOff();
+            console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
+            const appIdsToUpdate = appChanges.map(app => app.appid);
+            if (appIdsToUpdate.length > 0) {
+                // Find which of the changed AppIDs exist in our database
+                const CHUNK_SIZE = 100;
+                const gameDocsByAppId = new Map();
+                for (let i = 0; i < appIdsToUpdate.length; i += CHUNK_SIZE) {
+                    const chunk = appIdsToUpdate.slice(i, i + CHUNK_SIZE);
+                    const response = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, [node_appwrite_1.Query.equal('steam_appid', chunk), node_appwrite_1.Query.limit(CHUNK_SIZE)]);
+                    response.documents.forEach(doc => gameDocsByAppId.set(doc.steam_appid, doc));
+                }
+                const appIdsInDb = Array.from(gameDocsByAppId.keys());
+                console.log(`Found ${appIdsInDb.length} games in the database that require an update. Fetching data...`);
+                if (appIdsInDb.length > 0) {
+                    steamUser.getProductInfo(appIdsInDb, [], false, (err, apps, packages) => __awaiter(this, void 0, void 0, function* () {
+                        if (err) {
+                            console.error('Failed to get product info from Steam:', err);
+                            steamUser.logOff();
+                            return;
+                        }
+                        for (const appIdStr in apps) {
+                            const appId = parseInt(appIdStr, 10);
+                            const picsData = apps[appIdStr];
+                            const gameDoc = gameDocsByAppId.get(appId);
+                            if (gameDoc && picsData.appinfo) {
+                                const formattedPicsData = formatPicsDataToGameDocument(appId, picsData);
+                                const webApiData = yield fetchGameDetailsFromWebAPI(appId);
+                                const finalGameData = mergeApiData(formattedPicsData, webApiData);
+                                try {
+                                    yield databases.updateDocument(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, gameDoc.$id, finalGameData);
+                                    console.log(`Successfully updated game: ${finalGameData.name} (${finalGameData.steam_appid})`);
+                                    totalUpdatedCount++;
+                                    yield incrementStat('updatedGames');
+                                    if (finalGameData.has_steam_achievements) {
+                                        console.log(`Game ${finalGameData.name} has achievements. Syncing...`);
+                                        yield syncGameAchievements(gameDoc.$id, appId);
+                                    }
+                                }
+                                catch (e) {
+                                    console.error(`Error updating game ${finalGameData.name} in Appwrite:`, e);
+                                }
+                            }
+                            else {
+                                const gameDoc = gameDocsByAppId.get(appId);
+                                if (gameDoc) {
+                                    const updatePayload = {
+                                        last_updated: new Date().toISOString(),
+                                        steam_app_type: 'invalid',
+                                    };
+                                    yield databases.updateDocument(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, gameDoc.$id, updatePayload);
+                                    console.log(`Marked appid ${appId} as invalid as no PICS info was returned.`);
+                                }
+                            }
+                        }
+                        console.log(`\nUpdate process finished. ${totalUpdatedCount} games were updated.`);
+                        yield saveLatestChangenumber(currentChangenumber);
+                        console.log(`\nSteam PICS refresh completed.`);
+                        steamUser.logOff();
+                    }));
+                }
+                else {
+                    yield saveLatestChangenumber(currentChangenumber);
+                    console.log(`No games in the database matched the list of changes. Changenumber updated. Exiting.`);
+                    steamUser.logOff();
+                }
+            }
+            else {
+                yield saveLatestChangenumber(currentChangenumber);
+                console.log(`No app changes from Steam, but changenumber updated. Exiting.`);
+                steamUser.logOff();
+            }
         }
         catch (e) {
             const error = e;
-            console.error(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Error in Steam refresh service:`, error.message);
+            console.error(`Error in Steam PICS refresh service:`, error.message);
+            console.error(error.stack);
             steamUser.logOff();
-            process.exit(1); // Exit with error for schedulers to pick up failure
+            process.exit(1);
         }
     });
 }
@@ -429,6 +631,7 @@ function syncGameAchievements(documentId, steamAppId) {
                 });
             });
             // Delete all old achievements for the game to ensure data is fresh
+            const oldAchievementsToDelete = [];
             let hasMore = true;
             let cursor;
             while (hasMore) {
@@ -438,13 +641,17 @@ function syncGameAchievements(documentId, steamAppId) {
                 }
                 const oldAchievements = yield databases.listDocuments(config_1.default.appwrite.databaseId, 'achievements', queries);
                 if (oldAchievements.documents.length > 0) {
-                    const deletePromises = oldAchievements.documents.map(doc => databases.deleteDocument(config_1.default.appwrite.databaseId, 'achievements', doc.$id));
-                    yield Promise.all(deletePromises);
+                    oldAchievementsToDelete.push(...oldAchievements.documents);
                     cursor = oldAchievements.documents[oldAchievements.documents.length - 1].$id;
                 }
                 else {
                     hasMore = false;
                 }
+            }
+            if (oldAchievementsToDelete.length > 0) {
+                console.log(`Deleting ${oldAchievementsToDelete.length} old achievements for appid ${steamAppId}.`);
+                const deletePromises = oldAchievementsToDelete.map(doc => databases.deleteDocument(config_1.default.appwrite.databaseId, 'achievements', doc.$id));
+                yield Promise.all(deletePromises);
             }
             // Create new ones in batches
             const BATCH_SIZE = 50;
@@ -460,7 +667,33 @@ function syncGameAchievements(documentId, steamAppId) {
         }
     });
 }
+function testGetProductInfo(steamAppId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log(`[Test] Fetching Product Info for AppID: ${steamAppId}`);
+        return new Promise((resolve, reject) => {
+            steamUser.logOn({ anonymous: true });
+            steamUser.on('loggedOn', () => {
+                console.log('[Test] Logged into Steam successfully.');
+                steamUser.getProductInfo([steamAppId], [], false, (err, apps, packages) => {
+                    if (err) {
+                        console.error('[Test] Error getting product info:', err);
+                        steamUser.logOff();
+                        return reject(err);
+                    }
+                    console.log('[Test] --- Raw PICS Response ---');
+                    console.log(JSON.stringify(apps[steamAppId], null, 2));
+                    steamUser.logOff();
+                    resolve();
+                });
+            });
+            steamUser.on('error', (err) => {
+                console.error('[Test] Steam login error:', err);
+                reject(err);
+            });
+        });
+    });
+}
 // Autorun the service when the script is executed
 if (require.main === module) {
-    runRefreshService();
+    runPicsRefreshService();
 }

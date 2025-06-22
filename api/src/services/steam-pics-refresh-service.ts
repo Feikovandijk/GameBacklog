@@ -28,7 +28,7 @@ if (!STEAM_API_KEY) {
 
 const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
 const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
-const GAMES_PER_MINUTE_LIMIT = 30; // Stay under the 100k/day Steam API limit
+const GAMES_PER_MINUTE_LIMIT = 13; // Each game update can be 3-5 API calls. With a 100k/day limit (~69/min), this is a safe throttle.
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 const STATE_DOCUMENT_ID = 'steam_changenumber';
 
@@ -659,14 +659,19 @@ async function runPicsRefreshService() {
         console.log(`Found ${appIdsInDb.length} games in the database that require an update. Fetching data...`);
 
         if (appIdsInDb.length > 0) {
-            steamUser.getProductInfo(appIdsInDb, [], false, async (err, apps, packages) => {
+            steamUser.getProductInfo(appIdsInDb, [], false, async (err: Error | null, apps: { [key: string]: any }, packages: any) => {
                 if (err) {
                     console.error('Failed to get product info from Steam:', err);
                     steamUser.logOff();
                     return;
                 }
 
-                for (const appIdStr in apps) {
+                const appIdsToProcess = Object.keys(apps);
+                const appCount = appIdsToProcess.length;
+                let processedCount = 0;
+
+                for (const appIdStr of appIdsToProcess) {
+                    processedCount++;
                     const appId = parseInt(appIdStr, 10);
                     const picsData = apps[appIdStr];
                     const gameDoc = gameDocsByAppId.get(appId);
@@ -684,7 +689,7 @@ async function runPicsRefreshService() {
                                 gameDoc.$id,
                                 finalGameData
                             );
-                            console.log(`Successfully updated game: ${finalGameData.name} (${finalGameData.steam_appid})`);
+                            console.log(`(${processedCount}/${appCount}) Successfully updated game: ${finalGameData.name} (${finalGameData.steam_appid})`);
                             totalUpdatedCount++;
                             await incrementStat('updatedGames');
 
@@ -704,8 +709,13 @@ async function runPicsRefreshService() {
                                 steam_app_type: 'invalid',
                             };
                             await databases.updateDocument(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, gameDoc.$id, updatePayload);
-                            console.log(`Marked appid ${appId} as invalid as no PICS info was returned.`);
+                            console.log(`(${processedCount}/${appCount}) Marked appid ${appId} as invalid as no PICS info was returned.`);
                         }
+                    }
+
+                    if (processedCount < appCount) {
+                        console.log(`Waiting ${Math.round(DELAY_MS / 1000)}s before next game...`);
+                        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
                     }
                 }
                 
@@ -877,7 +887,7 @@ async function testGetProductInfo(steamAppId: number) {
 
         steamUser.on('loggedOn', () => {
             console.log('[Test] Logged into Steam successfully.');
-            steamUser.getProductInfo([steamAppId], [], false, (err: Error | null, apps: any, packages: any) => {
+            steamUser.getProductInfo([steamAppId], [], false, (err: Error | null, apps: { [key: string]: any }, packages: any) => {
                 if (err) {
                     console.error('[Test] Error getting product info:', err);
                     steamUser.logOff();
