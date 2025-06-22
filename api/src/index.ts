@@ -284,7 +284,7 @@ app.get('/api/latest-steam-games', async (_req: Request, res: Response): Promise
       databaseId,
       gamesCollectionId,
       [
-        Query.orderDesc('steam_appid'),
+        Query.orderDesc('release_date'),
         Query.limit(10),
         Query.select([
             'name', 
