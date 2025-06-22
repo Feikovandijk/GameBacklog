@@ -130,109 +130,6 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
     throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
 }
 
-async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: SteamGameData | null, type: string | null }> {
-  const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
-  const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
-  const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
-
-  console.log(`Fetching app details from: ${appDetailsUrl.replace(STEAM_API_KEY!, 'YOUR_STEAM_KEY')}`);
-  console.log(`Fetching reviews from: ${reviewUrl}`);
-  console.log(`Fetching player count from: ${playersUrl}`);
-  console.log(`Fetching PICS data for: ${steamAppId}`);
-
-  try {
-    const productInfoPromise = new Promise<{ err: Error | null; apps: any; packages: any; }>((resolve) => {
-        steamUser.getProductInfo([steamAppId], [], false, (err, apps, packages) => {
-            resolve({ err, apps, packages });
-        });
-    });
-
-    const [appDetailsResponse, reviewResponse, playersResponse, picsResponse] = await Promise.all([
-      fetchWithRetry(appDetailsUrl),
-      fetchWithRetry(reviewUrl),
-      fetchWithRetry(playersUrl),
-      productInfoPromise
-    ]);
-
-    if (!appDetailsResponse.ok) {
-      console.error(
-        `Steam API request failed for appid ${steamAppId}: ${appDetailsResponse.status} ${appDetailsResponse.statusText}`
-      );
-      const errorBody = await appDetailsResponse.text();
-      console.error(`Steam API Error Body: ${errorBody}`);
-      return { data: null, type: 'error' };
-    }
-    
-    const appDetailsData = await appDetailsResponse.json();
-    let reviewData = null;
-    let playersData = null;
-
-    if (reviewResponse.ok) {
-        const reviewJson = await reviewResponse.json();
-        if (reviewJson.success) {
-            reviewData = reviewJson.query_summary;
-        } else {
-            console.warn(`Could not fetch review data for appid ${steamAppId}.`);
-        }
-    } else {
-        console.warn(`Review API request failed for appid ${steamAppId}: ${reviewResponse.status} ${reviewResponse.statusText}`);
-    }
-
-    if (playersResponse.ok) {
-        const playersJson = await playersResponse.json();
-        if (playersJson.response && playersJson.response.result === 1) {
-            playersData = playersJson.response;
-        }
-    } else {
-        console.warn(`Player count API request failed for appid ${steamAppId}: ${playersResponse.status} ${playersResponse.statusText}`);
-    }
-
-    if (appDetailsData && appDetailsData[steamAppId]) {
-      const details = appDetailsData[steamAppId];
-      if (details.success) {
-        const gameData = details.data;
-        const appType = gameData.type || 'game'; // Default to 'game' if type is missing
-
-        if (appType !== 'game') {
-           console.log(`AppID ${steamAppId} is a '${appType}', not a game. Skipping full data processing.`);
-           return { data: null, type: appType };
-        }
-
-        if (reviewData) {
-          gameData.recommendations = { 
-              total: reviewData.total_reviews,
-              positive: reviewData.total_positive,
-              negative: reviewData.total_negative,
-              review_score_desc: reviewData.review_score_desc
-          };
-        }
-
-        if (playersData) {
-            gameData.player_count = playersData.player_count;
-        }
-        
-        if (picsResponse.err) {
-            console.warn(`Could not fetch PICS data for ${steamAppId}:`, picsResponse.err.message);
-        } else {
-            gameData.pics_info = picsResponse.apps[steamAppId];
-        }
-
-        return { data: gameData, type: 'game' };
-
-      } else {
-        console.warn(`Steam indicated unsuccessful fetch for appid ${steamAppId}. Marking as invalid.`);
-        return { data: null, type: 'invalid' };
-      }
-    }
-
-    console.warn(`No data or unexpected response structure for appid ${steamAppId} from Steam.`);
-    return { data: null, type: null };
-  } catch (error) {
-    console.error(`Error fetching game details for appid ${steamAppId} from Steam:`, error);
-    return { data: null, type: 'error' };
-  }
-}
-
 async function recordReviewHistory(documentId: string, totalReviews: number) {
     if (typeof totalReviews !== 'number') return; // Don't record if no review data
 
@@ -251,126 +148,14 @@ async function recordReviewHistory(documentId: string, totalReviews: number) {
         );
         console.log(`Successfully recorded review history for document ${documentId}.`);
     } catch (error) {
-        console.error(`Error recording review history for document ${documentId}:`, error);
-    }
-}
-
-async function updateGameInAppwrite(documentId: string, steamData: SteamGameData | null, steamAppType: string) {
-    if (steamData && steamAppType === 'game') {
-        // This is a valid game, do a full update
-        const isEarlyAccess = steamData.genres?.some(
-            (genre: { id: string; description: string }) => genre.description === "Early Access"
-        ) ?? false;
-
-        let releaseDateForDb: string | undefined;
-        const steamReleaseDate = steamData.release_date;
-
-        if (steamReleaseDate && !steamReleaseDate.coming_soon && steamReleaseDate.date) {
-            const parsedDate = new Date(steamReleaseDate.date);
-            if (!isNaN(parsedDate.getTime())) {
-                releaseDateForDb = parsedDate.toISOString();
-            } else {
-                console.warn(`Could not parse '${steamReleaseDate.date}' as a date for game '${steamData.name}'. Release date will be left unchanged.`);
-            }
-        } else if (steamReleaseDate?.coming_soon) {
-            console.log(`'${steamData.name}' is marked as 'coming soon', release date will not be set.`);
-        }
-
-        const price = steamData.price_overview;
-        const reviews = steamData.recommendations;
-        const picsInfo = steamData.pics_info?.appinfo;
-        const categories = steamData.categories?.map(c => c.description) ?? [];
-        const hasSteamAchievements = categories.includes("Steam Achievements");
-
-        let tags: string[] | undefined;
-        if (picsInfo?.common?.tags) {
-            tags = Object.values(picsInfo.common.tags);
-        }
-
-        const gameData: Partial<GameDocument> = {
-            name: steamData.name,
-            short_description: steamData.short_description,
-            header_image: steamData.header_image,
-            release_date: releaseDateForDb ?? null,
-            last_updated: new Date().toISOString(),
-            developers: steamData.developers,
-            publishers: steamData.publishers,
-            is_early_access: isEarlyAccess,
-            total_reviews: reviews?.total ?? null,
-            steam_app_type: 'game',
-            // New analytics fields
-            price_final: price?.final ?? null,
-            price_currency: price?.currency ?? null,
-            price_initial: price?.initial ?? null,
-            discount_percent: price?.discount_percent ?? null,
-            total_positive: reviews?.positive ?? null,
-            total_negative: reviews?.negative ?? null,
-            positive_rating_percentage: reviews?.total && reviews?.total > 0 ? Math.round((reviews.positive / reviews.total) * 100) : null,
-            review_score_desc: reviews?.review_score_desc ?? null,
-            current_players: steamData.player_count ?? null,
-            // From PICS
-            tags: tags ?? null,
-            controller_support: picsInfo?.common?.controller_support ?? null,
-            // New Features
-            metacritic_score: steamData.metacritic?.score ?? null,
-            metacritic_url: steamData.metacritic?.url ?? null,
-            platforms_windows: steamData.platforms?.windows ?? null,
-            platforms_mac: steamData.platforms?.mac ?? null,
-            platforms_linux: steamData.platforms?.linux ?? null,
-            categories: categories.length > 0 ? categories : null,
-            has_steam_achievements: hasSteamAchievements,
-        };
-
-        try {
-            await databases.updateDocument(
-                config.appwrite.databaseId!,
-                config.appwrite.gamesCollectionId!,
-                documentId,
-                gameData
-            );
-            console.log(`Successfully updated game ${steamData.name}`);
-            
-            if (hasSteamAchievements) {
-              console.log(`Game ${steamData.name} has achievements. Syncing...`);
-              await syncGameAchievements(documentId, steamData.steam_appid);
-            }
-
-            // After successful update, record the review count for trend analysis
-            if (reviews?.total) {
-              await recordReviewHistory(documentId, reviews.total);
-            }
-
-            return true;
-        } catch (error) {
-            console.error(`Error updating game ${steamData.name} in Appwrite:`, error);
-            return false;
-        }
-    } else {
-        // This is not a game (demo, dlc, invalid, etc.)
-        // Just mark it so we don't check it again.
-        const gameData: Partial<GameDocument> = {
-            last_updated: new Date().toISOString(),
-            steam_app_type: steamAppType,
-        };
-        try {
-            await databases.updateDocument(
-                config.appwrite.databaseId!,
-                config.appwrite.gamesCollectionId!,
-                documentId,
-                gameData
-            );
-            console.log(`Marked document ${documentId} as type '${steamAppType}'. It will be skipped in future updates.`);
-            return false; // Return false because it wasn't a "successful game update"
-        } catch (error) {
-            console.error(`Error marking document ${documentId} as '${steamAppType}':`, error);
-            return false;
-        }
+        // Don't block the main process for history failures, just log it
+        console.error(`[Worker ${config.worker.id}] Failed to record review history for doc ${documentId}:`, error);
     }
 }
 
 async function getLatestChangenumber(): Promise<number> {
     try {
-        const doc = await databases.getDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID);
+        const doc = await databases.getDocument(config.appwrite.databaseId!, 'state', STATE_DOCUMENT_ID);
         return doc.changenumber;
     } catch (error: any) {
         if (error.code === 404) {
@@ -383,12 +168,12 @@ async function getLatestChangenumber(): Promise<number> {
 
 async function saveLatestChangenumber(changenumber: number) {
     try {
-        await databases.updateDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
+        await databases.updateDocument(config.appwrite.databaseId!, 'state', STATE_DOCUMENT_ID, { changenumber });
         console.log(`Successfully saved new changenumber: ${changenumber}`);
     } catch (error: any) {
         if (error.code === 404) {
             console.log('Changenumber document not found, creating a new one.');
-            await databases.createDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
+            await databases.createDocument(config.appwrite.databaseId!, 'state', STATE_DOCUMENT_ID, { changenumber });
             console.log(`Successfully created and saved new changenumber: ${changenumber}`);
         } else {
             console.error(`Error saving new changenumber ${changenumber}:`, error);
@@ -404,17 +189,12 @@ interface ProductChanges {
 
 function formatPicsDataToGameDocument(appId: number, picsData: any): Partial<GameDocument> {
     const common = picsData.appinfo?.common ?? {};
-    const extended = picsData.appinfo?.extended ?? {};
-    
-    const developers: string[] = [];
-    const publishers: string[] = [];
+    const package_groups = picsData.appinfo?.package_groups ?? [];
+    const developers: string[] = [], publishers: string[] = [];
     if (common.associations) {
         Object.values(common.associations).forEach((assoc: any) => {
-            if (assoc.type === 'developer') {
-                developers.push(assoc.name);
-            } else if (assoc.type === 'publisher') {
-                publishers.push(assoc.name);
-            }
+            if (assoc.type === 'developer') developers.push(assoc.name);
+            else if (assoc.type === 'publisher') publishers.push(assoc.name);
         });
     }
 
@@ -659,7 +439,7 @@ async function runPicsRefreshService() {
         console.log(`Found ${appIdsInDb.length} games in the database that require an update. Fetching data...`);
 
         if (appIdsInDb.length > 0) {
-            steamUser.getProductInfo(appIdsInDb, [], false, async (err: Error | null, apps: { [key: string]: any }, packages: any) => {
+            steamUser.getProductInfo(appIdsInDb, [], false, async (err: Error | null, apps: { [key: string]: any }) => {
                 if (err) {
                     console.error('Failed to get product info from Steam:', err);
                     steamUser.logOff();
@@ -781,13 +561,12 @@ interface AchievementDocument {
 }
 
 async function syncGameAchievements(documentId: string, steamAppId: number) {
-    const schemaUrl = `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${STEAM_API_KEY}&appid=${steamAppId}&l=english`;
-    const percentagesUrl = `https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${steamAppId}`;
-
+    console.log(`[Worker ${config.worker.id}] Syncing achievements for ${steamAppId}...`);
     try {
+        const url = `http://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${STEAM_API_KEY}&appid=${steamAppId}`;
         const [schemaResponse, percentagesResponse] = await Promise.all([
-            fetchWithRetry(schemaUrl),
-            fetchWithRetry(percentagesUrl)
+            fetchWithRetry(url),
+            fetchWithRetry(`https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${steamAppId}`)
         ]);
 
         if (!schemaResponse.ok) {
@@ -877,41 +656,9 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
     } catch (error) {
         console.error(`Error syncing achievements for appid ${steamAppId}:`, error);
     }
-}
-
-async function testGetProductInfo(steamAppId: number) {
-    console.log(`[Test] Fetching Product Info for AppID: ${steamAppId}`);
-    
-    return new Promise<void>((resolve, reject) => {
-        steamUser.logOn({ anonymous: true });
-
-        steamUser.on('loggedOn', () => {
-            console.log('[Test] Logged into Steam successfully.');
-            steamUser.getProductInfo([steamAppId], [], false, (err: Error | null, apps: { [key: string]: any }, packages: any) => {
-                if (err) {
-                    console.error('[Test] Error getting product info:', err);
-                    steamUser.logOff();
-                    return reject(err);
-                }
-
-                console.log('[Test] --- Raw PICS Response ---');
-                console.log(JSON.stringify(apps[steamAppId], null, 2));
-                
-                steamUser.logOff();
-                resolve();
-            });
-        });
-
-        steamUser.on('error', (err) => {
-            console.error('[Test] Steam login error:', err);
-            reject(err);
-        });
-    });
+    // We're done, log off
+    steamUser.logOff();
 }
 
 // Autorun the service when the script is executed
-if (require.main === module) {
-    runPicsRefreshService();
-}
-
-export { runPicsRefreshService }; // Export if you plan to import it elsewhere 
+runPicsRefreshService(); 

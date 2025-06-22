@@ -16,30 +16,6 @@ const appwriteClient = new Client()
     .setKey(config.appwrite.apiKey!);
 const appwriteDatabases = new Databases(appwriteClient);
 
-// Helper to fetch all documents from a collection with pagination
-async function fetchAllDocuments(databaseId: string, collectionId: string, queries: any[] = []) {
-    const documents: any[] = [];
-    let cursor: string | undefined = undefined;
-
-    while (true) {
-        const currentQueries = [...queries, Query.limit(1000)]; // Fetch in batches of 1000
-        if (cursor) {
-            currentQueries.push(Query.cursorAfter(cursor));
-        }
-
-        const response = await appwriteDatabases.listDocuments(databaseId, collectionId, currentQueries);
-
-        if (response.documents.length === 0) {
-            break;
-        }
-
-        documents.push(...response.documents);
-        cursor = response.documents[response.documents.length - 1].$id;
-    }
-
-    return documents;
-}
-
 // NEW: GET /api/stats - Retrieves stats about the games database
 app.get('/api/stats', async (_req: Request, res: Response): Promise<void> => {
   try {

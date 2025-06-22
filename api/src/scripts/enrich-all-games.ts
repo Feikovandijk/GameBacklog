@@ -1,4 +1,4 @@
-import { Client, Databases, Query, ID } from 'node-appwrite';
+import { Client, Databases, Query } from 'node-appwrite';
 import SteamUser from 'steam-user';
 import config from '../config';
 import dotenv from 'dotenv';
