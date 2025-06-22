@@ -487,3 +487,99 @@
 .data-value .value-false { color: #f88; }
 .data-value a { color: #6af; text-decoration: none; }
 .data-value a:hover { text-decoration: underline; }
+
+/* Generic Info Card for simple lists */
+.info-card {
+    background-color: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.info-card h3 {
+    margin-top: 0;
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.info-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.info-card li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #333;
+    font-size: 0.9rem;
+    color: #fff;
+}
+
+.info-card li:last-child {
+    border-bottom: none;
+}
+
+.info-card li small {
+    color: #aaa;
+}
+
+/* Specific styles for the enhanced Latest Steam Additions card */
+.latest-steam-additions .latest-games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.latest-steam-additions .game-card {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.latest-steam-additions .game-card a {
+    display: block;
+    text-decoration: none;
+    color: #fff;
+}
+
+.latest-steam-additions .game-image {
+    width: 100%;
+    display: block;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+.latest-steam-additions .game-image-placeholder {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #1e1e1e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.latest-steam-additions .game-info-overlay {
+    padding: 0.75rem;
+}
+
+.latest-steam-additions .game-title {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
+}
+
+.latest-steam-additions .game-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #ccc;
+}

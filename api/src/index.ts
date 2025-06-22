@@ -74,41 +74,31 @@ app.get('/api/analytics', async (_req: Request, res: Response): Promise<Response
         return res.json(analyticsCache);
     }
 
-    console.log("Generating new analytics data...");
+    console.log("Fetching pre-calculated analytics data...");
     try {
         const databaseId = config.appwrite.databaseId!;
-        const gamesCollectionId = config.appwrite.gamesCollectionId!;
+        const statsCollectionId = 'statistics';
 
-        const allGames = await fetchAllDocuments(
+        const keysToFetch = [
+            'analytics_releaseYearDistribution',
+            'analytics_genreDistribution'
+        ];
+        
+        const statsResponse = await appwriteDatabases.listDocuments(
             databaseId,
-            gamesCollectionId,
-            [
-                Query.equal('steam_app_type', 'game'),
-                Query.select(['release_date', 'categories'])
-            ]
+            statsCollectionId,
+            [Query.equal('key', keysToFetch)]
         );
 
-        const releaseYearDistribution = allGames.reduce((acc, game) => {
-            if (game.release_date) {
-                const year = new Date(game.release_date).getFullYear();
-                if (year && year > 1980 && year <= new Date().getFullYear()) {
-                    acc[year] = (acc[year] || 0) + 1;
-                }
+        const stats = statsResponse.documents.reduce((acc, doc) => {
+            try {
+                acc[doc.key] = JSON.parse(doc.value);
+            } catch (e) {
+                console.error(`Failed to parse stat value for key: ${doc.key}`, e);
+                acc[doc.key] = {};
             }
             return acc;
-        }, {} as Record<string, number>);
-
-        const genreDistribution = allGames.reduce((acc, game) => {
-            if (game.categories) {
-                game.categories.forEach((cat: string) => {
-                    // Exclude irrelevant or overly broad categories
-                    if (cat !== "Steam Achievements" && cat !== "Steam Cloud" && cat !== "Single-player") {
-                         acc[cat] = (acc[cat] || 0) + 1;
-                    }
-                });
-            }
-            return acc;
-        }, {} as Record<string, number>);
+        }, {} as Record<string, any>);
 
         const getTopN = (dist: Record<string, number>, n: number) => {
             return Object.entries(dist)
@@ -116,10 +106,10 @@ app.get('/api/analytics', async (_req: Request, res: Response): Promise<Response
                 .slice(0, n)
                 .map(([name, count]) => ({ name, count }));
         };
-
+        
         const analyticsData = {
-            releaseYearDistribution,
-            genreDistribution: getTopN(genreDistribution, 10),
+            releaseYearDistribution: stats['analytics_releaseYearDistribution'] || {},
+            genreDistribution: getTopN(stats['analytics_genreDistribution'] || {}, 10),
         };
         
         analyticsCache = analyticsData;
@@ -282,6 +272,35 @@ app.get('/api/latest-synced-games', async (_req: Request, res: Response): Promis
     console.error('Error fetching latest synced games:', error);
     const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
     res.status(500).json({ error: 'Failed to fetch latest synced games', details: errorMessage });
+  }
+});
+
+app.get('/api/latest-steam-games', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const databaseId = config.appwrite.databaseId!;
+    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+
+    const response = await appwriteDatabases.listDocuments(
+      databaseId,
+      gamesCollectionId,
+      [
+        Query.orderDesc('steam_appid'),
+        Query.limit(10),
+        Query.select([
+            'name', 
+            'steam_appid',
+            'header_image',
+            'total_reviews',
+            'release_date'
+        ])
+      ]
+    );
+
+    res.json(response.documents);
+  } catch (error) {
+    console.error('Error fetching latest steam games:', error);
+    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: 'Failed to fetch latest steam games', details: errorMessage });
   }
 });
 

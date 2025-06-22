@@ -5,6 +5,7 @@ import MostReviewedGames from './components/MostReviewedGames'
 import LatestAchievements from './components/LatestAchievements'
 import LastSyncedGames from './components/LastSyncedGames'
 import DashboardAnalytics from './components/DashboardAnalytics'
+import LatestSteamGames from './components/LatestSteamGames'
 
 function App() {
 
@@ -18,9 +19,10 @@ function App() {
           <DashboardStats />
           <GameSearch />
           <MostReviewedGames />
+          <LatestSteamGames />
+          <DashboardAnalytics />
           <LatestAchievements />
           <LastSyncedGames />
-          <DashboardAnalytics />
         </div>
       </main>
     </>

@@ -213,6 +213,23 @@ app.get('/api/latest-synced-games', (_req, res) => __awaiter(void 0, void 0, voi
         res.status(500).json({ error: 'Failed to fetch latest synced games', details: errorMessage });
     }
 }));
+app.get('/api/latest-steam-games', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const databaseId = config_1.default.appwrite.databaseId;
+        const gamesCollectionId = config_1.default.appwrite.gamesCollectionId;
+        const response = yield appwriteDatabases.listDocuments(databaseId, gamesCollectionId, [
+            node_appwrite_1.Query.orderDesc('steam_appid'),
+            node_appwrite_1.Query.limit(10),
+            node_appwrite_1.Query.select(['name', 'steam_appid'])
+        ]);
+        res.json(response.documents);
+    }
+    catch (error) {
+        console.error('Error fetching latest steam games:', error);
+        const errorMessage = error instanceof node_appwrite_1.AppwriteException ? error.message : 'An unknown error occurred.';
+        res.status(500).json({ error: 'Failed to fetch latest steam games', details: errorMessage });
+    }
+}));
 // GET /api/games - Retrieves all games for the currently authenticated user
 /*
 app.get('/api/games', authenticateUser, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
