@@ -24,8 +24,12 @@ const DashboardAnalytics: React.FC = () => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: AnalyticsData = await response.json();
         setAnalytics(data);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+            setError(e.message);
+        } else {
+            setError('An unknown error occurred while fetching analytics.');
+        }
       } finally {
         setLoading(false);
       }

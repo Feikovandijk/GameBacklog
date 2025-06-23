@@ -12,7 +12,7 @@ const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     try {
         return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(dateString));
-    } catch (e) {
+    } catch {
         return 'Invalid Date';
     }
 }
@@ -33,8 +33,12 @@ const LatestSteamGames: React.FC = () => {
         }
         const data: SteamGame[] = await response.json();
         setGames(data);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          setError(e.message);
+        } else {
+          setError('An unknown error occurred while fetching data.');
+        }
         console.error("Error fetching latest Steam games:", e);
       } finally {
         setLoading(false);
