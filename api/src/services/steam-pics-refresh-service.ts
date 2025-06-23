@@ -315,70 +315,70 @@ function mergeApiData(picsData: Partial<GameDocument>, webData: WebApiData | nul
 }
 
 async function runPicsRefreshService() {
-  console.log("Steam PICS refresh service started.");
-  let totalUpdatedCount = 0;
+    console.log("Steam PICS refresh service started.");
+    let totalUpdatedCount = 0;
 
-  try {
-    console.log("Logging into Steam anonymously...");
-    steamUser.logOn({ anonymous: true });
+    try {
+        console.log("Logging into Steam anonymously...");
+        steamUser.logOn({ anonymous: true });
 
-    await new Promise<void>((resolve, reject) => {
-        steamUser.on('loggedOn', () => {
-            console.log(`Logged into Steam successfully.`);
-            resolve();
+        await new Promise<void>((resolve, reject) => {
+            steamUser.on('loggedOn', () => {
+                console.log(`Logged into Steam successfully.`);
+                resolve();
+            });
+            steamUser.on('error', (err) => {
+                console.error(`Steam login error:`, err);
+                reject(err);
+            });
         });
-        steamUser.on('error', (err) => {
-            console.error(`Steam login error:`, err);
-            reject(err);
+
+        const lastChangenumber = await getLatestChangenumber();
+        console.log(`Last known changenumber is ${lastChangenumber}. Fetching changes...`);
+
+        const productChanges = await new Promise<ProductChanges>((resolve, reject) => {
+            steamUser.getProductChanges(lastChangenumber, (err, currentChangenumber, appChanges, packageChanges) => {
+                if (err) return reject(err);
+                resolve({ currentChangenumber, appChanges, packageChanges });
+            });
         });
-    });
-    
-    const lastChangenumber = await getLatestChangenumber();
-    console.log(`Last known changenumber is ${lastChangenumber}. Fetching changes...`);
 
-    const productChanges = await new Promise<ProductChanges>((resolve, reject) => {
-        steamUser.getProductChanges(lastChangenumber, (err, currentChangenumber, appChanges, packageChanges) => {
-            if (err) return reject(err);
-            resolve({ currentChangenumber, appChanges, packageChanges });
-        });
-    });
+        const { currentChangenumber, appChanges } = productChanges;
 
-    const { currentChangenumber, appChanges } = productChanges;
-
-    if (appChanges.length === 0 && currentChangenumber === lastChangenumber) {
-        console.log("No new changes from Steam. Exiting.");
-        steamUser.logOff();
-        return;
-    }
-    
-    console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
-
-    const appIdsToUpdate = appChanges.map(app => app.appid);
-
-    if (appIdsToUpdate.length > 0) {
-        // Find which of the changed AppIDs exist in our database
-        const CHUNK_SIZE = 100;
-        const gameDocsByAppId = new Map();
-        for (let i = 0; i < appIdsToUpdate.length; i += CHUNK_SIZE) {
-            const chunk = appIdsToUpdate.slice(i, i + CHUNK_SIZE);
-            const response = await databases.listDocuments(
-                config.appwrite.databaseId!,
-                config.appwrite.gamesCollectionId!,
-                [Query.equal('steam_appid', chunk), Query.limit(CHUNK_SIZE)]
-            );
-            response.documents.forEach(doc => gameDocsByAppId.set(doc.steam_appid, doc));
+        if (appChanges.length === 0 && currentChangenumber === lastChangenumber) {
+            console.log("No new changes from Steam. Exiting.");
+            return;
         }
-        
-        const appIdsInDb = Array.from(gameDocsByAppId.keys());
-        console.log(`Found ${appIdsInDb.length} games in the database that require an update. Fetching data...`);
 
-        if (appIdsInDb.length > 0) {
-            steamUser.getProductInfo(appIdsInDb, [], false, async (err: Error | null, apps: { [key: string]: any }) => {
-                if (err) {
-                    console.error('Failed to get product info from Steam:', err);
-                    steamUser.logOff();
-                    return;
-                }
+        console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
+
+        const appIdsToUpdate = appChanges.map(app => app.appid);
+
+        if (appIdsToUpdate.length > 0) {
+            const CHUNK_SIZE = 100;
+            const gameDocsByAppId = new Map();
+            for (let i = 0; i < appIdsToUpdate.length; i += CHUNK_SIZE) {
+                const chunk = appIdsToUpdate.slice(i, i + CHUNK_SIZE);
+                const response = await databases.listDocuments(
+                    config.appwrite.databaseId!,
+                    config.appwrite.gamesCollectionId!,
+                    [Query.equal('steam_appid', chunk), Query.limit(CHUNK_SIZE)]
+                );
+                response.documents.forEach(doc => gameDocsByAppId.set(doc.steam_appid, doc));
+            }
+
+            const appIdsInDb = Array.from(gameDocsByAppId.keys());
+            console.log(`Found ${appIdsInDb.length} games in the database that require an update. Fetching data...`);
+
+            if (appIdsInDb.length > 0) {
+                const apps = await new Promise<{ [key: string]: any }>((resolve, reject) => {
+                    steamUser.getProductInfo(appIdsInDb, [], false, (err: Error | null, apps: { [key: string]: any }) => {
+                        if (err) {
+                            return reject(new Error('Failed to get product info from Steam: ' + err.message));
+                        }
+                        resolve(apps);
+                    });
+                });
 
                 const appIdsToProcess = Object.keys(apps);
                 const appCount = appIdsToProcess.length;
@@ -393,11 +393,11 @@ async function runPicsRefreshService() {
                     if (gameDoc && picsData.appinfo) {
                         const formattedPicsData = formatPicsDataToGameDocument(appId, picsData);
                         const webApiData = await fetchGameDetailsFromWebAPI(appId);
-                        
+
                         const finalGameData = mergeApiData(formattedPicsData, webApiData);
 
                         try {
-                             await databases.updateDocument(
+                            await databases.updateDocument(
                                 config.appwrite.databaseId!,
                                 config.appwrite.gamesCollectionId!,
                                 gameDoc.$id,
@@ -432,29 +432,25 @@ async function runPicsRefreshService() {
                         await new Promise(resolve => setTimeout(resolve, DELAY_MS));
                     }
                 }
-                
+
                 console.log(`\nUpdate process finished. ${totalUpdatedCount} games were updated.`);
-                await saveLatestChangenumber(currentChangenumber);
-                console.log(`\nSteam PICS refresh completed.`);
-                steamUser.logOff();
-            });
+
+            } else {
+                console.log(`No games in the database matched the list of changes. Changenumber updated. Exiting.`);
+            }
         } else {
-             await saveLatestChangenumber(currentChangenumber);
-             console.log(`No games in the database matched the list of changes. Changenumber updated. Exiting.`);
-             steamUser.logOff();
+            console.log(`No app changes from Steam, but changenumber updated. Exiting.`);
         }
-    } else {
         await saveLatestChangenumber(currentChangenumber);
-        console.log(`No app changes from Steam, but changenumber updated. Exiting.`);
+        console.log(`\nSteam PICS refresh completed.`);
+    } catch (e) {
+        const error = e as Error;
+        console.error(`Error in Steam PICS refresh service:`, error.message);
+        console.error(error.stack);
+        process.exit(1);
+    } finally {
         steamUser.logOff();
     }
-  } catch (e) {
-    const error = e as Error;
-    console.error(`Error in Steam PICS refresh service:`, error.message);
-    console.error(error.stack);
-    steamUser.logOff();
-    process.exit(1);
-  }
 }
 
 async function incrementStat(key: string, incrementBy: number = 1) {
@@ -590,8 +586,6 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
     } catch (error) {
         console.error(`Error syncing achievements for appid ${steamAppId}:`, error);
     }
-    // We're done, log off
-    steamUser.logOff();
 }
 
 // Execute the PICS refresh service
