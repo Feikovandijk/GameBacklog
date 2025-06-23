@@ -89,7 +89,7 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
 
 async function getLatestChangenumber(): Promise<number> {
     try {
-        const doc = await databases.getDocument(config.appwrite.databaseId!, 'state', STATE_DOCUMENT_ID);
+        const doc = await databases.getDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID);
         return doc.changenumber;
     } catch (error: any) {
         if (error.code === 404) {
@@ -102,12 +102,12 @@ async function getLatestChangenumber(): Promise<number> {
 
 async function saveLatestChangenumber(changenumber: number) {
     try {
-        await databases.updateDocument(config.appwrite.databaseId!, 'state', STATE_DOCUMENT_ID, { changenumber });
+        await databases.updateDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
         console.log(`Successfully saved new changenumber: ${changenumber}`);
     } catch (error: any) {
         if (error.code === 404) {
             console.log('Changenumber document not found, creating a new one.');
-            await databases.createDocument(config.appwrite.databaseId!, 'state', STATE_DOCUMENT_ID, { changenumber });
+            await databases.createDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
             console.log(`Successfully created and saved new changenumber: ${changenumber}`);
         } else {
             console.error(`Error saving new changenumber ${changenumber}:`, error);

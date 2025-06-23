@@ -1,21 +1,38 @@
 import React, { useState, useEffect } from 'react';
 
-// Using 'any' for game and achievement data as the structure is very dynamic
-type GameDocument = any;
-type AchievementDocument = any;
+// Define specific types for game and achievement data
+interface AchievementDocument {
+  $id: string;
+  api_name: string;
+  display_name: string;
+  description?: string | null;
+  icon?: string | null;
+  global_percentage?: number | null;
+  hidden?: boolean;
+}
+
+interface GameDocument {
+    $id: string;
+    name: string;
+    steam_appid: number;
+    last_updated: string;
+    // Allow for other dynamic properties from Appwrite
+    [key: string]: unknown;
+}
+
 
 interface GameWithDetails extends GameDocument {
   achievements: AchievementDocument[];
 }
 
-const renderValue = (value: any) => {
+const renderValue = (value: unknown) => {
     if (value === null || typeof value === 'undefined') return <span className="value-null">null</span>;
     if (typeof value === 'boolean') return <span className={value ? "value-true" : "value-false"}>{value.toString()}</span>;
     if (Array.isArray(value)) return `[${value.join(', ')}]`;
-    if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('https'))) {
+    if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('https://'))) {
         return <a href={value} target="_blank" rel="noopener noreferrer">{value}</a>;
     }
-    return value.toString();
+    return String(value);
 };
 
 const LastSyncedGames: React.FC = () => {
@@ -33,8 +50,12 @@ const LastSyncedGames: React.FC = () => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: GameWithDetails[] = await response.json();
         setGames(data);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          setError(e.message);
+        } else {
+          setError('An unknown error occurred while fetching data.');
+        }
         console.error("Error fetching latest synced games:", e);
       } finally {
         setLoading(false);
