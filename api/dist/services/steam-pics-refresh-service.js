@@ -39,6 +39,7 @@ const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const GAMES_PER_MINUTE_LIMIT = 13; // Each game update can be 3-5 API calls. With a 100k/day limit (~69/min), this is a safe throttle.
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 const STATE_DOCUMENT_ID = 'steam_changenumber';
+const STATE_COLLECTION_ID = 'steam_state';
 function fetchWithRetry(url_1) {
     return __awaiter(this, arguments, void 0, function* (url, retries = 3, backoff = 1000) {
         for (let i = 0; i < retries; i++) {
@@ -67,7 +68,7 @@ function fetchWithRetry(url_1) {
 function getLatestChangenumber() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const doc = yield databases.getDocument(config_1.default.appwrite.databaseId, 'state', STATE_DOCUMENT_ID);
+            const doc = yield databases.getDocument(config_1.default.appwrite.databaseId, STATE_COLLECTION_ID, STATE_DOCUMENT_ID);
             return doc.changenumber;
         }
         catch (error) {
@@ -82,13 +83,13 @@ function getLatestChangenumber() {
 function saveLatestChangenumber(changenumber) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield databases.updateDocument(config_1.default.appwrite.databaseId, 'state', STATE_DOCUMENT_ID, { changenumber });
+            yield databases.updateDocument(config_1.default.appwrite.databaseId, STATE_COLLECTION_ID, STATE_DOCUMENT_ID, { changenumber });
             console.log(`Successfully saved new changenumber: ${changenumber}`);
         }
         catch (error) {
             if (error.code === 404) {
                 console.log('Changenumber document not found, creating a new one.');
-                yield databases.createDocument(config_1.default.appwrite.databaseId, 'state', STATE_DOCUMENT_ID, { changenumber });
+                yield databases.createDocument(config_1.default.appwrite.databaseId, STATE_COLLECTION_ID, STATE_DOCUMENT_ID, { changenumber });
                 console.log(`Successfully created and saved new changenumber: ${changenumber}`);
             }
             else {
@@ -215,17 +216,17 @@ function mergeApiData(picsData, webData) {
     const reviews = webData.review_summary;
     const price = webData.price_overview;
     mergedData.short_description = (_a = webData.short_description) !== null && _a !== void 0 ? _a : mergedData.short_description;
-    mergedData.total_reviews = (_b = reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) !== null && _b !== void 0 ? _b : null,
-        mergedData.price_final = (_c = price === null || price === void 0 ? void 0 : price.final) !== null && _c !== void 0 ? _c : null,
-        mergedData.price_currency = (_d = price === null || price === void 0 ? void 0 : price.currency) !== null && _d !== void 0 ? _d : null,
-        mergedData.price_initial = (_e = price === null || price === void 0 ? void 0 : price.initial) !== null && _e !== void 0 ? _e : null,
-        mergedData.discount_percent = (_f = price === null || price === void 0 ? void 0 : price.discount_percent) !== null && _f !== void 0 ? _f : null,
-        mergedData.total_positive = (_g = reviews === null || reviews === void 0 ? void 0 : reviews.total_positive) !== null && _g !== void 0 ? _g : null,
-        mergedData.total_negative = (_h = reviews === null || reviews === void 0 ? void 0 : reviews.total_negative) !== null && _h !== void 0 ? _h : null,
-        mergedData.review_score_desc = (_j = reviews === null || reviews === void 0 ? void 0 : reviews.review_score_desc) !== null && _j !== void 0 ? _j : null,
-        mergedData.current_players = (_k = webData.player_count) !== null && _k !== void 0 ? _k : null,
-        // Web API sometimes has better metacritic data
-        mergedData.metacritic_score = (_m = (_l = webData.metacritic) === null || _l === void 0 ? void 0 : _l.score) !== null && _m !== void 0 ? _m : mergedData.metacritic_score;
+    mergedData.total_reviews = (_b = reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) !== null && _b !== void 0 ? _b : null;
+    mergedData.price_final = (_c = price === null || price === void 0 ? void 0 : price.final) !== null && _c !== void 0 ? _c : null;
+    mergedData.price_currency = (_d = price === null || price === void 0 ? void 0 : price.currency) !== null && _d !== void 0 ? _d : null;
+    mergedData.price_initial = (_e = price === null || price === void 0 ? void 0 : price.initial) !== null && _e !== void 0 ? _e : null;
+    mergedData.discount_percent = (_f = price === null || price === void 0 ? void 0 : price.discount_percent) !== null && _f !== void 0 ? _f : null;
+    mergedData.total_positive = (_g = reviews === null || reviews === void 0 ? void 0 : reviews.total_positive) !== null && _g !== void 0 ? _g : null;
+    mergedData.total_negative = (_h = reviews === null || reviews === void 0 ? void 0 : reviews.total_negative) !== null && _h !== void 0 ? _h : null;
+    mergedData.review_score_desc = (_j = reviews === null || reviews === void 0 ? void 0 : reviews.review_score_desc) !== null && _j !== void 0 ? _j : null;
+    mergedData.current_players = (_k = webData.player_count) !== null && _k !== void 0 ? _k : null;
+    // Web API sometimes has better metacritic data
+    mergedData.metacritic_score = (_m = (_l = webData.metacritic) === null || _l === void 0 ? void 0 : _l.score) !== null && _m !== void 0 ? _m : mergedData.metacritic_score;
     mergedData.metacritic_url = (_p = (_o = webData.metacritic) === null || _o === void 0 ? void 0 : _o.url) !== null && _p !== void 0 ? _p : mergedData.metacritic_url;
     // The positive rating percentage can be calculated more accurately from web data
     if ((reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) && reviews.total_reviews > 0) {

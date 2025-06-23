@@ -171,7 +171,8 @@ async function setupStatsCollection() {
         // 2. Create attributes
         const attributes = [
             { id: 'key', create: () => databases.createStringAttribute(databaseId, collectionId, 'key', 50, true) },
-            { id: 'count', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'count', true) }
+            { id: 'count', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'count', false) },
+            { id: 'value', create: () => databases.createStringAttribute(databaseId, collectionId, 'value', 1000000, false) }
         ];
 
         for (const attr of attributes) {

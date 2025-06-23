@@ -42,7 +42,7 @@ async function fetchGameSample(queries: any[] = [], limit: number) {
 async function updateStat(key: string, value: any) {
     try {
         const existing = await databases.listDocuments(DATABASE_ID, STATS_COLLECTION_ID, [Query.equal('key', key)]);
-        const statObject = { key, count: JSON.stringify(value) };
+        const statObject = { key, value: JSON.stringify(value), count: 0 };
 
         if (existing.documents.length > 0) {
             await databases.updateDocument(DATABASE_ID, STATS_COLLECTION_ID, existing.documents[0].$id, statObject);

@@ -31,6 +31,7 @@ const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const GAMES_PER_MINUTE_LIMIT = 13; // Each game update can be 3-5 API calls. With a 100k/day limit (~69/min), this is a safe throttle.
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 const STATE_DOCUMENT_ID = 'steam_changenumber';
+const STATE_COLLECTION_ID = 'steam_state';
 
 interface GameDocument {
   steam_appid: number;
@@ -89,7 +90,7 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
 
 async function getLatestChangenumber(): Promise<number> {
     try {
-        const doc = await databases.getDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID);
+        const doc = await databases.getDocument(config.appwrite.databaseId!, STATE_COLLECTION_ID, STATE_DOCUMENT_ID);
         return doc.changenumber;
     } catch (error: any) {
         if (error.code === 404) {
@@ -102,12 +103,12 @@ async function getLatestChangenumber(): Promise<number> {
 
 async function saveLatestChangenumber(changenumber: number) {
     try {
-        await databases.updateDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
+        await databases.updateDocument(config.appwrite.databaseId!, STATE_COLLECTION_ID, STATE_DOCUMENT_ID, { changenumber });
         console.log(`Successfully saved new changenumber: ${changenumber}`);
     } catch (error: any) {
         if (error.code === 404) {
             console.log('Changenumber document not found, creating a new one.');
-            await databases.createDocument(config.appwrite.databaseId!, 'steam_state', STATE_DOCUMENT_ID, { changenumber });
+            await databases.createDocument(config.appwrite.databaseId!, STATE_COLLECTION_ID, STATE_DOCUMENT_ID, { changenumber });
             console.log(`Successfully created and saved new changenumber: ${changenumber}`);
         } else {
             console.error(`Error saving new changenumber ${changenumber}:`, error);
