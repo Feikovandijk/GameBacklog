@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
 
 jobs:
   build-and-test:
@@ -22,6 +22,9 @@ jobs:
       - name: API - Install Dependencies
         run: npm install --prefix api
 
+      - name: API - Check for Vulnerabilities
+        run: npm audit --prefix api --audit-level=high
+
       - name: API - Run Linter
         run: npm run --prefix api lint
 
@@ -31,6 +34,9 @@ jobs:
       # ----------------- Dashboard Checks -----------------
       - name: Dashboard - Install Dependencies
         run: npm install --prefix devdashboard
+
+      - name: Dashboard - Check for Vulnerabilities
+        run: npm audit --prefix devdashboard --audit-level=high
 
       - name: Dashboard - Run Linter
         run: npm run --prefix devdashboard lint
