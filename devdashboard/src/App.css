@@ -1,0 +1,585 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+.logo.vite:hover {
+  filter: drop-shadow(0 0 2em #747bff);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* DashboardStats Component Styles */
+.dashboard-stats {
+  background-color: #2a2a2a;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  color: #ffffff;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.dashboard-stats h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #444;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stats-container {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.stat-card {
+  background-color: #333333;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border-left: 5px solid #61dafb;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.stat-title {
+  font-size: 0.9rem;
+  color: #cccccc;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Styles for GameSearch component */
+.game-search {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+}
+
+.game-search h2 {
+  margin-top: 0;
+  border-bottom: 2px solid #444;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1.1rem;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background-color: #333;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.search-results {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  background-color: #333;
+  padding: 0.75rem;
+  border-radius: 4px;
+  gap: 1rem;
+}
+
+.result-game-image {
+  width: 120px;
+  height: auto;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.result-game-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.result-game-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #fff;
+}
+
+.result-game-info h4 a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.result-game-info h4 a:hover {
+  color: #61dafb;
+}
+
+.result-game-info p {
+    margin: 0;
+    color: #aaa;
+}
+
+.no-results-message {
+  color: #fff;
+}
+
+.error-message {
+  color: #ff6b6b;
+}
+
+.dashboard-stats h2,
+.game-search h2,
+.most-reviewed-games h2 {
+  color: #fff;
+}
+
+/* Styles for MostReviewedGames component */
+.most-reviewed-games {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+}
+
+.most-reviewed-games h2 {
+  margin-top: 0;
+  border-bottom: 2px solid #444;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.game-card {
+  display: flex;
+  align-items: center;
+  background-color: #333;
+  padding: 0.75rem;
+  border-radius: 4px;
+  gap: 1rem;
+}
+
+.game-rank {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #888;
+  min-width: 2rem;
+  text-align: center;
+}
+
+.game-image {
+  width: 120px; /* Corresponds to Steam's header.jpg width, can be adjusted */
+  height: auto;
+  border-radius: 4px;
+}
+
+.game-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-name-link {
+  text-decoration: none;
+  color: #FFFFFF;
+  transition: color 0.2s ease-in-out;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.game-name-link:hover {
+  color: #61dafb;
+}
+
+.game-name {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.game-reviews {
+  margin: 0;
+  color: #aaa;
+}
+
+/* Styles for DashboardAnalytics component */
+.dashboard-analytics {
+  background-color: #2a2a2a;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.dashboard-analytics h2, .chart-card h3 {
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.analytics-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+    .analytics-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.chart-card {
+    background-color: #2a2a2a;
+    padding: 1rem;
+    border-radius: 8px;
+}
+.chart-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #eee;
+    font-size: 1.1rem;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+}
+.recharts-surface {
+    overflow: visible;
+}
+
+.recharts-default-legend {
+    text-align: center !important;
+    margin-top: 10px !important;
+}
+
+.recharts-text, .recharts-cartesian-axis-tick-value {
+    fill: #fff !important;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.grid-span-2 {
+    grid-column: span 2 / span 2;
+}
+
+/* Styles for LatestAchievements component */
+.latest-achievements-container {
+    background-color: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    grid-column: 1 / -1; /* Make it span full width in a grid */
+}
+
+.latest-achievements-container h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #444;
+  padding-bottom: 0.5rem;
+  color: #fff;
+}
+
+.latest-achievements-container .subtitle {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.game-list .game-item {
+  border: 1px solid #444;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.game-header {
+  background-color: #333;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+
+.game-header:hover {
+  background-color: #3a3a3a;
+}
+
+.game-name {
+  color: #eee;
+}
+
+.game-info {
+  font-size: 0.85rem;
+  color: #bbb;
+}
+
+.achievements-table-container {
+  padding: 1rem;
+  background-color: #2c2c2c;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.achievements-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.achievements-table th,
+.achievements-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #444;
+  color: #fff;
+}
+
+.achievements-table th {
+  background-color: #383838;
+  color: #bbb;
+}
+
+.achievements-table code {
+  background-color: #444;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.achievement-icon {
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+}
+
+.achievement-description {
+  max-width: 300px;
+  white-space: pre-wrap; /* Allows text to wrap */
+  word-break: break-word;
+  color: #ccc;
+}
+
+/* Scrollbar styling for webkit browsers */
+.achievements-table-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.achievements-table-container::-webkit-scrollbar-track {
+  background: #2c2c2c;
+}
+
+.achievements-table-container::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 4px;
+}
+
+.achievements-table-container::-webkit-scrollbar-thumb:hover {
+  background-color: #777;
+}
+
+/* Styles for LastSyncedGames component */
+.last-synced-container {
+    background-color: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    grid-column: 1 / -1; /* Make it span full width in a grid */
+}
+
+.last-synced-container h2, .last-synced-container h3 {
+    color: #fff;
+    margin-top: 0;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+}
+
+.last-synced-container .game-name small {
+    color: #bbb;
+    font-weight: normal;
+}
+
+.game-details-container {
+    padding: 1rem;
+    background-color: #2c2c2c;
+}
+
+.game-data-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    color: #eee;
+}
+
+.data-key {
+    font-weight: bold;
+    color: #bbb;
+    text-align: right;
+}
+
+.data-value .value-null { color: #888; }
+.data-value .value-true { color: #8f8; }
+.data-value .value-false { color: #f88; }
+.data-value a { color: #6af; text-decoration: none; }
+.data-value a:hover { text-decoration: underline; }
+
+/* Generic Info Card for simple lists */
+.info-card {
+    background-color: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.info-card h3 {
+    margin-top: 0;
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.info-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.info-card li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #333;
+    font-size: 0.9rem;
+    color: #fff;
+}
+
+.info-card li:last-child {
+    border-bottom: none;
+}
+
+.info-card li small {
+    color: #aaa;
+}
+
+/* Specific styles for the enhanced Latest Steam Additions card */
+.latest-steam-additions .latest-games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.latest-steam-additions .game-card {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.latest-steam-additions .game-card a {
+    display: block;
+    text-decoration: none;
+    color: #fff;
+}
+
+.latest-steam-additions .game-image {
+    width: 100%;
+    display: block;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+.latest-steam-additions .game-image-placeholder {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #1e1e1e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.latest-steam-additions .game-info-overlay {
+    padding: 0.75rem;
+}
+
+.latest-steam-additions .game-title {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
+}
+
+.latest-steam-additions .game-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #ccc;
+}

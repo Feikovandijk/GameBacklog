@@ -59,10 +59,11 @@ async function setupAppwrite() {
             { id: 'discount_percent', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'discount_percent', false) },
             { id: 'total_positive', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'total_positive', false) },
             { id: 'total_negative', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'total_negative', false) },
-            { id: 'review_score_desc', create: () => databases.createStringAttribute(databaseId, collectionId, 'review_score_desc', 64, false) },
+            { id: 'review_score_desc', create: () => databases.createStringAttribute(databaseId, collectionId, 'review_score_desc', 255, false) },
             { id: 'current_players', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'current_players', false) },
-            { id: 'tags', create: () => databases.createStringAttribute(databaseId, collectionId, 'tags', 64, false, undefined, true) },
-            { id: 'controller_support', create: () => databases.createStringAttribute(databaseId, collectionId, 'controller_support', 32, false) },
+            { id: 'positive_rating_percentage', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'positive_rating_percentage', false, 0, 100) },
+            { id: 'tags', create: () => databases.createStringAttribute(databaseId, collectionId, 'tags', 255, false, undefined, true) },
+            { id: 'controller_support', create: () => databases.createStringAttribute(databaseId, collectionId, 'controller_support', 255, false) },
             { id: 'metacritic_score', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'metacritic_score', false) },
             { id: 'metacritic_url', create: () => databases.createUrlAttribute(databaseId, collectionId, 'metacritic_url', false) },
             { id: 'platforms_windows', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'platforms_windows', false) },
@@ -170,7 +171,8 @@ async function setupStatsCollection() {
         // 2. Create attributes
         const attributes = [
             { id: 'key', create: () => databases.createStringAttribute(databaseId, collectionId, 'key', 50, true) },
-            { id: 'count', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'count', true) }
+            { id: 'count', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'count', false) },
+            { id: 'value', create: () => databases.createStringAttribute(databaseId, collectionId, 'value', 1000000, false) }
         ];
 
         for (const attr of attributes) {
@@ -352,11 +354,63 @@ async function setupAchievementsCollection() {
     }
 }
 
+async function setupSteamStateCollection() {
+    console.log('\nStarting Steam State collection setup...');
+    
+    const client = new Client();
+    client
+        .setEndpoint(config.appwrite.endpoint!)
+        .setProject(config.appwrite.projectId!)
+        .setKey(config.appwrite.apiKey!);
+    
+    const databases = new Databases(client);
+    const databaseId = config.appwrite.databaseId!;
+    const collectionId = 'steam_state';
+    const collectionName = 'Steam State';
+
+    try {
+        try {
+            await databases.getCollection(databaseId, collectionId);
+            console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
+                console.log(`Collection '${collectionName}' not found. Creating...`);
+                await databases.createCollection(databaseId, collectionId, collectionName);
+                console.log(`Collection '${collectionName}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else { throw e; }
+        }
+
+        const attributes = [
+            { id: 'changenumber', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'changenumber', true) },
+        ];
+
+        for (const attr of attributes) {
+            try {
+                await attr.create();
+                console.log(`- Attribute '${attr.id}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+        console.log('Steam State collection setup completed.');
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during steam state collection setup:', message);
+        process.exit(1);
+    }
+}
+
 async function main() {
     await setupAppwrite();
     await setupStatsCollection();
     await setupReviewHistoryCollection();
     await setupAchievementsCollection();
+    await setupSteamStateCollection();
 }
 
 main(); 

@@ -61,6 +61,7 @@ interface GameDocument {
   platforms_linux?: boolean | null;
   categories?: string[] | null;
   has_steam_achievements?: boolean | null;
+  positive_rating_percentage?: number | null;
 }
 
 // Define a type for the Steam API's game data to avoid using 'any'
@@ -303,6 +304,7 @@ async function updateGameInAppwrite(documentId: string, steamData: SteamGameData
             discount_percent: price?.discount_percent ?? null,
             total_positive: reviews?.positive ?? null,
             total_negative: reviews?.negative ?? null,
+            positive_rating_percentage: reviews?.total && reviews?.total > 0 ? Math.round((reviews.positive / reviews.total) * 100) : null,
             review_score_desc: reviews?.review_score_desc ?? null,
             current_players: steamData.player_count ?? null,
             // From PICS

@@ -57,7 +57,7 @@ const MostReviewedGames: React.FC = () => {
                 >
                   {game.name}
                 </a>
-                <p className="game-reviews">{game.total_reviews.toLocaleString()} reviews</p>
+                <p className="game-reviews">{(game.total_reviews || 0).toLocaleString()} reviews</p>
               </div>
             </div>
           ))}

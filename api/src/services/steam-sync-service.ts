@@ -34,27 +34,41 @@ async function fetchSteamGames(): Promise<Array<{ appid: number; name: string }>
 async function getExistingGameIds(): Promise<Set<number>> {
     const existingIds = new Set<number>();
     let hasMore = true;
-    let lastId: string | undefined = undefined;
+    let offset = 0;
+    let page = 0;
+    const pageSize = 5000;
 
+    console.log("Fetching existing game IDs page by page...");
     while (hasMore) {
-        const queries = [Query.limit(100)];
-        if (lastId) {
-            queries.push(Query.cursorAfter(lastId));
-        }
+        const queries = [Query.limit(pageSize), Query.select(['steam_appid']), Query.orderAsc('$id'), Query.offset(offset)];
+        
         try {
             const response = await databases.listDocuments(
                 config.appwrite.databaseId!,
                 config.appwrite.gamesCollectionId!,
                 queries
             );
+            
+            page++;
+            const newCount = response.documents.length;
 
             if (response.documents.length > 0) {
+                const sizeBefore = existingIds.size;
                 response.documents.forEach(doc => {
                     if (doc.steam_appid) {
                         existingIds.add(doc.steam_appid);
                     }
                 });
-                lastId = response.documents[response.documents.length - 1].$id;
+                const sizeAfter = existingIds.size;
+                const uniqueAdded = sizeAfter - sizeBefore;
+                console.log(`Page ${page}: Fetched ${newCount} documents. Unique steam_appids added: ${uniqueAdded}. Total unique so far: ${existingIds.size}`);
+                
+                offset += pageSize;
+                
+                // If we got fewer documents than the page size, we're done
+                if (response.documents.length < pageSize) {
+                    hasMore = false;
+                }
             } else {
                 hasMore = false;
             }
@@ -71,9 +85,9 @@ async function addNewGames(newGames: Array<{ appid: number; name: string }>) {
     const BATCH_SIZE = 100; // Appwrite recommends batches of 100
     for (let i = 0; i < newGames.length; i += BATCH_SIZE) {
         const batch = newGames.slice(i, i + BATCH_SIZE);
-        console.log(`Processing batch ${i / BATCH_SIZE + 1} of ${Math.ceil(newGames.length / BATCH_SIZE)}...`);
-
+        
         const promises = batch.map(game => {
+            console.log(`Adding game: "${game.name}" (AppID: ${game.appid})`);
             return databases.createDocument(
                 config.appwrite.databaseId!,
                 config.appwrite.gamesCollectionId!,
@@ -85,7 +99,7 @@ async function addNewGames(newGames: Array<{ appid: number; name: string }>) {
             ).catch(error => {
                 // Log specific errors but don't stop the whole batch
                 if (error instanceof AppwriteException && error.code === 409) { // 409: Conflict (likely unique index)
-                    console.warn(`Game with appid ${game.appid} might already exist (unique constraint failed). Skipping.`);
+                    // This is expected if a sync runs multiple times, so we don't need to log it as a warning.
                 } else {
                     console.error(`Error adding game ${game.name} (appid: ${game.appid}):`, error);
                 }
@@ -93,8 +107,26 @@ async function addNewGames(newGames: Array<{ appid: number; name: string }>) {
         });
 
         await Promise.all(promises);
-        console.log(`Batch finished. Waiting 1 second...`);
+        console.log(`--- Batch of ${batch.length} processed. Waiting 1 second... ---`);
         await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit
+    }
+}
+
+async function updateTotalGamesStat(totalCount: number) {
+    const STATS_COLLECTION_ID = 'statistics';
+    const KEY = 'totalGames';
+    try {
+        console.log(`Updating total games count to: ${totalCount}`);
+        const existing = await databases.listDocuments(config.appwrite.databaseId!, STATS_COLLECTION_ID, [Query.equal('key', KEY)]);
+        
+        if (existing.documents.length > 0) {
+            await databases.updateDocument(config.appwrite.databaseId!, STATS_COLLECTION_ID, existing.documents[0].$id, { count: totalCount });
+        } else {
+            await databases.createDocument(config.appwrite.databaseId!, STATS_COLLECTION_ID, ID.unique(), { key: KEY, count: totalCount });
+        }
+        console.log("Successfully updated total games stat.");
+    } catch (error) {
+        console.error("Failed to update total games stat:", error);
     }
 }
 
@@ -123,6 +155,10 @@ async function runSyncService() {
         if (newGames.length > 0) {
             // 4. Add new games to Appwrite
             await addNewGames(newGames);
+            
+            // 5. After syncing, update the total games count to the new total in the database
+            const newTotalCount = existingGameIds.size + newGames.length;
+            await updateTotalGamesStat(newTotalCount);
         }
 
         console.log("Steam sync completed successfully.");
