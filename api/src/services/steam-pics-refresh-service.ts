@@ -369,10 +369,9 @@ async function runPicsRefreshService() {
 
         if (appChanges.length === 0) {
             console.log("No new changes from Steam. Exiting.");
-            // Redundant logoff removed, finally block will handle it.
-            // steamUser.logOff(); // Log off before returning
             await saveLatestChangenumber(currentChangenumber);
-            return;
+            steamUser.logOff();
+            process.exit(0);
         }
 
         console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
@@ -493,13 +492,14 @@ async function runPicsRefreshService() {
         
         await saveLatestChangenumber(currentChangenumber);
         console.log(`\nSteam PICS refresh completed.`);
+        steamUser.logOff();
+        process.exit(0);
     } catch (e) {
         const error = e as Error;
         console.error(`Error in Steam PICS refresh service:`, error.message);
         console.error(error.stack);
-        process.exit(1);
-    } finally {
         steamUser.logOff();
+        process.exit(1);
     }
 }
 
