@@ -369,7 +369,7 @@ async function runPicsRefreshService() {
 
         if (appChanges.length === 0) {
             console.log("No new changes from Steam. Exiting.");
-            await saveLatestChangenumber(currentChangenumber);
+            // Do NOT save the changenumber here. If Steam glitched, we want to re-run from the same point.
             steamUser.logOff();
             process.exit(0);
         }
