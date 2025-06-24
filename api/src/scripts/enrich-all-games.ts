@@ -20,12 +20,9 @@ steamUser.setOptions({
     changelistUpdateInterval: 0
 });
 
-const workerId = parseInt(process.env.WORKER_ID || '0', 10);
-const totalWorkers = parseInt(process.env.TOTAL_WORKERS || '1', 10);
-
-const STEAM_API_KEY = config.steamApiKeys[workerId] || config.steamApiKey;
+const STEAM_API_KEY = config.steamApiKey;
 if (!STEAM_API_KEY) {
-    throw new Error(`[Worker ${workerId}] Steam API key is missing. Ensure STEAM_API_KEY_${workerId} or a fallback STEAM_API_KEY is defined in your .env file.`);
+    throw new Error(`Steam API key is missing. Ensure STEAM_API_KEY is defined in your .env file.`);
 }
 
 const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
@@ -99,7 +96,7 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
             if (response.status === 429) {
                 const backoffMinutes = 5 * Math.pow(2, rateLimitRetryCount);
                 rateLimitRetryCount++;
-                console.warn(`[Worker ${workerId}] Rate limit hit (429). Pausing for ${backoffMinutes} minutes...`);
+                console.warn(`Rate limit hit (429). Pausing for ${backoffMinutes} minutes...`);
                 await new Promise(resolve => setTimeout(resolve, backoffMinutes * 60 * 1000));
                 i--; // This makes the loop retry the current attempt after the long pause
                 continue;
@@ -212,17 +209,17 @@ function mergeApiData(picsData: Partial<GameDocument>, webData: WebApiData | nul
 // --- Main Backfill Logic ---
 
 async function enrichAllGames() {
-    console.log(`[Worker ${workerId}/${totalWorkers}] Starting one-time enrichment...`);
+    console.log(`Starting one-time enrichment...`);
     let totalUpdatedCount = 0;
     let totalProcessedCount = 0;
 
     try {
-        console.log(`[Worker ${workerId}/${totalWorkers}] Logging into Steam anonymously...`);
+        console.log(`Logging into Steam anonymously...`);
         steamUser.logOn({ anonymous: true });
 
         await new Promise<void>((resolve, reject) => {
-            steamUser.on('loggedOn', () => { console.log(`[Worker ${workerId}/${totalWorkers}] Logged into Steam successfully.`); resolve(); });
-            steamUser.on('error', (err) => { console.error(`[Worker ${workerId}/${totalWorkers}] Steam login error:`, err); reject(err); });
+            steamUser.on('loggedOn', () => { console.log(`Logged into Steam successfully.`); resolve(); });
+            steamUser.on('error', (err) => { console.error(`Steam login error:`, err); reject(err); });
         });
 
         const BATCH_SIZE = 100;
@@ -230,8 +227,8 @@ async function enrichAllGames() {
         let hasMore = true;
 
         while (hasMore) {
-            const offset = (workerId * BATCH_SIZE) + (page * totalWorkers * BATCH_SIZE);
-            console.log(`\n[Worker ${workerId}/${totalWorkers}] Fetching batch of games from offset ${offset} (processed by this worker: ${totalProcessedCount})...`);
+            const offset = page * BATCH_SIZE;
+            console.log(`\nFetching batch of games from offset ${offset} (processed: ${totalProcessedCount})...`);
 
             const gameBatch = await databases.listDocuments(
                 config.appwrite.databaseId!,
@@ -249,11 +246,11 @@ async function enrichAllGames() {
 
             for (const [index, game] of gameBatch.documents.entries()) {
                 if (!game.steam_appid) {
-                    console.warn(`[Worker ${workerId}] Game document ${game.$id} has no steam_appid, skipping.`);
+                    console.warn(`Game document ${game.$id} has no steam_appid, skipping.`);
                     continue;
                 }
 
-                console.log(`[Worker ${workerId}] (${totalProcessedCount + 1}) Processing game: ${game.name} (ID: ${game.steam_appid})`);
+                console.log(`(${totalProcessedCount + 1}) Processing game: ${game.name} (ID: ${game.steam_appid})`);
                 
                 const picsPromise = new Promise((resolve) => {
                      steamUser.getProductInfo([game.steam_appid], [], false, (err, apps) => resolve(apps?.[game.steam_appid] ?? null));
@@ -274,7 +271,7 @@ async function enrichAllGames() {
                     );
                     totalUpdatedCount++;
                 } else {
-                    console.warn(`[Worker ${workerId}] Could not get PICS data for ${game.name}, skipping update.`);
+                    console.warn(`Could not get PICS data for ${game.name}, skipping update.`);
                 }
 
                 totalProcessedCount++;
@@ -286,12 +283,12 @@ async function enrichAllGames() {
             page++;
         }
 
-        console.log(`\n[Worker ${workerId}/${totalWorkers}] Enrichment complete! Processed: ${totalProcessedCount}, Updated: ${totalUpdatedCount}`);
+        console.log(`\nEnrichment complete! Processed: ${totalProcessedCount}, Updated: ${totalUpdatedCount}`);
         steamUser.logOff();
 
     } catch (e) {
         const error = e as Error;
-        console.error(`\n[Worker ${workerId}/${totalWorkers}] Error during enrichment service:`, error.message);
+        console.error(`\nError during enrichment service:`, error.message);
         console.error(error.stack);
         steamUser.logOff();
         process.exit(1);

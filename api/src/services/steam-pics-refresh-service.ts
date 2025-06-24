@@ -1,3 +1,21 @@
+/**
+ * Steam PICS Refresh Service
+ *
+ * This service is the primary tool for keeping the game database synchronized with Steam.
+ * It uses Steam's "changenumber" system to get a list of all apps that have been
+ * added or updated since the last time the service was run.
+ *
+ * It performs the following steps:
+ * 1. Fetches the last known changenumber from the database.
+ * 2. Asks Steam for all product changes since that number.
+ * 3. For each changed app, it fetches the latest data from Steam.
+ * 4. It checks if the app is already in our database.
+ *    - If it exists, it updates the game's details.
+ *    - If it's a new game (and not a DLC, demo, etc.), it creates a new entry.
+ *
+ * This script is designed to be run frequently (e.g., every hour) to catch new
+ * releases and updates as they happen.
+ */
 import { Client, Databases, Query, ID } from 'node-appwrite';
 import SteamUser from 'steam-user';
 import config from '../config';
@@ -317,6 +335,7 @@ function mergeApiData(picsData: Partial<GameDocument>, webData: WebApiData | nul
 async function runPicsRefreshService() {
     console.log("Steam PICS refresh service started.");
     let totalUpdatedCount = 0;
+    let totalCreatedCount = 0;
 
     try {
         console.log("Logging into Steam anonymously...");
@@ -344,104 +363,131 @@ async function runPicsRefreshService() {
         });
 
         const { currentChangenumber, appChanges } = productChanges;
+        
+        // Save the new changenumber immediately to prevent reprocessing in case of an error.
+        await saveLatestChangenumber(currentChangenumber);
 
-        if (appChanges.length === 0 && currentChangenumber === lastChangenumber) {
+        if (appChanges.length === 0) {
             console.log("No new changes from Steam. Exiting.");
+            steamUser.logOff(); // Log off before returning
             return;
         }
 
         console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
 
-        const appIdsToUpdate = appChanges.map(app => app.appid);
+        const allAppIdsToProcess = appChanges.map(app => app.appid);
 
-        if (appIdsToUpdate.length > 0) {
-            const CHUNK_SIZE = 100;
+        if (allAppIdsToProcess.length > 0) {
+            // Use a smaller chunk size for database queries to ensure reliability.
+            // The getProductInfo call can still handle a larger batch.
+            const DB_CHUNK_SIZE = 25; 
             const gameDocsByAppId = new Map();
-            for (let i = 0; i < appIdsToUpdate.length; i += CHUNK_SIZE) {
-                const chunk = appIdsToUpdate.slice(i, i + CHUNK_SIZE);
-                const response = await databases.listDocuments(
-                    config.appwrite.databaseId!,
-                    config.appwrite.gamesCollectionId!,
-                    [Query.equal('steam_appid', chunk), Query.limit(CHUNK_SIZE)]
-                );
-                response.documents.forEach(doc => gameDocsByAppId.set(doc.steam_appid, doc));
+            console.log("Checking which of the changed apps are already in the database...");
+            for (let i = 0; i < allAppIdsToProcess.length; i += DB_CHUNK_SIZE) {
+                const chunk = allAppIdsToProcess.slice(i, i + DB_CHUNK_SIZE);
+                try {
+                    const response = await databases.listDocuments(
+                        config.appwrite.databaseId!,
+                        config.appwrite.gamesCollectionId!,
+                        [Query.equal('steam_appid', chunk), Query.limit(DB_CHUNK_SIZE)]
+                    );
+                    response.documents.forEach(doc => gameDocsByAppId.set(doc.steam_appid, doc));
+                } catch (e) {
+                    console.error(`Error querying database for chunk starting at index ${i}:`, e);
+                }
             }
+            console.log(`Found ${gameDocsByAppId.size} existing games out of ${allAppIdsToProcess.length} changed apps. Fetching latest data for all changes...`);
 
-            const appIdsInDb = Array.from(gameDocsByAppId.keys());
-            console.log(`Found ${appIdsInDb.length} games in the database that require an update. Fetching data...`);
-
-            if (appIdsInDb.length > 0) {
-                const apps = await new Promise<{ [key: string]: any }>((resolve, reject) => {
-                    steamUser.getProductInfo(appIdsInDb, [], false, (err: Error | null, apps: { [key: string]: any }) => {
-                        if (err) {
-                            return reject(new Error('Failed to get product info from Steam: ' + err.message));
-                        }
-                        resolve(apps);
-                    });
+            const apps = await new Promise<{ [key: string]: any }>((resolve, reject) => {
+                steamUser.getProductInfo(allAppIdsToProcess, [], false, (err: Error | null, apps: { [key: string]: any }) => {
+                    if (err) {
+                        return reject(new Error('Failed to get product info from Steam: ' + err.message));
+                    }
+                    resolve(apps);
                 });
+            });
 
-                const appIdsToProcess = Object.keys(apps);
-                const appCount = appIdsToProcess.length;
-                let processedCount = 0;
+            const appIdsWithData = Object.keys(apps).map(id => parseInt(id, 10));
+            let processedCount = 0;
 
-                for (const appIdStr of appIdsToProcess) {
-                    processedCount++;
-                    const appId = parseInt(appIdStr, 10);
-                    const picsData = apps[appIdStr];
-                    const gameDoc = gameDocsByAppId.get(appId);
+            for (const appId of appIdsWithData) {
+                processedCount++;
+                const picsData = apps[appId];
+                const existingDoc = gameDocsByAppId.get(appId);
 
-                    if (gameDoc && picsData.appinfo) {
-                        const formattedPicsData = formatPicsDataToGameDocument(appId, picsData);
-                        const webApiData = await fetchGameDetailsFromWebAPI(appId);
+                if (picsData.appinfo) {
+                    const formattedPicsData = formatPicsDataToGameDocument(appId, picsData);
 
-                        const finalGameData = mergeApiData(formattedPicsData, webApiData);
+                    // Skip non-game entries early to avoid unnecessary API calls
+                    if (formattedPicsData.steam_app_type !== 'game') {
+                        console.log(`(${processedCount}/${appIdsWithData.length}) Skipping appid ${appId} as it is a '${formattedPicsData.steam_app_type}', not a game.`);
+                        continue;
+                    }
 
-                        try {
+                    const webApiData = await fetchGameDetailsFromWebAPI(appId);
+                    const finalGameData = mergeApiData(formattedPicsData, webApiData);
+
+                    try {
+                        if (existingDoc) {
+                            // --- UPDATE EXISTING GAME ---
                             await databases.updateDocument(
                                 config.appwrite.databaseId!,
                                 config.appwrite.gamesCollectionId!,
-                                gameDoc.$id,
+                                existingDoc.$id,
                                 finalGameData
                             );
-                            console.log(`(${processedCount}/${appCount}) Successfully updated game: ${finalGameData.name} (${finalGameData.steam_appid})`);
+                            console.log(`(${processedCount}/${appIdsWithData.length}) Successfully updated game: ${finalGameData.name} (${finalGameData.steam_appid})`);
                             totalUpdatedCount++;
                             await incrementStat('updatedGames');
 
                             if (finalGameData.has_steam_achievements) {
                                 console.log(`Game ${finalGameData.name} has achievements. Syncing...`);
-                                await syncGameAchievements(gameDoc.$id, appId);
+                                await syncGameAchievements(existingDoc.$id, appId);
                             }
+                        } else {
+                            // --- CREATE NEW GAME ---
+                            const newDoc = await databases.createDocument(
+                                config.appwrite.databaseId!,
+                                config.appwrite.gamesCollectionId!,
+                                ID.unique(),
+                                finalGameData
+                            );
+                            console.log(`(${processedCount}/${appIdsWithData.length}) Successfully created new game: ${finalGameData.name} (${finalGameData.steam_appid})`);
+                            totalCreatedCount++;
+                            await incrementStat('createdGames');
 
-                        } catch (e) {
-                            console.error(`Error updating game ${finalGameData.name} in Appwrite:`, e);
+                            if (finalGameData.has_steam_achievements) {
+                                console.log(`Game ${finalGameData.name} has achievements. Syncing...`);
+                                await syncGameAchievements(newDoc.$id, appId);
+                            }
                         }
-                    } else {
-                        const gameDoc = gameDocsByAppId.get(appId);
-                        if (gameDoc) {
-                            const updatePayload: Partial<GameDocument> = {
-                                last_updated: new Date().toISOString(),
-                                steam_app_type: 'invalid',
-                            };
-                            await databases.updateDocument(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, gameDoc.$id, updatePayload);
-                            console.log(`(${processedCount}/${appCount}) Marked appid ${appId} as invalid as no PICS info was returned.`);
-                        }
+                    } catch (e) {
+                        console.error(`Error processing game ${finalGameData.name} in Appwrite:`, e);
                     }
-
-                    if (processedCount < appCount) {
-                        console.log(`Waiting ${Math.round(DELAY_MS / 1000)}s before next game...`);
-                        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+                } else {
+                    if (existingDoc) {
+                        const updatePayload: Partial<GameDocument> = {
+                            last_updated: new Date().toISOString(),
+                            steam_app_type: 'invalid',
+                        };
+                        await databases.updateDocument(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, existingDoc.$id, updatePayload);
+                        console.log(`(${processedCount}/${appIdsWithData.length}) Marked existing appid ${appId} as invalid as no PICS info was returned.`);
+                    } else {
+                        console.log(`(${processedCount}/${appIdsWithData.length}) Ignored new appid ${appId} as it has no PICS info.`);
                     }
                 }
 
-                console.log(`\nUpdate process finished. ${totalUpdatedCount} games were updated.`);
-
-            } else {
-                console.log(`No games in the database matched the list of changes. Changenumber updated. Exiting.`);
+                if (processedCount < appIdsWithData.length) {
+                    console.log(`Waiting ${Math.round(DELAY_MS / 1000)}s before next game...`);
+                    await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+                }
             }
+
+            console.log(`\nUpdate process finished. ${totalCreatedCount} games created, ${totalUpdatedCount} games updated.`);
+
         } else {
-            console.log(`No app changes from Steam, but changenumber updated. Exiting.`);
+            console.log(`No app changes to process from Steam. Exiting.`);
         }
-        await saveLatestChangenumber(currentChangenumber);
         console.log(`\nSteam PICS refresh completed.`);
     } catch (e) {
         const error = e as Error;
