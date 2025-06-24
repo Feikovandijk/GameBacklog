@@ -612,16 +612,20 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
         
         if (oldAchievementsToDelete.length > 0) {
             console.log(`Deleting ${oldAchievementsToDelete.length} old achievements for appid ${steamAppId}.`);
-            const deletePromises = oldAchievementsToDelete.map(doc =>
-                databases.deleteDocument(config.appwrite.databaseId!, 'achievements', doc.$id)
-            );
-            await Promise.all(deletePromises);
+            const DELETE_BATCH_SIZE = 50;
+            for (let i = 0; i < oldAchievementsToDelete.length; i += DELETE_BATCH_SIZE) {
+                const batch = oldAchievementsToDelete.slice(i, i + DELETE_BATCH_SIZE);
+                const deletePromises = batch.map(doc =>
+                    databases.deleteDocument(config.appwrite.databaseId!, 'achievements', doc.$id)
+                );
+                await Promise.all(deletePromises);
+            }
         }
         
         // Create new ones in batches
-        const BATCH_SIZE = 50;
-        for (let i = 0; i < achievementsToCreate.length; i += BATCH_SIZE) {
-            const batch = achievementsToCreate.slice(i, i + BATCH_SIZE);
+        const CREATE_BATCH_SIZE = 50;
+        for (let i = 0; i < achievementsToCreate.length; i += CREATE_BATCH_SIZE) {
+            const batch = achievementsToCreate.slice(i, i + CREATE_BATCH_SIZE);
             const createPromises = batch.map(ach => databases.createDocument(
                 config.appwrite.databaseId!,
                 'achievements',
