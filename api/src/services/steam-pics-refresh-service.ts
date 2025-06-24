@@ -364,12 +364,14 @@ async function runPicsRefreshService() {
 
         const { currentChangenumber, appChanges } = productChanges;
         
-        // Save the new changenumber immediately to prevent reprocessing in case of an error.
-        await saveLatestChangenumber(currentChangenumber);
+        // Save the new changenumber after processing, not before.
+        // await saveLatestChangenumber(currentChangenumber);
 
         if (appChanges.length === 0) {
             console.log("No new changes from Steam. Exiting.");
-            steamUser.logOff(); // Log off before returning
+            // Redundant logoff removed, finally block will handle it.
+            // steamUser.logOff(); // Log off before returning
+            await saveLatestChangenumber(currentChangenumber);
             return;
         }
 
@@ -488,6 +490,8 @@ async function runPicsRefreshService() {
         } else {
             console.log(`No app changes to process from Steam. Exiting.`);
         }
+        
+        await saveLatestChangenumber(currentChangenumber);
         console.log(`\nSteam PICS refresh completed.`);
     } catch (e) {
         const error = e as Error;
