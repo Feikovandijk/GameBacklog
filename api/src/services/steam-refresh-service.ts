@@ -567,6 +567,7 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
         }));
 
         // Delete all old achievements for the game to ensure data is fresh
+        const documentsToDelete = [];
         let hasMore = true;
         let cursor;
         while (hasMore) {
@@ -576,14 +577,19 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
             }
             const oldAchievements = await databases.listDocuments(config.appwrite.databaseId!, 'achievements', queries);
             if (oldAchievements.documents.length > 0) {
-                const deletePromises = oldAchievements.documents.map(doc =>
-                    databases.deleteDocument(config.appwrite.databaseId!, 'achievements', doc.$id)
-                );
-                await Promise.all(deletePromises);
+                documentsToDelete.push(...oldAchievements.documents);
                 cursor = oldAchievements.documents[oldAchievements.documents.length - 1].$id;
             } else {
                 hasMore = false;
             }
+        }
+
+        if (documentsToDelete.length > 0) {
+            console.log(`Deleting ${documentsToDelete.length} old achievements for appid ${steamAppId}.`);
+            const deletePromises = documentsToDelete.map(doc =>
+                databases.deleteDocument(config.appwrite.databaseId!, 'achievements', doc.$id)
+            );
+            await Promise.all(deletePromises);
         }
         
         // Create new ones in batches

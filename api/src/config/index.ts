@@ -25,8 +25,8 @@ interface Config {
 }
 
 const config: Config = {
-  port: process.env.PORT ? parseInt(process.env.PORT, 10) : 8080,
-  steamApiKey: process.env.STEAM_API_KEY,
+  port: process.env.PORT ? parseInt(process.env.PORT, 10) : 6543,
+  steamApiKey: process.env.STEAM_API_KEY || process.env.STEAM_API_KEY_0,
   steamApiKeys: [
     process.env.STEAM_API_KEY_0,
     process.env.STEAM_API_KEY_1,

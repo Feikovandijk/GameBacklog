@@ -405,12 +405,362 @@ async function setupSteamStateCollection() {
     }
 }
 
+async function setupUsersCollection() {
+    console.log('\nStarting Users collection setup...');
+    
+    const client = new Client();
+    client
+        .setEndpoint(config.appwrite.endpoint!)
+        .setProject(config.appwrite.projectId!)
+        .setKey(config.appwrite.apiKey!);
+    
+    const databases = new Databases(client);
+    const databaseId = config.appwrite.databaseId!;
+    const collectionId = 'users';
+    const collectionName = 'Users';
+
+    try {
+        try {
+            await databases.getCollection(databaseId, collectionId);
+            console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
+                console.log(`Collection '${collectionName}' not found. Creating...`);
+                await databases.createCollection(databaseId, collectionId, collectionName);
+                console.log(`Collection '${collectionName}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else { throw e; }
+        }
+
+        const attributes = [
+            // Core user data
+            { id: 'steam_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'steam_id', 32, true) },
+            { id: 'display_name', create: () => databases.createStringAttribute(databaseId, collectionId, 'display_name', 255, true) },
+            { id: 'avatar_url', create: () => databases.createUrlAttribute(databaseId, collectionId, 'avatar_url', false) },
+            { id: 'profile_url', create: () => databases.createUrlAttribute(databaseId, collectionId, 'profile_url', false) },
+            { id: 'real_name', create: () => databases.createStringAttribute(databaseId, collectionId, 'real_name', 255, false) },
+            { id: 'country_code', create: () => databases.createStringAttribute(databaseId, collectionId, 'country_code', 8, false) },
+            { id: 'is_public_profile', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'is_public_profile', false, true) },
+            
+            // User preferences
+            { id: 'auto_import_steam_games', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'auto_import_steam_games', false, true) },
+            { id: 'sync_steam_playtime', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'sync_steam_playtime', false, true) },
+            { id: 'default_game_status', create: () => databases.createStringAttribute(databaseId, collectionId, 'default_game_status', 32, false, 'want_to_play') },
+            { id: 'theme', create: () => databases.createStringAttribute(databaseId, collectionId, 'theme', 16, false, 'dark') },
+            { id: 'default_view', create: () => databases.createStringAttribute(databaseId, collectionId, 'default_view', 16, false, 'grid') },
+            
+            // Timestamps
+            { id: 'created_at', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'created_at', true) },
+            { id: 'last_steam_sync', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'last_steam_sync', false) },
+            { id: 'last_active', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'last_active', false) },
+        ];
+
+        for (const attr of attributes) {
+            try {
+                await attr.create();
+                console.log(`- Attribute '${attr.id}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+
+        // Create indexes
+        try {
+            await databases.createIndex(databaseId, collectionId, 'steam_id_unique', IndexType.Unique, ['steam_id']);
+            console.log("- Index on 'steam_id' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'steam_id' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        console.log('Users collection setup completed.');
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during users collection setup:', message);
+        process.exit(1);
+    }
+}
+
+async function setupUserGamesCollection() {
+    console.log('\nStarting User Games collection setup...');
+    
+    const client = new Client();
+    client
+        .setEndpoint(config.appwrite.endpoint!)
+        .setProject(config.appwrite.projectId!)
+        .setKey(config.appwrite.apiKey!);
+    
+    const databases = new Databases(client);
+    const databaseId = config.appwrite.databaseId!;
+    const collectionId = 'user_games';
+    const collectionName = 'User Games';
+
+    try {
+        try {
+            await databases.getCollection(databaseId, collectionId);
+            console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
+                console.log(`Collection '${collectionName}' not found. Creating...`);
+                await databases.createCollection(databaseId, collectionId, collectionName);
+                console.log(`Collection '${collectionName}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else { throw e; }
+        }
+
+        const attributes = [
+            // Foreign keys
+            { id: 'user_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'user_id', 64, true) },
+            { id: 'game_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'game_id', 64, true) },
+            { id: 'steam_appid', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'steam_appid', true) },
+            
+            // Game status and user data
+            { id: 'status', create: () => databases.createStringAttribute(databaseId, collectionId, 'status', 50, true) },
+            { id: 'priority', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'priority', false) },
+            { id: 'user_rating', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'user_rating', false) },
+            { id: 'user_notes', create: () => databases.createStringAttribute(databaseId, collectionId, 'user_notes', 10000, false) },
+            { id: 'user_tags', create: () => databases.createStringAttribute(databaseId, collectionId, 'user_tags', 255, false, undefined, true) },
+            
+            // Playtime and completion
+            { id: 'hours_played', create: () => databases.createFloatAttribute(databaseId, collectionId, 'hours_played', false) },
+            { id: 'playtime_2weeks', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'playtime_2weeks', false) },
+            { id: 'completion_percentage', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'completion_percentage', false) },
+            { id: 'is_favorite', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'is_favorite', false, false) },
+            
+            // Timestamps
+            { id: 'added_at', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'added_at', true) },
+            { id: 'updated_at', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'updated_at', false) },
+            { id: 'completed_at', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'completed_at', false) },
+            { id: 'last_played', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'last_played', false) },
+        ];
+
+        for (const attr of attributes) {
+            try {
+                await attr.create();
+                console.log(`- Attribute '${attr.id}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+
+        // 3. Define and create indexes
+        console.log('\nChecking and creating indexes for User Games...');
+        const indexes = [
+            { key: 'user_game_unique', type: IndexType.Unique, attributes: ['user_id', 'game_id'] },
+            { key: 'user_id_idx', type: IndexType.Key, attributes: ['user_id'] },
+            { key: 'status_idx', type: IndexType.Key, attributes: ['status'] },
+            { key: 'last_played_idx', type: IndexType.Key, attributes: ['last_played'] },
+            { key: 'playtime_2weeks_idx', type: IndexType.Key, attributes: ['playtime_2weeks'] }
+        ];
+
+        for (const index of indexes) {
+            try {
+                await databases.createIndex(databaseId, collectionId, index.key, index.type, index.attributes);
+                console.log(`- Index on '${index.key}' created successfully.`);
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Index on '${index.key}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+
+        console.log('User Games collection setup completed.');
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during user games collection setup:', message);
+        process.exit(1);
+    }
+}
+
+async function setupUserAchievementsCollection() {
+    console.log('\nStarting User Achievements collection setup...');
+    
+    const client = new Client();
+    client
+        .setEndpoint(config.appwrite.endpoint!)
+        .setProject(config.appwrite.projectId!)
+        .setKey(config.appwrite.apiKey!);
+    
+    const databases = new Databases(client);
+    const databaseId = config.appwrite.databaseId!;
+    const collectionId = 'user_achievements';
+    const collectionName = 'User Achievements';
+
+    try {
+        try {
+            await databases.getCollection(databaseId, collectionId);
+            console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
+                console.log(`Collection '${collectionName}' not found. Creating...`);
+                await databases.createCollection(databaseId, collectionId, collectionName);
+                console.log(`Collection '${collectionName}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else { throw e; }
+        }
+
+        const attributes = [
+            // Foreign keys
+            { id: 'user_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'user_id', 64, true) },
+            { id: 'achievement_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'achievement_id', 64, true) },
+            { id: 'steam_appid', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'steam_appid', true) },
+            { id: 'achievement_api_name', create: () => databases.createStringAttribute(databaseId, collectionId, 'achievement_api_name', 255, true) },
+            
+            // Achievement progress
+            { id: 'is_unlocked', create: () => databases.createBooleanAttribute(databaseId, collectionId, 'is_unlocked', true) },
+            { id: 'unlock_time', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'unlock_time', false) },
+            { id: 'progress_current', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'progress_current', false, 0) },
+            { id: 'progress_max', create: () => databases.createIntegerAttribute(databaseId, collectionId, 'progress_max', false, 0) },
+            
+            // Timestamps
+            { id: 'created_at', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'created_at', true) },
+            { id: 'updated_at', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'updated_at', false) },
+        ];
+
+        for (const attr of attributes) {
+            try {
+                await attr.create();
+                console.log(`- Attribute '${attr.id}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+
+        // Create indexes
+        try {
+            await databases.createIndex(databaseId, collectionId, 'user_achievement_unique', IndexType.Unique, ['user_id', 'achievement_id']);
+            console.log("- Index on 'user_id, achievement_id' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'user_id, achievement_id' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        try {
+            await databases.createIndex(databaseId, collectionId, 'user_id_idx', IndexType.Key, ['user_id']);
+            console.log("- Index on 'user_id' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'user_id' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        try {
+            await databases.createIndex(databaseId, collectionId, 'steam_appid_idx', IndexType.Key, ['steam_appid']);
+            console.log("- Index on 'steam_appid' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'steam_appid' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        console.log('User Achievements collection setup completed.');
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during user achievements collection setup:', message);
+        process.exit(1);
+    }
+}
+
+async function setupUserActivityCollection() {
+    console.log('\nStarting User Activity collection setup...');
+
+    const client = new Client();
+    client
+        .setEndpoint(config.appwrite.endpoint!)
+        .setProject(config.appwrite.projectId!)
+        .setKey(config.appwrite.apiKey!);
+
+    const databases = new Databases(client);
+    const databaseId = config.appwrite.databaseId!;
+    const collectionId = 'user_activity';
+    const collectionName = 'User Activity';
+
+    try {
+        // 1. Create collection if it doesn't exist
+        try {
+            await databases.getCollection(databaseId, collectionId);
+            console.log(`Collection '${collectionName}' (${collectionId}) already exists.`);
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 404) {
+                console.log(`Collection '${collectionName}' not found. Creating...`);
+                await databases.createCollection(databaseId, collectionId, collectionName);
+                console.log(`Collection '${collectionName}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else { throw e; }
+        }
+
+        // 2. Create attributes
+        const attributes = [
+            { id: 'user_id', create: () => databases.createStringAttribute(databaseId, collectionId, 'user_id', 64, true) },
+            { id: 'type', create: () => databases.createStringAttribute(databaseId, collectionId, 'type', 64, true) },
+            { id: 'timestamp', create: () => databases.createDatetimeAttribute(databaseId, collectionId, 'timestamp', true) },
+            { id: 'metadata_json', create: () => databases.createStringAttribute(databaseId, collectionId, 'metadata_json', 1000000, false) }
+        ];
+
+        for (const attr of attributes) {
+            try {
+                await attr.create();
+                console.log(`- Attribute '${attr.id}' created successfully.`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+                const error = e as AppwriteException;
+                if (error.code === 409) { console.log(`- Attribute '${attr.id}' already exists. Skipping.`); }
+                else { throw e; }
+            }
+        }
+
+        // 3. Create indexes
+        try {
+            await databases.createIndex(databaseId, collectionId, 'user_id_idx', IndexType.Key, ['user_id']);
+            console.log("- Index on 'user_id' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'user_id' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        try {
+            await databases.createIndex(databaseId, collectionId, 'timestamp_idx', IndexType.Key, ['timestamp']);
+            console.log("- Index on 'timestamp' created successfully.");
+        } catch (e) {
+            const error = e as AppwriteException;
+            if (error.code === 409) { console.log("- Index on 'timestamp' already exists. Skipping."); }
+            else { throw e; }
+        }
+
+        console.log('User Activity collection setup completed.');
+    } catch (error) {
+        const message = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
+        console.error('\nAn error occurred during User Activity collection setup:', message);
+        process.exit(1);
+    }
+}
+
 async function main() {
     await setupAppwrite();
     await setupStatsCollection();
     await setupReviewHistoryCollection();
     await setupAchievementsCollection();
     await setupSteamStateCollection();
+    await setupUsersCollection();
+    await setupUserGamesCollection();
+    await setupUserAchievementsCollection();
+    await setupUserActivityCollection();
 }
 
 main(); 
