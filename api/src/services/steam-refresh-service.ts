@@ -1,11 +1,6 @@
 import { Client, Databases, Query, ID } from 'node-appwrite';
 import SteamUser from 'steam-user';
 import config from '../config';
-import dotenv from 'dotenv';
-import path from 'path';
-
-// Load environment variables from the root .env file
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const client = new Client();
 client

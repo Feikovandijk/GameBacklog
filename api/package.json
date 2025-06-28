@@ -9,7 +9,7 @@
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "sync-games": "node dist/services/steam-sync-service.js",
-    "refresh-games": "node dist/scripts/steam-refresh-service.js",
+    "refresh-games": "node dist/services/steam-refresh-service.js",
     "refresh-games:pics": "ts-node src/services/steam-pics-refresh-service.ts",
     "enrich-games": "ts-node src/scripts/enrich-all-games.ts",
     "analytics:recalculate": "node dist/scripts/recalculate-analytics.js",

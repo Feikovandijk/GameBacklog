@@ -17,4 +17,8 @@
 .env
 **/.env 
 
+# Ignore git folder
+/.git/
+**/.git/
+
 # command: rclone sync . nuc:Gamebacklog --exclude-from .rclone-ignore --progress 

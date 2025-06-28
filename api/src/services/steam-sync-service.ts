@@ -1,10 +1,8 @@
 import { Client, Databases, Query, ID, AppwriteException } from 'node-appwrite';
 import config from '../config';
-import dotenv from 'dotenv';
-import path from 'path';
 
 // Load environment variables from the root .env file
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+//dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const client = new Client();
 client
