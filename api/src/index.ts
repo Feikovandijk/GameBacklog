@@ -462,7 +462,7 @@ app.get('/api/user/games/recently-played', requireAuth, async (req: Request, res
                 Query.greaterThan('playtime_2weeks', 0),
                 Query.orderDesc('playtime_2weeks'),
                 Query.limit(parseInt(limit as string, 10)),
-                Query.select(['$id', 'steam_appid', 'playtime_2weeks', 'game_id', 'game'])
+                Query.select(['$id', 'steam_appid', 'playtime_2weeks', 'game_id'])
             ]
         );
         

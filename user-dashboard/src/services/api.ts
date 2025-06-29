@@ -144,5 +144,7 @@ export const gamesAPI = {
 export const getActivity = () => userGamesAPI.getActivity();
 export const searchGames = gamesAPI.searchGames;
 export const getUserGames = userGamesAPI.get;
+export const updateUserGame = userGamesAPI.updateGame;
+export const removeUserGame = userGamesAPI.removeGame;
 
 export default api; 

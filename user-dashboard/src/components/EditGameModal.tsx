@@ -7,26 +7,27 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 interface EditGameModalProps {
-  visible: boolean;
+  open: boolean;
   onCancel: () => void;
   onOk: (values: any) => void;
+  onDelete: () => void;
   game: UserGame | null;
 }
 
-const EditGameModal: React.FC<EditGameModalProps> = ({ visible, onCancel, onOk, game }) => {
+const EditGameModal: React.FC<EditGameModalProps> = ({ open, onCancel, onOk, onDelete, game }) => {
   const [form] = Form.useForm();
 
   // Set form values when game changes or when the modal is opened
   React.useEffect(() => {
-    if (visible && game) {
+    if (open && game) {
       form.setFieldsValue({
         status: game.status,
         user_notes: game.user_notes,
       });
-    } else if (!visible) {
+    } else if (!open) {
         form.resetFields();
     }
-  }, [game, visible, form]);
+  }, [game, open, form]);
 
   const handleOk = () => {
     form.validateFields().then(values => {
@@ -43,14 +44,23 @@ const EditGameModal: React.FC<EditGameModalProps> = ({ visible, onCancel, onOk, 
   return (
     <Modal
       title={<Title level={3}>Edit Game</Title>}
-      visible={visible}
+      open={open}
       onCancel={onCancel}
-      onOk={handleOk}
-      okText="Save Changes"
+      footer={[
+        <Button key="delete" type="primary" danger onClick={onDelete}>
+          Delete
+        </Button>,
+        <Button key="back" onClick={onCancel}>
+          Cancel
+        </Button>,
+        <Button key="submit" type="primary" onClick={handleOk}>
+          Save Changes
+        </Button>,
+      ]}
       width={800}
-      destroyOnClose
+      destroyOnHidden
     >
-      <Form form={form} layout="vertical" initialValues={{ remember: true }}>
+      <Form form={form} layout="vertical">
         <Row gutter={24}>
           <Col span={12}>
             <Form.Item label="Game Title">
@@ -59,14 +69,14 @@ const EditGameModal: React.FC<EditGameModalProps> = ({ visible, onCancel, onOk, 
           </Col>
           <Col span={12}>
             <Form.Item label="Genre">
-                <Input value={game.game?.genres.join(', ')} disabled />
+                <Input value={game.game?.genres?.join(', ') ?? 'N/A'} disabled />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={24}>
             <Col span={12}>
                 <Form.Item label="Platform">
-                <Input value={game.game?.publishers.join(', ')} disabled />
+                <Input value={game.game?.publishers?.join(', ') ?? 'N/A'} disabled />
                 </Form.Item>
             </Col>
             <Col span={12}>

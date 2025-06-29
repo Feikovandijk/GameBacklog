@@ -51,9 +51,10 @@ const App = () => {
                 <AppLayout user={user} onLogout={handleLogout}>
                     <Routes>
                         <Route path="/dashboard" element={<DashboardOverview />} />
-                        <Route path="/board" element={<BoardView games={[]} onUpdateStatus={() => {}} />} />
+                        <Route path="/board" element={<BoardView />} />
                         <Route path="/games" element={<GameListPage />} />
                         <Route path="/add-game" element={<AddGamePage />} />
+                        <Route path="/profile" element={<div>Profile Page</div>} />
                         <Route path="*" element={<Navigate to="/dashboard" />} />
                     </Routes>
                 </AppLayout>

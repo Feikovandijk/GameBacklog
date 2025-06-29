@@ -1,49 +1,42 @@
 import React from 'react';
-import { Card, Avatar, Tag, Dropdown } from 'antd';
-import { MoreOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { MenuProps } from 'antd';
+import { Card, Avatar, Tag, Typography } from 'antd';
 import type { UserGame } from '../services/api';
+
+const { Text } = Typography;
 
 interface GameCardProps {
     game: UserGame;
+    onTitleClick?: (game: UserGame) => void;
 }
 
-const GameCard: React.FC<GameCardProps> = ({ game }) => {
-  const menuItems: MenuProps['items'] = [
-    {
-      key: 'edit',
-      label: 'Edit',
-      icon: <EditOutlined />,
-    },
-    {
-      key: 'delete',
-      label: 'Delete',
-      icon: <DeleteOutlined />,
-      danger: true,
-    },
-  ];
+const GameCard: React.FC<GameCardProps> = ({ game, onTitleClick }) => {
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onTitleClick?.(game);
+  };
 
   return (
     <Card
       hoverable
       style={{ background: '#fff' }}
-      bodyStyle={{ padding: '16px' }}
-      actions={[
-        <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-          <a onClick={(e) => e.preventDefault()}>
-            <MoreOutlined key="ellipsis" />
-          </a>
-        </Dropdown>,
-      ]}
+      styles={{ body: { padding: '16px' } }}
     >
       <Card.Meta
-        avatar={game.game?.header_image && <Avatar shape="square" size={64} src={game.game.header_image} />}
-        title={game.game?.name || 'Unknown Game'}
-        description={`Played for ${game.hours_played} hours`}
+        avatar={game.game?.header_image && <Avatar shape="square" size={48} src={game.game.header_image} />}
+        title={
+          <div onPointerDown={handleTitleClick} style={{ cursor: 'pointer' }}>
+            <Text ellipsis={{ tooltip: game.game?.name }}>{game.game?.name || 'Unknown Game'}</Text>
+          </div>
+        }
+        description={<Text type="secondary" style={{ fontSize: '12px' }}>{`Played for ${Math.floor(game.hours_played)} hours`}</Text>}
       />
-      <div style={{ marginTop: '16px' }}>
-        <Tag color="blue">RPG</Tag>
-        <Tag color="green">Strategy</Tag>
+      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          {game.game?.genres?.slice(0, 2).map((genre) => (
+            <Tag key={genre}>{genre}</Tag>
+          ))}
+        </div>
       </div>
     </Card>
   );
