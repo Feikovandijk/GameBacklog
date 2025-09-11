@@ -1,16 +1,4 @@
-import { Client, Databases, Query, ID, AppwriteException } from 'node-appwrite';
-import config from '../config';
-
-// Load environment variables from the root .env file
-//dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-
-const client = new Client();
-client
-    .setEndpoint(config.appwrite.endpoint!)
-    .setProject(config.appwrite.projectId!)
-    .setKey(config.appwrite.apiKey!);
-
-const databases = new Databases(client);
+import { supabase } from '../supabase/client';
 
 // Fetches the full list of all Steam games
 async function fetchSteamGames(): Promise<Array<{ appid: number; name: string }>> {
@@ -28,101 +16,82 @@ async function fetchSteamGames(): Promise<Array<{ appid: number; name: string }>
     }
 }
 
-// Fetches all game IDs currently in the Appwrite database
+// Fetches all game IDs currently in the Supabase database
 async function getExistingGameIds(): Promise<Set<number>> {
     const existingIds = new Set<number>();
     let hasMore = true;
-    let offset = 0;
     let page = 0;
     const pageSize = 5000;
 
     console.log("Fetching existing game IDs page by page...");
     while (hasMore) {
-        const queries = [Query.limit(pageSize), Query.select(['steam_appid']), Query.orderAsc('$id'), Query.offset(offset)];
-        
-        try {
-            const response = await databases.listDocuments(
-                config.appwrite.databaseId!,
-                config.appwrite.gamesCollectionId!,
-                queries
-            );
-            
-            page++;
-            const newCount = response.documents.length;
+        const { data, error } = await supabase
+            .from('games')
+            .select('steam_appid')
+            .range(page * pageSize, (page + 1) * pageSize - 1);
 
-            if (response.documents.length > 0) {
-                const sizeBefore = existingIds.size;
-                response.documents.forEach(doc => {
-                    if (doc.steam_appid) {
-                        existingIds.add(doc.steam_appid);
-                    }
-                });
-                const sizeAfter = existingIds.size;
-                const uniqueAdded = sizeAfter - sizeBefore;
-                console.log(`Page ${page}: Fetched ${newCount} documents. Unique steam_appids added: ${uniqueAdded}. Total unique so far: ${existingIds.size}`);
-                
-                offset += pageSize;
-                
-                // If we got fewer documents than the page size, we're done
-                if (response.documents.length < pageSize) {
-                    hasMore = false;
+        if (error) {
+            console.error('Error fetching existing game IDs from Supabase:', error);
+            hasMore = false;
+            break;
+        }
+
+        if (data.length > 0) {
+            data.forEach(doc => {
+                if (doc.steam_appid) {
+                    existingIds.add(doc.steam_appid);
                 }
-            } else {
+            });
+            console.log(`Page ${page + 1}: Fetched ${data.length} documents. Total unique so far: ${existingIds.size}`);
+            page++;
+            if (data.length < pageSize) {
                 hasMore = false;
             }
-        } catch (error) {
-            console.error('Error fetching existing game IDs from Appwrite:', error);
-            hasMore = false; // Stop on error
+        } else {
+            hasMore = false;
         }
     }
     return existingIds;
 }
 
-// Adds new games to the Appwrite database in batches
+// Adds new games to the Supabase database in batches
 async function addNewGames(newGames: Array<{ appid: number; name: string }>) {
-    const BATCH_SIZE = 100; // Appwrite recommends batches of 100
+    const BATCH_SIZE = 100;
     for (let i = 0; i < newGames.length; i += BATCH_SIZE) {
         const batch = newGames.slice(i, i + BATCH_SIZE);
         
-        const promises = batch.map(game => {
-            console.log(`Adding game: "${game.name}" (AppID: ${game.appid})`);
-            return databases.createDocument(
-                config.appwrite.databaseId!,
-                config.appwrite.gamesCollectionId!,
-                ID.unique(),
-                {
-                    steam_appid: game.appid,
-                    name: game.name,
-                }
-            ).catch(error => {
-                // Log specific errors but don't stop the whole batch
-                if (error instanceof AppwriteException && error.code === 409) { // 409: Conflict (likely unique index)
-                    // This is expected if a sync runs multiple times, so we don't need to log it as a warning.
-                } else {
-                    console.error(`Error adding game ${game.name} (appid: ${game.appid}):`, error);
-                }
-            });
-        });
+        const gamesToInsert = batch.map(game => ({
+            steam_appid: game.appid,
+            name: game.name,
+        }));
 
-        await Promise.all(promises);
-        console.log(`--- Batch of ${batch.length} processed. Waiting 1 second... ---`);
+        const { error } = await supabase.from('games').upsert(gamesToInsert, { onConflict: 'steam_appid' });
+
+        if (error) {
+            console.error(`Error adding new games to Supabase:`, error);
+        } else {
+            console.log(`--- Batch of ${batch.length} processed. ---`);
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit
     }
 }
 
 async function updateTotalGamesStat(totalCount: number) {
-    const STATS_COLLECTION_ID = 'statistics';
     const KEY = 'totalGames';
     try {
         console.log(`Updating total games count to: ${totalCount}`);
-        const existing = await databases.listDocuments(config.appwrite.databaseId!, STATS_COLLECTION_ID, [Query.equal('key', KEY)]);
-        
-        if (existing.documents.length > 0) {
-            await databases.updateDocument(config.appwrite.databaseId!, STATS_COLLECTION_ID, existing.documents[0].$id, { count: totalCount });
-        } else {
-            await databases.createDocument(config.appwrite.databaseId!, STATS_COLLECTION_ID, ID.unique(), { key: KEY, count: totalCount });
+        const { error } = await supabase
+            .from('statistics')
+            .update({ count: totalCount })
+            .eq('key', KEY);
+
+        if (error) {
+            console.error("Failed to update total games stat:", error);
         }
-        console.log("Successfully updated total games stat.");
+        else {
+            console.log("Successfully updated total games stat.");
+        }
     } catch (error) {
         console.error("Failed to update total games stat:", error);
     }
@@ -141,7 +110,7 @@ async function runSyncService() {
         }
         console.log(`Found ${allSteamGames.length} total games on Steam.`);
 
-        // 2. Fetch all existing game IDs from Appwrite
+        // 2. Fetch all existing game IDs from Supabase
         console.log("Fetching existing game IDs from database...");
         const existingGameIds = await getExistingGameIds();
         console.log(`Found ${existingGameIds.size} existing games in the database.`);
@@ -151,7 +120,7 @@ async function runSyncService() {
         console.log(`Found ${newGames.length} new games to add.`);
 
         if (newGames.length > 0) {
-            // 4. Add new games to Appwrite
+            // 4. Add new games to Supabase
             await addNewGames(newGames);
             
             // 5. After syncing, update the total games count to the new total in the database
@@ -171,4 +140,4 @@ async function runSyncService() {
 // Autorun the service when the script is executed
 if (require.main === module) {
     runSyncService();
-} 
+}

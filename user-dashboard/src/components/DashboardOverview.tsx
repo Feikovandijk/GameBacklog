@@ -6,6 +6,8 @@ import type { UserStats } from '../services/api';
 import GameCompletionChart from './GameCompletionChart';
 import RecentActivity from './RecentActivity';
 import RecentlyPlayed from './RecentlyPlayed';
+import SteamTopSellers from './SteamTopSellers';
+import CurrentlyPlaying from './CurrentlyPlaying';
 
 const { Title } = Typography;
 
@@ -78,6 +80,17 @@ const DashboardOverview = () => {
                 <Col xs={24}>
                     <DashboardStats stats={stats} />
                 </Col>
+                
+                {/* Currently Playing Section - Prominent placement */}
+                <Col xs={24}>
+                    <CurrentlyPlaying />
+                </Col>
+                
+                {/* Steam Top Sellers - Prominent placement */}
+                <Col xs={24}>
+                    <SteamTopSellers />
+                </Col>
+                
                 <Col xs={24} lg={16}>
                     <RecentActivity />
                 </Col>

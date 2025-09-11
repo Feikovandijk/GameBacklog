@@ -1,13 +1,7 @@
-import { Client, Databases, Query, ID, AppwriteException } from 'node-appwrite';
 import axios from 'axios';
 import config from '../config';
 import { User } from '../auth/steam-auth';
-
-const appwriteClient = new Client()
-    .setEndpoint(config.appwrite.endpoint!)
-    .setProject(config.appwrite.projectId!)
-    .setKey(config.appwrite.apiKey!);
-const databases = new Databases(appwriteClient);
+import { supabase } from '../supabase/client';
 
 const STEAM_API_BASE = 'https://api.steampowered.com';
 
@@ -97,33 +91,34 @@ async function getUserStatsForGame(steamId: string, appId: number, apiKey: strin
 
 async function getUserBacklog(userId: string): Promise<Map<number, any>> {
     const backlog = new Map<number, any>();
+    let page = 0;
+    const pageSize = 1000;
     let hasMore = true;
-    let offset = 0;
-    const pageSize = 100;
 
-    while (hasMore) {
-        try {
-            const response = await databases.listDocuments(
-                config.appwrite.databaseId!,
-                'user_games',
-                [
-                    Query.equal('user_id', userId),
-                    Query.limit(pageSize),
-                    Query.offset(offset)
-                ]
-            );
+    while(hasMore) {
+        const { data, error } = await supabase
+            .from('user_games')
+            .select('*')
+            .eq('user_id', userId)
+            .range(page * pageSize, (page + 1) * pageSize - 1);
 
-            if (response.documents.length > 0) {
-                response.documents.forEach(doc => backlog.set(doc.steam_appid, doc));
-                offset += pageSize;
-            } else {
+        if (error) {
+            console.error(`Error fetching user backlog page for user ${userId}:`, error);
+            hasMore = false;
+            break;
+        }
+
+        if (data.length > 0) {
+            data.forEach(doc => backlog.set(doc.steam_appid, doc));
+            page++;
+            if (data.length < pageSize) {
                 hasMore = false;
             }
-        } catch (error) {
-            console.error(`Error fetching user backlog page for user ${userId}:`, error);
+        } else {
             hasMore = false;
         }
     }
+
     return backlog;
 }
 
@@ -131,9 +126,10 @@ async function syncGameStats(steamId: string, userId: string, gameId: string, ap
     const stats = await getUserStatsForGame(steamId, appId, apiKey);
     if (stats.length > 0) {
         const statsJson = JSON.stringify(stats);
-        await databases.updateDocument(config.appwrite.databaseId!, 'user_games', gameId, {
-            stats_json: statsJson
-        });
+        await supabase
+            .from('user_games')
+            .update({ stats_json: statsJson })
+            .eq('id', gameId);
     }
 }
 
@@ -141,42 +137,23 @@ async function syncGameAchievements(steamId: string, userId: string, appId: numb
     const achievements = await getPlayerAchievements(steamId, appId, apiKey);
     if (achievements.length === 0) return;
 
-    const userAchievementsCollection = 'user_achievements';
+    const recordsToUpsert = achievements.map(ach => ({
+        user_id: userId,
+        steam_appid: appId,
+        achievement_api_name: ach.apiname,
+        is_unlocked: ach.achieved === 1,
+        unlock_time: ach.achieved === 1 ? new Date(ach.unlocktime * 1000).toISOString() : null
+    }));
 
-    for (const ach of achievements) {
-        try {
-            // Check if we have this achievement record already
-            const existing = await databases.listDocuments(config.appwrite.databaseId!, userAchievementsCollection, [
-                Query.equal('user_id', userId),
-                Query.equal('achievement_api_name', ach.apiname)
-            ]);
+    const { error } = await supabase.from('user_achievements').upsert(recordsToUpsert, { onConflict: 'user_id,achievement_api_name' });
 
-            const record = {
-                user_id: userId,
-                steam_appid: appId,
-                achievement_api_name: ach.apiname,
-                is_unlocked: ach.achieved === 1,
-                unlock_time: ach.achieved === 1 ? new Date(ach.unlocktime * 1000).toISOString() : null
-            };
-
-            if (existing.documents.length > 0) {
-                // Update if changed
-                const doc = existing.documents[0];
-                if (doc.is_unlocked !== record.is_unlocked) {
-                    await databases.updateDocument(config.appwrite.databaseId!, userAchievementsCollection, doc.$id, record);
-                }
-            } else {
-                // Create new
-                await databases.createDocument(config.appwrite.databaseId!, userAchievementsCollection, ID.unique(), record);
-            }
-        } catch (error) {
-            console.error(`Error syncing achievement ${ach.apiname} for app ${appId}:`, error);
-        }
+    if (error) {
+        console.error(`Error syncing achievements for app ${appId}:`, error);
     }
 }
 
 /**
- * The main service function to sync a user's Steam library with Appwrite.
+ * The main service function to sync a user's Steam library with Supabase.
  */
 export async function syncUserWithSteam(user: User) {
     console.log(`Starting Steam sync for user: ${user.display_name} (${user.steam_id})`);
@@ -191,8 +168,8 @@ export async function syncUserWithSteam(user: User) {
     console.log(`Found ${ownedGames.length} owned games for user ${user.steam_id}.`);
     if (ownedGames.length === 0) return;
 
-    // 2. Get user's existing backlog from Appwrite
-    const userBacklog = await getUserBacklog(user.$id);
+    // 2. Get user's existing backlog from Supabase
+    const userBacklog = await getUserBacklog(user.id);
     console.log(`User has ${userBacklog.size} games in their backlog.`);
 
     // 3. Process each game
@@ -214,21 +191,21 @@ export async function syncUserWithSteam(user: User) {
             }
 
             if (existingGame.hours_played !== hoursPlayed || existingGame.playtime_2weeks !== playtime2Weeks) {
-                await databases.updateDocument(config.appwrite.databaseId!, 'user_games', existingGame.$id, updatePayload);
+                await supabase.from('user_games').update(updatePayload).eq('id', existingGame.id);
                 console.log(`Updated playtime for ${game.name} to ${hoursPlayed} hours (${playtime2Weeks} mins in last 2 weeks).`);
             }
         } else {
             // Game is not in backlog, add it
             try {
                 // First, find the master game document to link to
-                const masterGameResponse = await databases.listDocuments(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, [Query.equal('steam_appid', game.appid)]);
-                if (masterGameResponse.documents.length > 0) {
-                    const masterGameId = masterGameResponse.documents[0].$id;
-                    await databases.createDocument(config.appwrite.databaseId!, 'user_games', ID.unique(), {
-                        user_id: user.$id,
+                const { data: masterGameResponse, error } = await supabase.from('games').select('id').eq('steam_appid', game.appid).single();
+                if (masterGameResponse) {
+                    const masterGameId = masterGameResponse.id;
+                    await supabase.from('user_games').insert({
+                        user_id: user.id,
                         game_id: masterGameId,
                         steam_appid: game.appid,
-                        status: user.default_game_status || 'want_to_play',
+                        status: 'want_to_play', // Assuming a default status
                         hours_played: hoursPlayed,
                         playtime_2weeks: playtime2Weeks,
                         added_at: new Date().toISOString(),
@@ -237,25 +214,29 @@ export async function syncUserWithSteam(user: User) {
                     });
                      console.log(`Added new game to backlog: ${game.name}`);
                 }
+                if(error) {
+                    console.error(`Error finding master game for ${game.name}:`, error);
+                }
             } catch (error) {
                 console.error(`Error adding new game ${game.name} to backlog:`, error);
             }
         }
         
         // 4. Sync Achievements & Stats for the game (can be done in parallel)
-        const gameDocumentId = existingGame ? existingGame.$id : (await databases.listDocuments(config.appwrite.databaseId!, 'user_games', [Query.equal('user_id', user.$id), Query.equal('steam_appid', game.appid)])).documents[0]?.$id;
-        if(gameDocumentId) {
+        const { data: gameDocument, error } = await supabase.from('user_games').select('id').eq('user_id', user.id).eq('steam_appid', game.appid).single();
+        if(gameDocument) {
             await Promise.all([
-                syncGameAchievements(user.steam_id, user.$id, game.appid, config.steamApiKey),
-                syncGameStats(user.steam_id, user.$id, gameDocumentId, game.appid, config.steamApiKey)
+                syncGameAchievements(user.steam_id, user.id, game.appid, config.steamApiKey),
+                syncGameStats(user.steam_id, user.id, gameDocument.id, game.appid, config.steamApiKey)
             ]);
+        }
+        if(error) {
+            console.error(`Error finding game document for ${game.name}:`, error);
         }
     }
     
     // 5. Update the user's `last_steam_sync` timestamp
-    await databases.updateDocument(config.appwrite.databaseId!, 'users', user.$id, {
-        last_steam_sync: new Date().toISOString()
-    });
+    await supabase.from('users').update({ last_steam_sync: new Date().toISOString() }).eq('id', user.id);
 
     console.log(`Sync for user ${user.display_name} completed.`);
-} 
+}
