@@ -58,7 +58,7 @@ function getPlayerAchievements(steamId, appId, apiKey) {
             });
             return response.data.playerstats.achievements || [];
         }
-        catch (error) {
+        catch (_a) {
             // It's common for this to fail (e.g., game has no stats), so we log softly
             // console.log(`Could not fetch achievements for appid ${appId}:`, error.response?.data?.playerstats?.error);
             return [];
@@ -81,7 +81,7 @@ function getUserStatsForGame(steamId, appId, apiKey) {
             });
             return response.data.playerstats.stats || [];
         }
-        catch (error) {
+        catch (_a) {
             // console.log(`Could not fetch user stats for appid ${appId}:`, error.response?.data?.playerstats?.error);
             return [];
         }
@@ -164,7 +164,7 @@ function syncUserWithSteam(user) {
         if (ownedGames.length === 0)
             return;
         // 2. Get user's existing backlog from Supabase
-        const userBacklog = yield getUserBacklog(user.id);
+        const userBacklog = yield getUserBacklog(user.$id);
         console.log(`User has ${userBacklog.size} games in their backlog.`);
         // 3. Process each game
         for (const game of ownedGames) {
@@ -194,7 +194,7 @@ function syncUserWithSteam(user) {
                     if (masterGameResponse) {
                         const masterGameId = masterGameResponse.id;
                         yield client_1.supabase.from('user_games').insert({
-                            user_id: user.id,
+                            user_id: user.$id,
                             game_id: masterGameId,
                             steam_appid: game.appid,
                             status: 'want_to_play', // Assuming a default status
@@ -215,11 +215,11 @@ function syncUserWithSteam(user) {
                 }
             }
             // 4. Sync Achievements & Stats for the game (can be done in parallel)
-            const { data: gameDocument, error } = yield client_1.supabase.from('user_games').select('id').eq('user_id', user.id).eq('steam_appid', game.appid).single();
+            const { data: gameDocument, error } = yield client_1.supabase.from('user_games').select('id').eq('user_id', user.$id).eq('steam_appid', game.appid).single();
             if (gameDocument) {
                 yield Promise.all([
-                    syncGameAchievements(user.steam_id, user.id, game.appid, config_1.default.steamApiKey),
-                    syncGameStats(user.steam_id, user.id, gameDocument.id, game.appid, config_1.default.steamApiKey)
+                    syncGameAchievements(user.steam_id, user.$id, game.appid, config_1.default.steamApiKey),
+                    syncGameStats(user.steam_id, user.$id, gameDocument.id, game.appid, config_1.default.steamApiKey)
                 ]);
             }
             if (error) {
@@ -227,7 +227,7 @@ function syncUserWithSteam(user) {
             }
         }
         // 5. Update the user's `last_steam_sync` timestamp
-        yield client_1.supabase.from('users').update({ last_steam_sync: new Date().toISOString() }).eq('id', user.id);
+        yield client_1.supabase.from('users').update({ last_steam_sync: new Date().toISOString() }).eq('id', user.$id);
         console.log(`Sync for user ${user.display_name} completed.`);
     });
 }

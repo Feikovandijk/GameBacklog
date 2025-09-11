@@ -1,19 +1,11 @@
-import { Client, Databases, Query } from 'node-appwrite';
 import SteamUser from 'steam-user';
 import config from '../config';
+import { supabase } from '../supabase/client';
 import dotenv from 'dotenv';
 import path from 'path';
 
 // Load environment variables from the root .env file
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-
-const client = new Client();
-client
-    .setEndpoint(config.appwrite.endpoint!)
-    .setProject(config.appwrite.projectId!)
-    .setKey(config.appwrite.apiKey!);
-
-const databases = new Databases(client);
 const steamUser = new SteamUser();
 steamUser.setOptions({
     enablePicsCache: true,
@@ -32,57 +24,9 @@ const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 let rateLimitRetryCount = 0; // State for exponential backoff on 429s
 
 
+import { GameDocument, WebApiData } from '../types/steam.types';
+
 // --- Re-used Type Definitions & Functions from steam-pics-refresh-service ---
-
-interface GameDocument {
-  steam_appid: number;
-  name: string;
-  short_description?: string | null;
-  header_image?: string | null;
-  release_date?: string | null; 
-  last_updated: string;
-  developers?: string[] | null;
-  publishers?: string[] | null;
-  is_early_access?: boolean | null;
-  total_reviews?: number | null;
-  steam_app_type?: string | null;
-  price_final?: number | null;
-  price_currency?: string | null;
-  price_initial?: number | null;
-  discount_percent?: number | null;
-  total_positive?: number | null;
-  total_negative?: number | null;
-  review_score_desc?: string | null;
-  current_players?: number | null;
-  tags?: string[] | null;
-  controller_support?: string | null;
-  metacritic_score?: number | null;
-  metacritic_url?: string | null;
-  platforms_windows?: boolean | null;
-  platforms_mac?: boolean | null;
-  platforms_linux?: boolean | null;
-  categories?: string[] | null;
-  has_steam_achievements?: boolean | null;
-  positive_rating_percentage?: number | null;
-}
-
-interface WebApiData {
-    type: string;
-    name: string;
-    steam_appid: number;
-    short_description: string;
-    header_image: string;
-    release_date: { coming_soon: boolean; date: string; };
-    developers: string[];
-    publishers: string[];
-    price_overview?: { currency: string; initial: number; final: number; discount_percent: number; };
-    metacritic?: { score: number; url: string; };
-    platforms?: { windows: boolean; mac: boolean; linux: boolean; };
-    categories?: { id: number; description: string }[];
-    achievements?: { total: number; };
-    review_summary?: any;
-    player_count?: number;
-}
 
 async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
     for (let i = 0; i < retries; i++) {
@@ -199,6 +143,22 @@ function mergeApiData(picsData: Partial<GameDocument>, webData: WebApiData | nul
     mergedData.current_players = webData.player_count ?? null;
     mergedData.metacritic_score = webData.metacritic?.score ?? mergedData.metacritic_score;
     mergedData.metacritic_url = webData.metacritic?.url ?? mergedData.metacritic_url;
+    mergedData.genres = webData.genres ? webData.genres.map(g => g.description) : null;
+
+    // Add all new fields
+    mergedData.detailed_description = webData.detailed_description ?? null;
+    mergedData.about_the_game = webData.about_the_game ?? null;
+    mergedData.website = webData.website ?? null;
+    mergedData.screenshots = webData.screenshots ? webData.screenshots.map(s => s.path_full) : null;
+    mergedData.movies = webData.movies ? webData.movies.map(m => m.mp4.max) : null;
+    mergedData.is_free = webData.is_free ?? false;
+    mergedData.pc_requirements = webData.pc_requirements ?? null;
+    mergedData.mac_requirements = webData.mac_requirements ?? null;
+    mergedData.linux_requirements = webData.linux_requirements ?? null;
+    mergedData.supported_languages = webData.supported_languages ?? null;
+    mergedData.dlc = webData.dlc ?? null;
+    mergedData.required_age = webData.required_age ?? null;
+
     if (reviews?.total_reviews > 0) {
         mergedData.positive_rating_percentage = Math.round((reviews.total_positive / reviews.total_reviews) * 100);
     }
@@ -230,23 +190,25 @@ async function enrichAllGames() {
             const offset = page * BATCH_SIZE;
             console.log(`\nFetching batch of games from offset ${offset} (processed: ${totalProcessedCount})...`);
 
-            const gameBatch = await databases.listDocuments(
-                config.appwrite.databaseId!,
-                config.appwrite.gamesCollectionId!,
-                [
-                    Query.limit(BATCH_SIZE),
-                    Query.offset(offset)
-                ]
-            );
+            const { data: gameBatch, error: batchError } = await supabase
+                .from('games')
+                .select('*')
+                .range(offset, offset + BATCH_SIZE - 1);
 
-            if (gameBatch.documents.length === 0) {
+            if (batchError) {
+                console.error('Error fetching games batch:', batchError);
+                break;
+            }
+
+            if (!gameBatch || gameBatch.length === 0) {
                 hasMore = false;
                 continue;
             }
 
-            for (const [index, game] of gameBatch.documents.entries()) {
+            for (let index = 0; index < gameBatch.length; index++) {
+                const game = gameBatch[index];
                 if (!game.steam_appid) {
-                    console.warn(`Game document ${game.$id} has no steam_appid, skipping.`);
+                    console.warn(`Game document ${game.id} has no steam_appid, skipping.`);
                     continue;
                 }
 
@@ -263,20 +225,23 @@ async function enrichAllGames() {
                     const formattedPicsData = formatPicsDataToGameDocument(game.steam_appid, picsData);
                     const finalGameData = mergeApiData(formattedPicsData, webApiData);
 
-                    await databases.updateDocument(
-                        config.appwrite.databaseId!,
-                        config.appwrite.gamesCollectionId!,
-                        game.$id,
-                        finalGameData
-                    );
-                    totalUpdatedCount++;
+                    const { error: updateError } = await supabase
+                        .from('games')
+                        .update(finalGameData)
+                        .eq('id', game.id);
+                    
+                    if (updateError) {
+                        console.error(`Error updating game ${game.name}:`, updateError);
+                    } else {
+                        totalUpdatedCount++;
+                    }
                 } else {
                     console.warn(`Could not get PICS data for ${game.name}, skipping update.`);
                 }
 
                 totalProcessedCount++;
 
-                if (index < gameBatch.documents.length - 1) {
+                if (index < gameBatch.length - 1) {
                   await new Promise(resolve => setTimeout(resolve, DELAY_MS));
                 }
             }

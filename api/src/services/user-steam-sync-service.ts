@@ -155,7 +155,7 @@ async function syncGameAchievements(steamId: string, userId: string, appId: numb
 /**
  * The main service function to sync a user's Steam library with Supabase.
  */
-export async function syncUserWithSteam(user: User) {
+export async function syncUserWithSteam(user: any) {
     console.log(`Starting Steam sync for user: ${user.display_name} (${user.steam_id})`);
     
     if (!config.steamApiKey) {

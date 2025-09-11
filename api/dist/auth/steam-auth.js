@@ -19,14 +19,9 @@ exports.getUserBySteamId = getUserBySteamId;
 const passport_1 = __importDefault(require("passport"));
 exports.passport = passport_1.default;
 const passport_steam_1 = require("passport-steam");
-const node_appwrite_1 = require("node-appwrite");
 const config_1 = __importDefault(require("../config"));
+const client_1 = require("../supabase/client");
 const user_steam_sync_service_1 = require("../services/user-steam-sync-service");
-const appwriteClient = new node_appwrite_1.Client()
-    .setEndpoint(config_1.default.appwrite.endpoint)
-    .setProject(config_1.default.appwrite.projectId)
-    .setKey(config_1.default.appwrite.apiKey);
-const appwriteDatabases = new node_appwrite_1.Databases(appwriteClient);
 // Add a final check right before the strategy is configured
 console.log(`--- STEAM AUTH DEBUG ---`);
 console.log(`API Key used for SteamStrategy: ${config_1.default.steamApiKey ? `A key starting with "${config_1.default.steamApiKey.substring(0, 4)}..."` : 'undefined'}`);
@@ -56,7 +51,7 @@ passport_1.default.use(new passport_steam_1.Strategy({
 })));
 // Serialize user for session
 passport_1.default.serializeUser((user, done) => {
-    done(null, user.$id);
+    done(null, user.id);
 });
 // Deserialize user from session
 passport_1.default.deserializeUser((userId, done) => __awaiter(void 0, void 0, void 0, function* () {
@@ -75,7 +70,13 @@ function createOrUpdateUser(profile) {
         const steamId = profile._json.steamid;
         try {
             // Check if user already exists
-            const existingUsers = yield appwriteDatabases.listDocuments(databaseId, usersCollectionId, [node_appwrite_1.Query.equal('steam_id', steamId)]);
+            const { data: existingUsers, error: fetchError } = yield client_1.supabase
+                .from('users')
+                .select('*')
+                .eq('steam_id', steamId);
+            if (fetchError) {
+                throw fetchError;
+            }
             const userData = {
                 steam_id: steamId,
                 display_name: profile.displayName || profile._json.personaname,
@@ -86,18 +87,33 @@ function createOrUpdateUser(profile) {
                 is_public_profile: profile._json.communityvisibilitystate === 3, // 3 = public profile
                 last_active: new Date().toISOString()
             };
-            if (existingUsers.documents.length > 0) {
+            if (existingUsers && existingUsers.length > 0) {
                 // Update existing user
-                const existingUser = existingUsers.documents[0];
-                const updatedUser = yield appwriteDatabases.updateDocument(databaseId, usersCollectionId, existingUser.$id, userData);
-                console.log('Updated existing user:', updatedUser.$id);
+                const existingUser = existingUsers[0];
+                const { data: updatedUser, error: updateError } = yield client_1.supabase
+                    .from('users')
+                    .update(userData)
+                    .eq('id', existingUser.id)
+                    .select()
+                    .single();
+                if (updateError) {
+                    throw updateError;
+                }
+                console.log('Updated existing user:', updatedUser.id);
                 return updatedUser;
             }
             else {
                 // Create new user
                 const newUserData = Object.assign(Object.assign({}, userData), { auto_import_steam_games: true, sync_steam_playtime: true, default_game_status: 'want_to_play', theme: 'dark', default_view: 'grid', created_at: new Date().toISOString() });
-                const newUser = yield appwriteDatabases.createDocument(databaseId, usersCollectionId, node_appwrite_1.ID.unique(), newUserData);
-                console.log('Created new user:', newUser.$id);
+                const { data: newUser, error: createError } = yield client_1.supabase
+                    .from('users')
+                    .insert(newUserData)
+                    .select()
+                    .single();
+                if (createError) {
+                    throw createError;
+                }
+                console.log('Created new user:', newUser.id);
                 // Optionally import Steam library if auto_import is enabled
                 if (newUserData.auto_import_steam_games) {
                     console.log(`Auto-import enabled for ${newUser.display_name}. Starting sync in background.`);
@@ -115,22 +131,36 @@ function createOrUpdateUser(profile) {
 function getUserById(userId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const user = yield appwriteDatabases.getDocument(config_1.default.appwrite.databaseId, 'users', userId);
+            const { data: user, error } = yield client_1.supabase
+                .from('users')
+                .select('*')
+                .eq('id', userId)
+                .single();
+            if (error) {
+                if (error.code === 'PGRST116') { // No rows returned
+                    return null;
+                }
+                throw error;
+            }
             return user;
         }
         catch (error) {
-            if (error instanceof node_appwrite_1.AppwriteException && error.code === 404) {
-                return null;
-            }
-            throw error;
+            console.error('Error getting user by ID:', error);
+            return null;
         }
     });
 }
 function getUserBySteamId(steamId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const users = yield appwriteDatabases.listDocuments(config_1.default.appwrite.databaseId, 'users', [node_appwrite_1.Query.equal('steam_id', steamId)]);
-            return users.documents.length > 0 ? users.documents[0] : null;
+            const { data: users, error } = yield client_1.supabase
+                .from('users')
+                .select('*')
+                .eq('steam_id', steamId);
+            if (error) {
+                throw error;
+            }
+            return users && users.length > 0 ? users[0] : null;
         }
         catch (error) {
             console.error('Error getting user by Steam ID:', error);

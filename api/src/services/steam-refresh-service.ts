@@ -1,6 +1,8 @@
 import SteamUser from 'steam-user';
 import config from '../config';
 import { supabase } from '../supabase/client';
+import { GameDocument, WebApiData } from '../types/steam.types';
+
 const steamUser = new SteamUser();
 steamUser.setOptions({
     enablePicsCache: true, // Required for getProductInfo
@@ -18,81 +20,6 @@ const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const UPDATE_INTERVAL_DAYS = 7;
 const GAMES_PER_MINUTE_LIMIT = 30; // Stay under the 100k/day Steam API limit
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
-
-interface GameDocument {
-  steam_appid: number;
-  name: string;
-  short_description?: string | null;
-  header_image?: string | null;
-  release_date?: string | null; 
-  last_updated: string;
-  developers?: string[] | null;
-  publishers?: string[] | null;
-  is_early_access?: boolean | null;
-  total_reviews?: number | null;
-  steam_app_type?: string | null;
-  price_final?: number | null;
-  price_currency?: string | null;
-  price_initial?: number | null;
-  discount_percent?: number | null;
-  total_positive?: number | null;
-  total_negative?: number | null;
-  review_score_desc?: string | null;
-  current_players?: number | null;
-  tags?: string[] | null;
-  controller_support?: string | null;
-  metacritic_score?: number | null;
-  metacritic_url?: string | null;
-  platforms_windows?: boolean | null;
-  platforms_mac?: boolean | null;
-  platforms_linux?: boolean | null;
-  categories?: string[] | null;
-  has_steam_achievements?: boolean | null;
-  positive_rating_percentage?: number | null;
-}
-
-// Define a type for the Steam API's game data to avoid using 'any'
-interface SteamGameData {
-  type: string;
-  name: string;
-  steam_appid: number;
-  short_description: string;
-  header_image: string;
-  release_date: {
-    coming_soon: boolean;
-    date: string;
-  };
-  developers: string[];
-  publishers: string[];
-  price_overview?: {
-    currency: string;
-    initial: number;
-    final: number;
-    discount_percent: number;
-  };
-  genres: { id: string; description:string }[];
-  recommendations?: {
-    total: number;
-    positive: number;
-    negative: number;
-    review_score_desc: string;
-  };
-  player_count?: number;
-  pics_info?: any; // To hold data from node-steam-user
-  metacritic?: {
-    score: number;
-    url: string;
-  };
-  platforms?: {
-    windows: boolean;
-    mac: boolean;
-    linux: boolean;
-  };
-  categories?: { id: number; description: string }[];
-  achievements?: {
-    total: number;
-  };
-}
 
 async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
     for (let i = 0; i < retries; i++) {
@@ -116,28 +43,16 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
     throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
 }
 
-async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: SteamGameData | null, type: string | null }> {
+async function fetchGameDetailsFromSteam(steamAppId: number): Promise<WebApiData | null> {
   const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
   const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
   const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
 
-  console.log(`Fetching app details from: ${appDetailsUrl.replace(STEAM_API_KEY!, 'YOUR_STEAM_KEY')}`);
-  console.log(`Fetching reviews from: ${reviewUrl}`);
-  console.log(`Fetching player count from: ${playersUrl}`);
-  console.log(`Fetching PICS data for: ${steamAppId}`);
-
   try {
-    const productInfoPromise = new Promise<{ err: Error | null; apps: any; packages: any; }>((resolve) => {
-        steamUser.getProductInfo([steamAppId], [], false, (err, apps, packages) => {
-            resolve({ err, apps, packages });
-        });
-    });
-
-    const [appDetailsResponse, reviewResponse, playersResponse, picsResponse] = await Promise.all([
+    const [appDetailsResponse, reviewResponse, playersResponse] = await Promise.all([
       fetchWithRetry(appDetailsUrl),
       fetchWithRetry(reviewUrl),
       fetchWithRetry(playersUrl),
-      productInfoPromise
     ]);
 
     if (!appDetailsResponse.ok) {
@@ -146,76 +61,43 @@ async function fetchGameDetailsFromSteam(steamAppId: number): Promise<{ data: St
       );
       const errorBody = await appDetailsResponse.text();
       console.error(`Steam API Error Body: ${errorBody}`);
-      return { data: null, type: 'error' };
+      return null;
     }
     
     const appDetailsData = await appDetailsResponse.json();
-    let reviewData = null;
-    let playersData = null;
+    const details = appDetailsData[steamAppId];
+
+    if (!details || !details.success) {
+        console.warn(`Steam indicated unsuccessful fetch for appid ${steamAppId}.`);
+        return null;
+    }
+
+    const gameData: WebApiData = details.data;
+
+    if (gameData.type && gameData.type !== 'game') {
+        console.log(`AppID ${steamAppId} is a '${gameData.type}', not a game. Skipping full data processing.`);
+        return null;
+    }
 
     if (reviewResponse.ok) {
         const reviewJson = await reviewResponse.json();
         if (reviewJson.success) {
-            reviewData = reviewJson.query_summary;
-        } else {
-            console.warn(`Could not fetch review data for appid ${steamAppId}.`);
+            gameData.review_summary = reviewJson.query_summary;
         }
-    } else {
-        console.warn(`Review API request failed for appid ${steamAppId}: ${reviewResponse.status} ${reviewResponse.statusText}`);
     }
 
     if (playersResponse.ok) {
         const playersJson = await playersResponse.json();
         if (playersJson.response && playersJson.response.result === 1) {
-            playersData = playersJson.response;
+            gameData.player_count = playersJson.response.player_count;
         }
-    } else {
-        console.warn(`Player count API request failed for appid ${steamAppId}: ${playersResponse.status} ${playersResponse.statusText}`);
     }
 
-    if (appDetailsData && appDetailsData[steamAppId]) {
-      const details = appDetailsData[steamAppId];
-      if (details.success) {
-        const gameData = details.data;
-        const appType = gameData.type || 'game'; // Default to 'game' if type is missing
+    return gameData;
 
-        if (appType !== 'game') {
-           console.log(`AppID ${steamAppId} is a '${appType}', not a game. Skipping full data processing.`);
-           return { data: null, type: appType };
-        }
-
-        if (reviewData) {
-          gameData.recommendations = { 
-              total: reviewData.total_reviews,
-              positive: reviewData.total_positive,
-              negative: reviewData.total_negative,
-              review_score_desc: reviewData.review_score_desc
-          };
-        }
-
-        if (playersData) {
-            gameData.player_count = playersData.player_count;
-        }
-        
-        if (picsResponse.err) {
-            console.warn(`Could not fetch PICS data for ${steamAppId}:`, picsResponse.err.message);
-        } else {
-            gameData.pics_info = picsResponse.apps[steamAppId];
-        }
-
-        return { data: gameData, type: 'game' };
-
-      } else {
-        console.warn(`Steam indicated unsuccessful fetch for appid ${steamAppId}. Marking as invalid.`);
-        return { data: null, type: 'invalid' };
-      }
-    }
-
-    console.warn(`No data or unexpected response structure for appid ${steamAppId} from Steam.`);
-    return { data: null, type: null };
   } catch (error) {
     console.error(`Error fetching game details for appid ${steamAppId} from Steam:`, error);
-    return { data: null, type: 'error' };
+    return null;
   }
 }
 
@@ -243,11 +125,11 @@ async function recordReviewHistory(gameId: string, totalReviews: number) {
     }
 }
 
-async function updateGameInSupabase(gameId: string, steamData: SteamGameData | null, steamAppType: string) {
-    if (steamData && steamAppType === 'game') {
+async function updateGameInSupabase(gameId: string, steamData: WebApiData | null) {
+    if (steamData) {
         // This is a valid game, do a full update
         const isEarlyAccess = steamData.genres?.some(
-            (genre: { id: string; description: string }) => genre.description === "Early Access"
+            (genre) => genre.description === "Early Access"
         ) ?? false;
 
         let releaseDateForDb: string | undefined;
@@ -265,46 +147,49 @@ async function updateGameInSupabase(gameId: string, steamData: SteamGameData | n
         }
 
         const price = steamData.price_overview;
-        const reviews = steamData.recommendations;
-        const picsInfo = steamData.pics_info?.appinfo;
+        const reviews = steamData.review_summary;
         const categories = steamData.categories?.map(c => c.description) ?? [];
         const hasSteamAchievements = categories.includes("Steam Achievements");
-
-        let tags: string[] | undefined;
-        if (picsInfo?.common?.tags) {
-            tags = Object.values(picsInfo.common.tags);
-        }
+        const genres = steamData.genres ? steamData.genres.map(g => g.description) : null;
 
         const gameData: Partial<GameDocument> = {
             name: steamData.name,
             short_description: steamData.short_description,
+            detailed_description: steamData.detailed_description ?? null,
+            about_the_game: steamData.about_the_game ?? null,
             header_image: steamData.header_image,
+            website: steamData.website ?? null,
+            screenshots: steamData.screenshots ? steamData.screenshots.map(s => s.path_full) : null,
+            movies: steamData.movies ? steamData.movies.map(m => m.mp4.max) : null,
             release_date: releaseDateForDb ?? null,
             last_updated: new Date().toISOString(),
             developers: steamData.developers,
             publishers: steamData.publishers,
             is_early_access: isEarlyAccess,
-            total_reviews: reviews?.total ?? null,
+            is_free: steamData.is_free ?? false,
+            total_reviews: reviews?.total_reviews ?? null,
             steam_app_type: 'game',
-            // New analytics fields
             price_final: price?.final ?? null,
             price_currency: price?.currency ?? null,
             price_initial: price?.initial ?? null,
             discount_percent: price?.discount_percent ?? null,
-            total_positive: reviews?.positive ?? null,
-            total_negative: reviews?.negative ?? null,
-            positive_rating_percentage: reviews?.total && reviews?.total > 0 ? Math.round((reviews.positive / reviews.total) * 100) : null,
+            total_positive: reviews?.total_positive ?? null,
+            total_negative: reviews?.total_negative ?? null,
+            positive_rating_percentage: reviews?.total_reviews && reviews?.total_reviews > 0 ? Math.round((reviews.total_positive / reviews.total_reviews) * 100) : null,
             review_score_desc: reviews?.review_score_desc ?? null,
             current_players: steamData.player_count ?? null,
-            // From PICS
-            tags: tags ?? null,
-            controller_support: picsInfo?.common?.controller_support ?? null,
-            // New Features
+            genres: genres,
             metacritic_score: steamData.metacritic?.score ?? null,
             metacritic_url: steamData.metacritic?.url ?? null,
             platforms_windows: steamData.platforms?.windows ?? null,
             platforms_mac: steamData.platforms?.mac ?? null,
             platforms_linux: steamData.platforms?.linux ?? null,
+            pc_requirements: steamData.pc_requirements ?? null,
+            mac_requirements: steamData.mac_requirements ?? null,
+            linux_requirements: steamData.linux_requirements ?? null,
+            supported_languages: steamData.supported_languages ?? null,
+            dlc: steamData.dlc ?? null,
+            required_age: steamData.required_age ?? null,
             categories: categories.length > 0 ? categories : null,
             has_steam_achievements: hasSteamAchievements,
         };
@@ -327,9 +212,8 @@ async function updateGameInSupabase(gameId: string, steamData: SteamGameData | n
               await syncGameAchievements(gameId, steamData.steam_appid);
             }
 
-            // After successful update, record the review count for trend analysis
-            if (reviews?.total) {
-              await recordReviewHistory(gameId, reviews.total);
+            if (reviews?.total_reviews) {
+              await recordReviewHistory(gameId, reviews.total_reviews);
             }
 
             return true;
@@ -338,11 +222,9 @@ async function updateGameInSupabase(gameId: string, steamData: SteamGameData | n
             return false;
         }
     } else {
-        // This is not a game (demo, dlc, invalid, etc.)
-        // Just mark it so we don't check it again.
         const gameData: Partial<GameDocument> = {
             last_updated: new Date().toISOString(),
-            steam_app_type: steamAppType,
+            steam_app_type: 'invalid',
         };
         try {
             const { error } = await supabase
@@ -351,14 +233,14 @@ async function updateGameInSupabase(gameId: string, steamData: SteamGameData | n
                 .eq('id', gameId);
             
             if (error) {
-                console.error(`Error marking game ${gameId} as '${steamAppType}':`, error);
+                console.error(`Error marking game ${gameId} as 'invalid':`, error);
                 return false;
             }
             
-            console.log(`Marked game ${gameId} as type '${steamAppType}'. It will be skipped in future updates.`);
-            return false; // Return false because it wasn't a "successful game update"
+            console.log(`Marked game ${gameId} as type 'invalid'. It will be skipped in future updates.`);
+            return false;
         } catch (error) {
-            console.error(`Error marking game ${gameId} as '${steamAppType}':`, error);
+            console.error(`Error marking game ${gameId} as 'invalid':`, error);
             return false;
         }
     }
@@ -369,6 +251,18 @@ async function runRefreshService() {
   let totalUpdatedCount = 0;
 
   try {
+    const { count, error: countError } = await supabase.from('games').select('*', { count: 'exact', head: true });
+    if (countError) {
+        console.error("Error counting games in database:", countError);
+        throw new Error("Could not count games in database.");
+    }
+
+    if (count === 0) {
+        console.log("\nThe 'games' table is empty. This script is for refreshing existing game data.");
+        console.log("--> Please run the 'steam-sync-service.ts' script first to populate your database with all games from Steam.");
+        return; // Exit gracefully
+    }
+
     console.log("Logging into Steam anonymously...");
     steamUser.logOn({ anonymous: true });
 
@@ -383,16 +277,16 @@ async function runRefreshService() {
         });
     });
 
-    const BATCH_SIZE = 250; // Number of games each worker will process in its batch
+    const BATCH_SIZE = 250;
     let currentOffset = config.worker.id * BATCH_SIZE;
 
     while (true) {
       const thresholdDate = new Date();
       thresholdDate.setDate(thresholdDate.getDate() - UPDATE_INTERVAL_DAYS);
 
-      console.log(`\n[Worker ${config.worker.id}/${config.worker.total}] Fetching batch of games starting from offset ${currentOffset}...`);
+      console.log(`
+[Worker ${config.worker.id}/${config.worker.total}] Fetching batch of games starting from offset ${currentOffset}...`);
 
-      // --- Fetch a batch of games that have never been updated ---
       const { data: neverUpdatedData, error: neverUpdatedError } = await supabase
           .from('games')
           .select('*')
@@ -404,7 +298,6 @@ async function runRefreshService() {
           console.error('Error fetching never updated games:', neverUpdatedError);
       }
 
-      // --- Fetch a batch of games that were updated long ago ---
       const { data: oldGamesData, error: oldGamesError } = await supabase
           .from('games')
           .select('*')
@@ -417,7 +310,6 @@ async function runRefreshService() {
           console.error('Error fetching old games:', oldGamesError);
       }
 
-      // Combine, deduplicate, and get the top N newest games to process
       const allStaleGames = [...(neverUpdatedData || []), ...(oldGamesData || [])];
       const staleGamesMap = new Map();
       allStaleGames.forEach(game => staleGamesMap.set(game.id, game));
@@ -428,7 +320,7 @@ async function runRefreshService() {
 
       if (staleGames.length === 0) {
         console.log(`[Worker ${config.worker.id}/${config.worker.total}] No more stale games found at this offset. Worker will exit.`);
-        break; // Exit the while loop
+        break;
       }
       
       console.log(`[Worker ${config.worker.id}/${config.worker.total}] Found ${staleGames.length} games. Starting batch processing...`);
@@ -440,15 +332,12 @@ async function runRefreshService() {
         }
 
         console.log(`[Worker ${config.worker.id}/${config.worker.total}] Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`);
-        const steamResponse = await fetchGameDetailsFromSteam(game.steam_appid);
+        const steamData = await fetchGameDetailsFromSteam(game.steam_appid);
 
-        if (steamResponse.type) {
-          const success = await updateGameInSupabase(game.id, steamResponse.data, steamResponse.type);
-          if (success) {
-              totalUpdatedCount++;
-              // Increment the stat immediately after a successful update
-              await incrementStat('updatedGames');
-          }
+        const success = await updateGameInSupabase(game.id, steamData);
+        if (success) {
+            totalUpdatedCount++;
+            await incrementStat('updatedGames');
         }
 
         if (index < staleGames.length - 1) {
@@ -459,18 +348,18 @@ async function runRefreshService() {
       
       console.log(`[Worker ${config.worker.id}/${config.worker.total}] Batch finished. Total updated by this worker: ${totalUpdatedCount}.`);
 
-      // Move to the next block of work
       currentOffset += config.worker.total * BATCH_SIZE;
     }
 
-    console.log(`\n[Worker ${config.worker.id}/${config.worker.total}] Steam refresh completed.`);
+    console.log(`
+[Worker ${config.worker.id}/${config.worker.total}] Steam refresh completed.`);
     steamUser.logOff();
 
   } catch (e) {
     const error = e as Error;
     console.error(`[Worker ${config.worker.id}/${config.worker.total}] Error in Steam refresh service:`, error.message);
     steamUser.logOff();
-    process.exit(1); // Exit with error for schedulers to pick up failure
+    process.exit(1);
   }
 }
 
@@ -488,7 +377,7 @@ async function incrementStat(key: string, incrementBy: number = 1) {
         }
         
         if (existing) {
-            const newCount = existing.count + incrementBy;
+            const newCount = (existing.count || 0) + incrementBy;
             const { error: updateError } = await supabase
                 .from('statistics')
                 .update({ count: newCount })
