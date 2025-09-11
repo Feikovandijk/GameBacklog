@@ -26,7 +26,7 @@ GameBacklog/
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone 
+   git clone https://github.com/yourusername/GameBacklog.git
    cd GameBacklog
    npm install
    cd api && npm install && cd ..
