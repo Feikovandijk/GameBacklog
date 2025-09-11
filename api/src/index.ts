@@ -602,13 +602,7 @@ app.put('/api/user/games/:id', requireAuth, async (req: Request, res: Response):
   try {
     const userId = req.user!.$id;
     const gameId = req.params.id;
-    const { status, priority, user_rating, user_notes, user_tags, hours_played, completion_percentage, is_favorite } = req.body;
-
-    const databaseId = config.appwrite.databaseId!;
-    const userGamesCollectionId = 'user_games';
-
-    // Verify ownership
-    const userGame = await appwriteDatabases.getDocument(
+    const { status, priority, user_rating, user_notes, user_tags, hours_played, completion_percentage, is_favorite } = req.bo    const userGame = await appwriteDatabases.getDocument(
       databaseId,
       userGamesCollectionId,
       gameId
