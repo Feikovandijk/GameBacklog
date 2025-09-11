@@ -356,3 +356,8 @@ npm run dev
 - Real-time sync progress updates
 - Achievement notifications
 - Game status changes
+=======
+WIP
+
+Tool to manage game backlogs, aimed at developers.
+
