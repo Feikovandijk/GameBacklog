@@ -53,7 +53,7 @@ const GameListPage: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const handleUpdateGame = async (values: { status: UserGame['status'], user_notes: string }) => {
+  const handleUpdateGame = async (values: Partial<UserGame>) => {
     if (!selectedGame) return;
     try {
       await api.userGamesAPI.updateGame(selectedGame.$id, values);
@@ -66,12 +66,25 @@ const GameListPage: React.FC = () => {
     }
   };
 
+  const handleDeleteGame = async () => {
+    if (!selectedGame) return;
+    try {
+      await api.userGamesAPI.removeGame(selectedGame.$id);
+      message.success('Game removed from backlog!');
+      setIsModalVisible(false);
+      fetchGames(pagination.current, pagination.pageSize); // Refresh data
+    } catch (error) {
+      message.error('Failed to remove game.');
+      console.error("Error removing game:", error);
+    }
+  };
+
   const columns = [
     {
       title: 'Title',
       dataIndex: ['game', 'name'],
       key: 'title',
-      render: (text: string, record: UserGame) => (
+      render: (_text: string, record: UserGame) => (
         <Space>
           <Avatar shape="square" size="large" src={record.game?.header_image} />
           <span>{record.game?.name}</span>
@@ -153,9 +166,10 @@ const GameListPage: React.FC = () => {
         />
       </div>
       <EditGameModal
-        visible={isModalVisible}
+        open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         onOk={handleUpdateGame}
+        onDelete={handleDeleteGame}
         game={selectedGame}
       />
     </div>

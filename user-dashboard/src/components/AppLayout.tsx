@@ -48,7 +48,7 @@ interface AppLayoutProps {
 const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [searchOptions, setSearchOptions] = useState<{label: string; value: string}[]>([]);
+    const [searchOptions, setSearchOptions] = useState<{label: React.ReactNode; value: string; game?: Game}[]>([]);
 
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
