@@ -13,7 +13,6 @@
     "refresh-games:pics": "ts-node src/services/steam-pics-refresh-service.ts",
     "enrich-games": "ts-node src/scripts/enrich-all-games.ts",
     "analytics:recalculate": "node dist/scripts/recalculate-analytics.js",
-    
     "recalculate-stats": "ts-node src/scripts/recalculate-stats.ts",
     "lint": "eslint src/**/*.ts"
   },
@@ -29,7 +28,7 @@
     "dotenv": "^16.5.0",
     "express": "^4.18.2",
     "express-session": "^1.18.1",
-    
+    "node-appwrite": "^19.0.0",
     "passport": "^0.7.0",
     "passport-steam": "^1.0.18",
     "steam-user": "^5.2.3"

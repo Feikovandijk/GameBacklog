@@ -62,7 +62,7 @@ async function getPlayerAchievements(steamId: string, appId: number, apiKey: str
             }
         });
         return response.data.playerstats.achievements || [];
-    } catch (error) {
+    } catch {
         // It's common for this to fail (e.g., game has no stats), so we log softly
         // console.log(`Could not fetch achievements for appid ${appId}:`, error.response?.data?.playerstats?.error);
         return [];
@@ -83,7 +83,7 @@ async function getUserStatsForGame(steamId: string, appId: number, apiKey: strin
             }
         });
         return response.data.playerstats.stats || [];
-    } catch (error) {
+    } catch {
          // console.log(`Could not fetch user stats for appid ${appId}:`, error.response?.data?.playerstats?.error);
         return [];
     }
@@ -169,7 +169,7 @@ export async function syncUserWithSteam(user: User) {
     if (ownedGames.length === 0) return;
 
     // 2. Get user's existing backlog from Supabase
-    const userBacklog = await getUserBacklog(user.id);
+    const userBacklog = await getUserBacklog(user.$id);
     console.log(`User has ${userBacklog.size} games in their backlog.`);
 
     // 3. Process each game
@@ -202,7 +202,7 @@ export async function syncUserWithSteam(user: User) {
                 if (masterGameResponse) {
                     const masterGameId = masterGameResponse.id;
                     await supabase.from('user_games').insert({
-                        user_id: user.id,
+                        user_id: user.$id,
                         game_id: masterGameId,
                         steam_appid: game.appid,
                         status: 'want_to_play', // Assuming a default status
@@ -223,11 +223,11 @@ export async function syncUserWithSteam(user: User) {
         }
         
         // 4. Sync Achievements & Stats for the game (can be done in parallel)
-        const { data: gameDocument, error } = await supabase.from('user_games').select('id').eq('user_id', user.id).eq('steam_appid', game.appid).single();
+        const { data: gameDocument, error } = await supabase.from('user_games').select('id').eq('user_id', user.$id).eq('steam_appid', game.appid).single();
         if(gameDocument) {
             await Promise.all([
-                syncGameAchievements(user.steam_id, user.id, game.appid, config.steamApiKey),
-                syncGameStats(user.steam_id, user.id, gameDocument.id, game.appid, config.steamApiKey)
+                syncGameAchievements(user.steam_id, user.$id, game.appid, config.steamApiKey),
+                syncGameStats(user.steam_id, user.$id, gameDocument.id, game.appid, config.steamApiKey)
             ]);
         }
         if(error) {
@@ -236,7 +236,7 @@ export async function syncUserWithSteam(user: User) {
     }
     
     // 5. Update the user's `last_steam_sync` timestamp
-    await supabase.from('users').update({ last_steam_sync: new Date().toISOString() }).eq('id', user.id);
+    await supabase.from('users').update({ last_steam_sync: new Date().toISOString() }).eq('id', user.$id);
 
     console.log(`Sync for user ${user.display_name} completed.`);
 }

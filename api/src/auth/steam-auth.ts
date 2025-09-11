@@ -10,30 +10,10 @@ const appwriteClient = new Client()
     .setKey(config.appwrite.apiKey!);
 const appwriteDatabases = new Databases(appwriteClient);
 
-interface SteamProfile {
-    identifier: string;
-    steamid: string;
-    displayName: string;
-    avatar: {
-        small: string;
-        medium: string;
-        large: string;
-    };
-    photos: Array<{ value: string }>;
-    _json: {
-        steamid: string;
-        personaname: string;
-        profileurl: string;
-        avatar: string;
-        avatarmedium: string;
-        avatarfull: string;
-        realname?: string;
-        loccountrycode?: string;
-        communityvisibilitystate: number;
-    };
-}
+// SteamProfile interface removed as it's not currently used
 
 interface User extends Models.Document {
+    $id: string;
     steam_id: string;
     display_name: string;
     avatar_url: string;
@@ -132,7 +112,7 @@ async function createOrUpdateUser(profile: any): Promise<User> {
             );
             
             console.log('Updated existing user:', updatedUser.$id);
-            return updatedUser as User;
+            return updatedUser as unknown as User;
         } else {
             // Create new user
             const newUserData = {
@@ -157,10 +137,10 @@ async function createOrUpdateUser(profile: any): Promise<User> {
             // Optionally import Steam library if auto_import is enabled
             if (newUserData.auto_import_steam_games) {
                 console.log(`Auto-import enabled for ${newUser.display_name}. Starting sync in background.`);
-                syncUserWithSteam(newUser as User); // Fire-and-forget
+                syncUserWithSteam(newUser as unknown as User); // Fire-and-forget
             }
             
-            return newUser as User;
+            return newUser as unknown as User;
         }
     } catch (error) {
         console.error('Error creating/updating user:', error);
@@ -175,8 +155,8 @@ async function getUserById(userId: string): Promise<User | null> {
             'users',
             userId
         );
-        return user as User;
-    } catch (error) {
+        return user as unknown as User;
+    } catch (error: any) {
         if (error instanceof AppwriteException && error.code === 404) {
             return null;
         }
@@ -192,7 +172,7 @@ async function getUserBySteamId(steamId: string): Promise<User | null> {
             [Query.equal('steam_id', steamId)]
         );
         
-        return users.documents.length > 0 ? users.documents[0] as User : null;
+        return users.documents.length > 0 ? users.documents[0] as unknown as User : null;
     } catch (error) {
         console.error('Error getting user by Steam ID:', error);
         return null;

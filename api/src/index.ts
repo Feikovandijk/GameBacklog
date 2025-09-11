@@ -155,7 +155,7 @@ app.get('/api/stats', async (_req: Request, res: Response): Promise<void> => {
 
     const statsDocs = await appwriteDatabases.listDocuments(databaseId, statsCollectionId);
     
-    const stats = statsDocs.documents.reduce((acc, doc) => {
+    const stats = statsDocs.documents.reduce((acc: Record<string, number>, doc: any) => {
       acc[doc.key] = doc.count;
       return acc;
     }, {} as Record<string, number>);
@@ -164,7 +164,7 @@ app.get('/api/stats', async (_req: Request, res: Response): Promise<void> => {
       totalGames: stats.totalGames || 0,
       updatedGames: stats.updatedGames || 0,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching stats:', error);
     const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
     res.status(500).json({ error: 'Failed to fetch stats', details: errorMessage });
@@ -197,7 +197,7 @@ app.get('/api/analytics', async (_req: Request, res: Response): Promise<Response
             [Query.equal('key', keysToFetch)]
         );
 
-        const stats = statsResponse.documents.reduce((acc, doc) => {
+        const stats = statsResponse.documents.reduce((acc: Record<string, any>, doc: any) => {
             try {
                 acc[doc.key] = JSON.parse(doc.value);
             } catch (e) {
@@ -602,7 +602,13 @@ app.put('/api/user/games/:id', requireAuth, async (req: Request, res: Response):
   try {
     const userId = req.user!.$id;
     const gameId = req.params.id;
-    const { status, priority, user_rating, user_notes, user_tags, hours_played, completion_percentage, is_favorite } = req.bo    const userGame = await appwriteDatabases.getDocument(
+    const { status, priority, user_rating, user_notes, user_tags, hours_played, completion_percentage, is_favorite } = req.body;
+
+    const databaseId = config.appwrite.databaseId!;
+    const userGamesCollectionId = 'user_games';
+
+    // Verify ownership
+    const userGame = await appwriteDatabases.getDocument(
       databaseId,
       userGamesCollectionId,
       gameId
