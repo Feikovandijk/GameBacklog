@@ -8,58 +8,39 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const node_appwrite_1 = require("node-appwrite");
-const config_1 = __importDefault(require("../config"));
+const client_1 = require("../supabase/client");
 // This is a one-time script to accurately count documents and populate the statistics collection.
-// It slowly pages through all documents in a collection to get an accurate count,
-// bypassing the 5000 document limit on the 'total' property.
+// It uses Supabase's count functionality to get accurate counts.
 function recalculateStats() {
     return __awaiter(this, void 0, void 0, function* () {
         console.log('Starting stats recalculation...');
-        const client = new node_appwrite_1.Client();
-        client
-            .setEndpoint(config_1.default.appwrite.endpoint)
-            .setProject(config_1.default.appwrite.projectId)
-            .setKey(config_1.default.appwrite.apiKey);
-        const databases = new node_appwrite_1.Databases(client);
-        const dbId = config_1.default.appwrite.databaseId;
-        const gamesCollectionId = config_1.default.appwrite.gamesCollectionId;
-        const statsCollectionId = 'statistics';
         try {
             // 1. Count Total Games
-            console.log('Counting all documents in the games collection (this may take a while)...');
-            let totalGames = 0;
-            let offset = 0;
-            const limit = 100;
-            let response;
-            do {
-                response = yield databases.listDocuments(dbId, gamesCollectionId, [node_appwrite_1.Query.limit(limit), node_appwrite_1.Query.offset(offset)]);
-                totalGames += response.documents.length;
-                offset += limit;
-                process.stdout.write(`\rCounted: ${totalGames} games`);
-            } while (response.documents.length > 0);
-            console.log(`\nFinal total games count: ${totalGames}`);
+            console.log('Counting all documents in the games collection...');
+            const { count: totalGames, error: totalGamesError } = yield client_1.supabase
+                .from('games')
+                .select('*', { count: 'exact', head: true });
+            if (totalGamesError) {
+                throw totalGamesError;
+            }
+            console.log(`Final total games count: ${totalGames || 0}`);
             // 2. Count Updated Games
             console.log('Counting updated games...');
-            let updatedGames = 0;
-            offset = 0;
-            do {
-                response = yield databases.listDocuments(dbId, gamesCollectionId, [node_appwrite_1.Query.isNotNull("last_updated"), node_appwrite_1.Query.limit(limit), node_appwrite_1.Query.offset(offset)]);
-                updatedGames += response.documents.length;
-                offset += limit;
-                process.stdout.write(`\rCounted: ${updatedGames} updated games`);
-            } while (response.documents.length > 0);
-            console.log(`\nFinal updated games count: ${updatedGames}`);
+            const { count: updatedGames, error: updatedGamesError } = yield client_1.supabase
+                .from('games')
+                .select('*', { count: 'exact', head: true })
+                .not('last_updated', 'is', null);
+            if (updatedGamesError) {
+                throw updatedGamesError;
+            }
+            console.log(`Final updated games count: ${updatedGames || 0}`);
             // 3. Upsert stats into the statistics collection
             console.log('Updating statistics collection...');
             // Upsert total games count
-            yield upsertStat(databases, dbId, statsCollectionId, 'totalGames', totalGames);
+            yield upsertStat('totalGames', totalGames || 0);
             // Upsert updated games count
-            yield upsertStat(databases, dbId, statsCollectionId, 'updatedGames', updatedGames);
+            yield upsertStat('updatedGames', updatedGames || 0);
             console.log('Stats recalculation completed successfully!');
         }
         catch (error) {
@@ -68,18 +49,35 @@ function recalculateStats() {
         }
     });
 }
-function upsertStat(databases, dbId, collectionId, key, count) {
+function upsertStat(key, count) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const existing = yield databases.listDocuments(dbId, collectionId, [node_appwrite_1.Query.equal('key', key)]);
-            if (existing.documents.length > 0) {
-                const docId = existing.documents[0].$id;
-                yield databases.updateDocument(dbId, collectionId, docId, { key, count });
+            const { data: existing, error: fetchError } = yield client_1.supabase
+                .from('statistics')
+                .select('id')
+                .eq('key', key)
+                .single();
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                throw fetchError;
+            }
+            if (existing) {
+                const { error: updateError } = yield client_1.supabase
+                    .from('statistics')
+                    .update({ count })
+                    .eq('id', existing.id);
+                if (updateError) {
+                    throw updateError;
+                }
                 console.log(`- Updated stat '${key}' to ${count}.`);
             }
             else {
-                yield databases.createDocument(dbId, collectionId, node_appwrite_1.ID.unique(), { key, count });
-                console.log(`- Created stat '${key}' with ${count}.`);
+                const { error: insertError } = yield client_1.supabase
+                    .from('statistics')
+                    .insert({ key, count });
+                if (insertError) {
+                    throw insertError;
+                }
+                console.log(`- Created stat '${key}' with count ${count}.`);
             }
         }
         catch (e) {

@@ -1,19 +1,15 @@
 import passport from 'passport';
 import { Strategy as SteamStrategy } from 'passport-steam';
-import { Client, Databases, Query, ID, AppwriteException, Models } from 'node-appwrite';
 import config from '../config';
+import { supabase } from '../supabase/client';
 import { syncUserWithSteam } from '../services/user-steam-sync-service';
 
-const appwriteClient = new Client()
-    .setEndpoint(config.appwrite.endpoint!)
-    .setProject(config.appwrite.projectId!)
-    .setKey(config.appwrite.apiKey!);
-const appwriteDatabases = new Databases(appwriteClient);
+// Supabase client is imported from ../supabase/client
 
 // SteamProfile interface removed as it's not currently used
 
-interface User extends Models.Document {
-    $id: string;
+interface User {
+    id: string;
     steam_id: string;
     display_name: string;
     avatar_url: string;
@@ -64,7 +60,7 @@ passport.use(new SteamStrategy({
 
 // Serialize user for session
 passport.serializeUser((user: any, done) => {
-    done(null, user.$id);
+    done(null, user.id);
 });
 
 // Deserialize user from session
@@ -84,11 +80,14 @@ async function createOrUpdateUser(profile: any): Promise<User> {
     
     try {
         // Check if user already exists
-        const existingUsers = await appwriteDatabases.listDocuments(
-            databaseId,
-            usersCollectionId,
-            [Query.equal('steam_id', steamId)]
-        );
+        const { data: existingUsers, error: fetchError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('steam_id', steamId);
+        
+        if (fetchError) {
+            throw fetchError;
+        }
         
         const userData = {
             steam_id: steamId,
@@ -101,18 +100,22 @@ async function createOrUpdateUser(profile: any): Promise<User> {
             last_active: new Date().toISOString()
         };
         
-        if (existingUsers.documents.length > 0) {
+        if (existingUsers && existingUsers.length > 0) {
             // Update existing user
-            const existingUser = existingUsers.documents[0];
-            const updatedUser = await appwriteDatabases.updateDocument(
-                databaseId,
-                usersCollectionId,
-                existingUser.$id,
-                userData
-            );
+            const existingUser = existingUsers[0];
+            const { data: updatedUser, error: updateError } = await supabase
+                .from('users')
+                .update(userData)
+                .eq('id', existingUser.id)
+                .select()
+                .single();
             
-            console.log('Updated existing user:', updatedUser.$id);
-            return updatedUser as unknown as User;
+            if (updateError) {
+                throw updateError;
+            }
+            
+            console.log('Updated existing user:', updatedUser.id);
+            return updatedUser as User;
         } else {
             // Create new user
             const newUserData = {
@@ -125,14 +128,17 @@ async function createOrUpdateUser(profile: any): Promise<User> {
                 created_at: new Date().toISOString()
             };
             
-            const newUser = await appwriteDatabases.createDocument(
-                databaseId,
-                usersCollectionId,
-                ID.unique(),
-                newUserData
-            );
+            const { data: newUser, error: createError } = await supabase
+                .from('users')
+                .insert(newUserData)
+                .select()
+                .single();
             
-            console.log('Created new user:', newUser.$id);
+            if (createError) {
+                throw createError;
+            }
+            
+            console.log('Created new user:', newUser.id);
             
             // Optionally import Steam library if auto_import is enabled
             if (newUserData.auto_import_steam_games) {
@@ -140,7 +146,7 @@ async function createOrUpdateUser(profile: any): Promise<User> {
                 syncUserWithSteam(newUser as unknown as User); // Fire-and-forget
             }
             
-            return newUser as unknown as User;
+            return newUser as User;
         }
     } catch (error) {
         console.error('Error creating/updating user:', error);
@@ -150,29 +156,38 @@ async function createOrUpdateUser(profile: any): Promise<User> {
 
 async function getUserById(userId: string): Promise<User | null> {
     try {
-        const user = await appwriteDatabases.getDocument(
-            config.appwrite.databaseId!,
-            'users',
-            userId
-        );
-        return user as unknown as User;
-    } catch (error: any) {
-        if (error instanceof AppwriteException && error.code === 404) {
-            return null;
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        
+        if (error) {
+            if (error.code === 'PGRST116') { // No rows returned
+                return null;
+            }
+            throw error;
         }
-        throw error;
+        
+        return user as User;
+    } catch (error: unknown) {
+        console.error('Error getting user by ID:', error);
+        return null;
     }
 }
 
 async function getUserBySteamId(steamId: string): Promise<User | null> {
     try {
-        const users = await appwriteDatabases.listDocuments(
-            config.appwrite.databaseId!,
-            'users',
-            [Query.equal('steam_id', steamId)]
-        );
+        const { data: users, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('steam_id', steamId);
         
-        return users.documents.length > 0 ? users.documents[0] as unknown as User : null;
+        if (error) {
+            throw error;
+        }
+        
+        return users && users.length > 0 ? users[0] as User : null;
     } catch (error) {
         console.error('Error getting user by Steam ID:', error);
         return null;

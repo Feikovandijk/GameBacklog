@@ -1,53 +1,51 @@
-import { Client, Databases, Query, ID } from 'node-appwrite';
 import config from '../config';
-
-// Appwrite Client Setup
-const appwriteClient = new Client()
-    .setEndpoint(config.appwrite.endpoint!)
-    .setProject(config.appwrite.projectId!)
-    .setKey(config.appwrite.apiKey!);
-const databases = new Databases(appwriteClient);
-
-const DATABASE_ID = config.appwrite.databaseId!;
-const GAMES_COLLECTION_ID = config.appwrite.gamesCollectionId!;
-const STATS_COLLECTION_ID = 'statistics';
+import { supabase } from '../supabase/client';
 
 // Helper to fetch a sample of documents from the games collection
-async function fetchGameSample(queries: any[] = [], limit: number) {
-    const documents: any[] = [];
-    let cursor: string | undefined = undefined;
-
-    while (documents.length < limit) {
-        // Fetch in batches, ensuring we don't go over the total limit
-        const batchSize = Math.min(100, limit - documents.length);
-        if (batchSize <= 0) break;
-
-        const currentQueries = [...queries, Query.limit(batchSize)];
-        if (cursor) {
-            currentQueries.push(Query.cursorAfter(cursor));
-        }
-
-        const response = await databases.listDocuments(DATABASE_ID, GAMES_COLLECTION_ID, currentQueries);
-
-        if (response.documents.length === 0) {
-            break;
-        }
-
-        documents.push(...response.documents);
-        cursor = response.documents[response.documents.length - 1].$id;
+async function fetchGameSample(limit: number) {
+    const { data: documents, error } = await supabase
+        .from('games')
+        .select('*')
+        .limit(limit);
+    
+    if (error) {
+        throw error;
     }
-    return documents;
+    
+    return documents || [];
 }
 
 async function updateStat(key: string, value: any) {
     try {
-        const existing = await databases.listDocuments(DATABASE_ID, STATS_COLLECTION_ID, [Query.equal('key', key)]);
+        const { data: existing, error: fetchError } = await supabase
+            .from('statistics')
+            .select('id')
+            .eq('key', key)
+            .single();
+        
         const statObject = { key, value: JSON.stringify(value), count: 0 };
 
-        if (existing.documents.length > 0) {
-            await databases.updateDocument(DATABASE_ID, STATS_COLLECTION_ID, existing.documents[0].$id, statObject);
+        if (fetchError && fetchError.code !== 'PGRST116') {
+            throw fetchError;
+        }
+
+        if (existing) {
+            const { error: updateError } = await supabase
+                .from('statistics')
+                .update(statObject)
+                .eq('id', existing.id);
+            
+            if (updateError) {
+                throw updateError;
+            }
         } else {
-            await databases.createDocument(DATABASE_ID, STATS_COLLECTION_ID, ID.unique(), statObject);
+            const { error: insertError } = await supabase
+                .from('statistics')
+                .insert(statObject);
+            
+            if (insertError) {
+                throw insertError;
+            }
         }
         console.log(`Successfully updated stat: ${key}`);
     } catch (e) {
@@ -58,12 +56,7 @@ async function updateStat(key: string, value: any) {
 async function run() {
     console.log('Starting analytics recalculation on a sample of 5000 recently updated games...');
 
-    const gameSample = await fetchGameSample([
-        Query.equal('steam_app_type', 'game'),
-        Query.isNotNull('last_updated'),
-        Query.orderDesc('last_updated'),
-        Query.select(['release_date', 'categories'])
-    ], 5000);
+    const gameSample = await fetchGameSample(5000);
 
     // 1. Release Year Distribution
     const releaseYearDistribution = gameSample.reduce((acc, game) => {

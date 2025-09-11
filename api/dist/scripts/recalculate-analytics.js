@@ -8,55 +8,49 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const node_appwrite_1 = require("node-appwrite");
-const config_1 = __importDefault(require("../config"));
-// Appwrite Client Setup
-const appwriteClient = new node_appwrite_1.Client()
-    .setEndpoint(config_1.default.appwrite.endpoint)
-    .setProject(config_1.default.appwrite.projectId)
-    .setKey(config_1.default.appwrite.apiKey);
-const databases = new node_appwrite_1.Databases(appwriteClient);
-const DATABASE_ID = config_1.default.appwrite.databaseId;
-const GAMES_COLLECTION_ID = config_1.default.appwrite.gamesCollectionId;
-const STATS_COLLECTION_ID = 'statistics';
+const client_1 = require("../supabase/client");
 // Helper to fetch a sample of documents from the games collection
-function fetchGameSample() {
-    return __awaiter(this, arguments, void 0, function* (queries = [], limit) {
-        const documents = [];
-        let cursor = undefined;
-        while (documents.length < limit) {
-            // Fetch in batches, ensuring we don't go over the total limit
-            const batchSize = Math.min(100, limit - documents.length);
-            if (batchSize <= 0)
-                break;
-            const currentQueries = [...queries, node_appwrite_1.Query.limit(batchSize)];
-            if (cursor) {
-                currentQueries.push(node_appwrite_1.Query.cursorAfter(cursor));
-            }
-            const response = yield databases.listDocuments(DATABASE_ID, GAMES_COLLECTION_ID, currentQueries);
-            if (response.documents.length === 0) {
-                break;
-            }
-            documents.push(...response.documents);
-            cursor = response.documents[response.documents.length - 1].$id;
+function fetchGameSample(limit) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: documents, error } = yield client_1.supabase
+            .from('games')
+            .select('*')
+            .limit(limit);
+        if (error) {
+            throw error;
         }
-        return documents;
+        return documents || [];
     });
 }
 function updateStat(key, value) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const existing = yield databases.listDocuments(DATABASE_ID, STATS_COLLECTION_ID, [node_appwrite_1.Query.equal('key', key)]);
+            const { data: existing, error: fetchError } = yield client_1.supabase
+                .from('statistics')
+                .select('id')
+                .eq('key', key)
+                .single();
             const statObject = { key, value: JSON.stringify(value), count: 0 };
-            if (existing.documents.length > 0) {
-                yield databases.updateDocument(DATABASE_ID, STATS_COLLECTION_ID, existing.documents[0].$id, statObject);
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                throw fetchError;
+            }
+            if (existing) {
+                const { error: updateError } = yield client_1.supabase
+                    .from('statistics')
+                    .update(statObject)
+                    .eq('id', existing.id);
+                if (updateError) {
+                    throw updateError;
+                }
             }
             else {
-                yield databases.createDocument(DATABASE_ID, STATS_COLLECTION_ID, node_appwrite_1.ID.unique(), statObject);
+                const { error: insertError } = yield client_1.supabase
+                    .from('statistics')
+                    .insert(statObject);
+                if (insertError) {
+                    throw insertError;
+                }
             }
             console.log(`Successfully updated stat: ${key}`);
         }
@@ -68,12 +62,7 @@ function updateStat(key, value) {
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         console.log('Starting analytics recalculation on a sample of 5000 recently updated games...');
-        const gameSample = yield fetchGameSample([
-            node_appwrite_1.Query.equal('steam_app_type', 'game'),
-            node_appwrite_1.Query.isNotNull('last_updated'),
-            node_appwrite_1.Query.orderDesc('last_updated'),
-            node_appwrite_1.Query.select(['release_date', 'categories'])
-        ], 5000);
+        const gameSample = yield fetchGameSample(5000);
         // 1. Release Year Distribution
         const releaseYearDistribution = gameSample.reduce((acc, game) => {
             if (game.release_date) {

@@ -12,19 +12,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const node_appwrite_1 = require("node-appwrite");
 const steam_user_1 = __importDefault(require("steam-user"));
 const config_1 = __importDefault(require("../config"));
+const client_1 = require("../supabase/client");
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 // Load environment variables from the root .env file
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
-const client = new node_appwrite_1.Client();
-client
-    .setEndpoint(config_1.default.appwrite.endpoint)
-    .setProject(config_1.default.appwrite.projectId)
-    .setKey(config_1.default.appwrite.apiKey);
-const databases = new node_appwrite_1.Databases(client);
 const steamUser = new steam_user_1.default();
 steamUser.setOptions({
     enablePicsCache: true,
@@ -39,6 +33,7 @@ const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const GAMES_PER_MINUTE_LIMIT = 40; // Stay under the 100k/day Steam API limit
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 let rateLimitRetryCount = 0; // State for exponential backoff on 429s
+// --- Re-used Type Definitions & Functions from steam-pics-refresh-service ---
 function fetchWithRetry(url_1) {
     return __awaiter(this, arguments, void 0, function* (url, retries = 3, backoff = 1000) {
         for (let i = 0; i < retries; i++) {
@@ -142,7 +137,7 @@ function formatPicsDataToGameDocument(appId, picsData) {
     };
 }
 function mergeApiData(picsData, webData) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z;
     const mergedData = Object.assign({}, picsData);
     if (!webData)
         return mergedData;
@@ -160,6 +155,20 @@ function mergeApiData(picsData, webData) {
     mergedData.current_players = (_k = webData.player_count) !== null && _k !== void 0 ? _k : null;
     mergedData.metacritic_score = (_m = (_l = webData.metacritic) === null || _l === void 0 ? void 0 : _l.score) !== null && _m !== void 0 ? _m : mergedData.metacritic_score;
     mergedData.metacritic_url = (_p = (_o = webData.metacritic) === null || _o === void 0 ? void 0 : _o.url) !== null && _p !== void 0 ? _p : mergedData.metacritic_url;
+    mergedData.genres = webData.genres ? webData.genres.map(g => g.description) : null;
+    // Add all new fields
+    mergedData.detailed_description = (_q = webData.detailed_description) !== null && _q !== void 0 ? _q : null;
+    mergedData.about_the_game = (_r = webData.about_the_game) !== null && _r !== void 0 ? _r : null;
+    mergedData.website = (_s = webData.website) !== null && _s !== void 0 ? _s : null;
+    mergedData.screenshots = webData.screenshots ? webData.screenshots.map(s => s.path_full) : null;
+    mergedData.movies = webData.movies ? webData.movies.map(m => m.mp4.max) : null;
+    mergedData.is_free = (_t = webData.is_free) !== null && _t !== void 0 ? _t : false;
+    mergedData.pc_requirements = (_u = webData.pc_requirements) !== null && _u !== void 0 ? _u : null;
+    mergedData.mac_requirements = (_v = webData.mac_requirements) !== null && _v !== void 0 ? _v : null;
+    mergedData.linux_requirements = (_w = webData.linux_requirements) !== null && _w !== void 0 ? _w : null;
+    mergedData.supported_languages = (_x = webData.supported_languages) !== null && _x !== void 0 ? _x : null;
+    mergedData.dlc = (_y = webData.dlc) !== null && _y !== void 0 ? _y : null;
+    mergedData.required_age = (_z = webData.required_age) !== null && _z !== void 0 ? _z : null;
     if ((reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) > 0) {
         mergedData.positive_rating_percentage = Math.round((reviews.total_positive / reviews.total_reviews) * 100);
     }
@@ -184,17 +193,22 @@ function enrichAllGames() {
             while (hasMore) {
                 const offset = page * BATCH_SIZE;
                 console.log(`\nFetching batch of games from offset ${offset} (processed: ${totalProcessedCount})...`);
-                const gameBatch = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, [
-                    node_appwrite_1.Query.limit(BATCH_SIZE),
-                    node_appwrite_1.Query.offset(offset)
-                ]);
-                if (gameBatch.documents.length === 0) {
+                const { data: gameBatch, error: batchError } = yield client_1.supabase
+                    .from('games')
+                    .select('*')
+                    .range(offset, offset + BATCH_SIZE - 1);
+                if (batchError) {
+                    console.error('Error fetching games batch:', batchError);
+                    break;
+                }
+                if (!gameBatch || gameBatch.length === 0) {
                     hasMore = false;
                     continue;
                 }
-                for (const [index, game] of gameBatch.documents.entries()) {
+                for (let index = 0; index < gameBatch.length; index++) {
+                    const game = gameBatch[index];
                     if (!game.steam_appid) {
-                        console.warn(`Game document ${game.$id} has no steam_appid, skipping.`);
+                        console.warn(`Game document ${game.id} has no steam_appid, skipping.`);
                         continue;
                     }
                     console.log(`(${totalProcessedCount + 1}) Processing game: ${game.name} (ID: ${game.steam_appid})`);
@@ -206,14 +220,22 @@ function enrichAllGames() {
                     if (picsData) {
                         const formattedPicsData = formatPicsDataToGameDocument(game.steam_appid, picsData);
                         const finalGameData = mergeApiData(formattedPicsData, webApiData);
-                        yield databases.updateDocument(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, game.$id, finalGameData);
-                        totalUpdatedCount++;
+                        const { error: updateError } = yield client_1.supabase
+                            .from('games')
+                            .update(finalGameData)
+                            .eq('id', game.id);
+                        if (updateError) {
+                            console.error(`Error updating game ${game.name}:`, updateError);
+                        }
+                        else {
+                            totalUpdatedCount++;
+                        }
                     }
                     else {
                         console.warn(`Could not get PICS data for ${game.name}, skipping update.`);
                     }
                     totalProcessedCount++;
-                    if (index < gameBatch.documents.length - 1) {
+                    if (index < gameBatch.length - 1) {
                         yield new Promise(resolve => setTimeout(resolve, DELAY_MS));
                     }
                 }

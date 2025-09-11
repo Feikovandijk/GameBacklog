@@ -16,17 +16,11 @@
  * This script is designed to be run frequently (e.g., every hour) to catch new
  * releases and updates as they happen.
  */
-import { Client, Databases, Query, ID } from 'node-appwrite';
 import SteamUser from 'steam-user';
 import config from '../config';
+import { supabase } from '../supabase/client';
+import { GameDocument, WebApiData } from '../types/steam.types';
 
-const client = new Client();
-client
-    .setEndpoint(config.appwrite.endpoint!)
-    .setProject(config.appwrite.projectId!)
-    .setKey(config.appwrite.apiKey!);
-
-const databases = new Databases(client);
 const steamUser = new SteamUser();
 steamUser.setOptions({
     enablePicsCache: true, // Required for getProductInfo
@@ -45,38 +39,6 @@ const GAMES_PER_MINUTE_LIMIT = 13; // Each game update can be 3-5 API calls. Wit
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 const STATE_DOCUMENT_ID = 'steam_changenumber';
 const STATE_COLLECTION_ID = 'steam_state';
-
-interface GameDocument {
-  steam_appid: number;
-  name: string;
-  short_description?: string | null;
-  header_image?: string | null;
-  release_date?: string | null; 
-  last_updated: string;
-  developers?: string[] | null;
-  publishers?: string[] | null;
-  is_early_access?: boolean | null;
-  total_reviews?: number | null;
-  steam_app_type?: string | null;
-  price_final?: number | null;
-  price_currency?: string | null;
-  price_initial?: number | null;
-  discount_percent?: number | null;
-  total_positive?: number | null;
-  total_negative?: number | null;
-  review_score_desc?: string | null;
-  current_players?: number | null;
-  tags?: string[] | null;
-  controller_support?: string | null;
-  metacritic_score?: number | null;
-  metacritic_url?: string | null;
-  platforms_windows?: boolean | null;
-  platforms_mac?: boolean | null;
-  platforms_linux?: boolean | null;
-  categories?: string[] | null;
-  has_steam_achievements?: boolean | null;
-  positive_rating_percentage?: number | null;
-}
 
 async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
     for (let i = 0; i < retries; i++) {
@@ -103,29 +65,54 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
 
 async function getLatestChangenumber(): Promise<number> {
     try {
-        const doc = await databases.getDocument(config.appwrite.databaseId!, STATE_COLLECTION_ID, STATE_DOCUMENT_ID);
-        return doc.changenumber;
-    } catch (error: any) {
-        if (error.code === 404) {
-            console.log('Changenumber document not found, will start from scratch.');
-            return 0;
+        const { data, error } = await supabase
+            .from('steam_sync_state')
+            .select('changenumber')
+            .eq('id', STATE_DOCUMENT_ID)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') { // Not found
+                console.log('No previous changenumber found in database. Starting fresh from changenumber 0.');
+                return 0;
+            }
+            throw error;
         }
-        throw error;
+        
+        return data?.changenumber || 0;
+
+    } catch (error) {
+        console.error('Error fetching latest changenumber, defaulting to 0:', error);
+        return 0;
     }
 }
 
 async function saveLatestChangenumber(changenumber: number) {
     try {
-        await databases.updateDocument(config.appwrite.databaseId!, STATE_COLLECTION_ID, STATE_DOCUMENT_ID, { changenumber });
-        console.log(`Successfully saved new changenumber: ${changenumber}`);
-    } catch (error: any) {
-        if (error.code === 404) {
-            console.log('Changenumber document not found, creating a new one.');
-            await databases.createDocument(config.appwrite.databaseId!, STATE_COLLECTION_ID, STATE_DOCUMENT_ID, { changenumber });
-            console.log(`Successfully created and saved new changenumber: ${changenumber}`);
+        const { error: updateError } = await supabase
+            .from('steam_sync_state')
+            .update({ changenumber })
+            .eq('id', STATE_DOCUMENT_ID);
+        
+        if (updateError) {
+            if (updateError.code === 'PGRST116') { // No rows returned
+                console.log('Changenumber document not found, creating a new one.');
+                const { error: insertError } = await supabase
+                    .from('steam_sync_state')
+                    .insert({ id: STATE_DOCUMENT_ID, changenumber });
+                
+                if (insertError) {
+                    throw insertError;
+                }
+                console.log(`Successfully created and saved new changenumber: ${changenumber}`);
+            } else {
+                throw updateError;
+            }
         } else {
-            console.error(`Error saving new changenumber ${changenumber}:`, error);
+            console.log(`Successfully saved new changenumber: ${changenumber}`);
         }
+    } catch (error: unknown) {
+        console.error(`Error saving new changenumber ${changenumber}:`, error);
     }
 }
 
@@ -208,42 +195,6 @@ function formatPicsDataToGameDocument(appId: number, picsData: any): Partial<Gam
     };
 }
 
-interface WebApiData {
-    type: string;
-    name: string;
-    steam_appid: number;
-    short_description: string;
-    header_image: string;
-    release_date: {
-      coming_soon: boolean;
-      date: string;
-    };
-    developers: string[];
-    publishers: string[];
-    price_overview?: {
-      currency: string;
-      initial: number;
-      final: number;
-      discount_percent: number;
-    };
-    metacritic?: {
-        score: number;
-        url: string;
-    };
-    platforms?: {
-        windows: boolean;
-        mac: boolean;
-        linux: boolean;
-    };
-    categories?: { id: number; description: string }[];
-    achievements?: {
-        total: number;
-    };
-    // From other endpoints
-    review_summary?: any;
-    player_count?: number;
-}
-
 async function fetchGameDetailsFromWebAPI(steamAppId: number): Promise<WebApiData | null> {
   const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
   const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
@@ -318,6 +269,21 @@ function mergeApiData(picsData: Partial<GameDocument>, webData: WebApiData | nul
     // Web API sometimes has better metacritic data
     mergedData.metacritic_score = webData.metacritic?.score ?? mergedData.metacritic_score;
     mergedData.metacritic_url = webData.metacritic?.url ?? mergedData.metacritic_url;
+    mergedData.genres = webData.genres ? webData.genres.map(g => g.description) : null;
+
+    // Add all new fields
+    mergedData.detailed_description = webData.detailed_description ?? null;
+    mergedData.about_the_game = webData.about_the_game ?? null;
+    mergedData.website = webData.website ?? null;
+    mergedData.screenshots = webData.screenshots ? webData.screenshots.map(s => s.path_full) : null;
+    mergedData.movies = webData.movies ? webData.movies.map(m => m.mp4.max) : null;
+    mergedData.is_free = webData.is_free ?? false;
+    mergedData.pc_requirements = webData.pc_requirements ?? null;
+    mergedData.mac_requirements = webData.mac_requirements ?? null;
+    mergedData.linux_requirements = webData.linux_requirements ?? null;
+    mergedData.supported_languages = webData.supported_languages ?? null;
+    mergedData.dlc = webData.dlc ?? null;
+    mergedData.required_age = webData.required_age ?? null;
 
     // The positive rating percentage can be calculated more accurately from web data
     if (reviews?.total_reviews && reviews.total_reviews > 0) {
@@ -346,12 +312,31 @@ async function performRefresh() {
         });
     });
 
+    const { count, error: countError } = await supabase.from('games').select('*', { count: 'exact', head: true });
+    if (countError) {
+        console.error("Error counting games in database:", countError);
+        throw new Error("Could not count games in database.");
+    }
+
+    if (count === 0) {
+        console.log("\nThe 'games' table is empty. This script is for finding new and updated games.");
+        console.log("--> Please run the 'steam-sync-service.ts' script first to populate your database with all games from Steam.\n");
+        return; // Exit gracefully
+    }
+
     const lastChangenumber = await getLatestChangenumber();
     console.log(`Last known changenumber is ${lastChangenumber}. Fetching changes...`);
 
     const productChanges = await new Promise<ProductChanges>((resolve, reject) => {
         steamUser.getProductChanges(lastChangenumber, (err, currentChangenumber, appChanges, packageChanges) => {
-            if (err) return reject(err);
+            console.log("DEBUG: getProductChanges callback fired.");
+            if (err) {
+                console.error("DEBUG: Error from getProductChanges:", err);
+                return reject(err);
+            }
+            console.log("DEBUG: currentChangenumber from Steam:", currentChangenumber);
+            console.log("DEBUG: appChanges received from Steam:", appChanges.length);
+            console.log("DEBUG: packageChanges received from Steam:", packageChanges.length);
             resolve({ currentChangenumber, appChanges, packageChanges });
         });
     });
@@ -365,7 +350,7 @@ async function performRefresh() {
 
     console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
 
-    const allAppIdsToProcess = appChanges.map(app => app.appid);
+    const allAppIdsToProcess = appChanges.map((app: { appid: number; change_number: number; needs_token: boolean; }) => app.appid);
 
     if (allAppIdsToProcess.length > 0) {
         // Use a smaller chunk size for database queries to ensure reliability.
@@ -376,12 +361,17 @@ async function performRefresh() {
         for (let i = 0; i < allAppIdsToProcess.length; i += DB_CHUNK_SIZE) {
             const chunk = allAppIdsToProcess.slice(i, i + DB_CHUNK_SIZE);
             try {
-                const response = await databases.listDocuments(
-                    config.appwrite.databaseId!,
-                    config.appwrite.gamesCollectionId!,
-                    [Query.equal('steam_appid', chunk), Query.limit(DB_CHUNK_SIZE)]
-                );
-                response.documents.forEach(doc => gameDocsByAppId.set(doc.steam_appid, doc));
+                const { data: games, error } = await supabase
+                    .from('games')
+                    .select('*')
+                    .in('steam_appid', chunk)
+                    .limit(DB_CHUNK_SIZE);
+                
+                if (error) {
+                    console.error(`Error querying database for chunk starting at index ${i}:`, error);
+                } else {
+                    games?.forEach((doc: any) => gameDocsByAppId.set(doc.steam_appid, doc));
+                }
             } catch (e) {
                 console.error(`Error querying database for chunk starting at index ${i}:`, e);
             }
@@ -420,39 +410,46 @@ async function performRefresh() {
                 try {
                     if (existingDoc) {
                         // --- UPDATE EXISTING GAME ---
-                        await databases.updateDocument(
-                            config.appwrite.databaseId!,
-                            config.appwrite.gamesCollectionId!,
-                            existingDoc.$id,
-                            finalGameData
-                        );
+                        const { error: updateError } = await supabase
+                            .from('games')
+                            .update(finalGameData)
+                            .eq('id', existingDoc.id);
+                        
+                        if (updateError) {
+                            throw updateError;
+                        }
+                        
                         console.log(`(${processedCount}/${appIdsWithData.length}) Successfully updated game: ${finalGameData.name} (${finalGameData.steam_appid})`);
                         totalUpdatedCount++;
                         await incrementStat('updatedGames');
 
                         if (finalGameData.has_steam_achievements) {
                             console.log(`Game ${finalGameData.name} has achievements. Syncing...`);
-                            await syncGameAchievements(existingDoc.$id, appId);
+                            await syncGameAchievements(existingDoc.id, appId);
                         }
                     } else {
                         // --- CREATE NEW GAME ---
-                        const newDoc = await databases.createDocument(
-                            config.appwrite.databaseId!,
-                            config.appwrite.gamesCollectionId!,
-                            ID.unique(),
-                            finalGameData
-                        );
+                        const { data: newDoc, error: createError } = await supabase
+                            .from('games')
+                            .insert(finalGameData)
+                            .select()
+                            .single();
+                        
+                        if (createError) {
+                            throw createError;
+                        }
+                        
                         console.log(`(${processedCount}/${appIdsWithData.length}) Successfully created new game: ${finalGameData.name} (${finalGameData.steam_appid})`);
                         totalCreatedCount++;
                         await incrementStat('createdGames');
 
                         if (finalGameData.has_steam_achievements) {
                             console.log(`Game ${finalGameData.name} has achievements. Syncing...`);
-                            await syncGameAchievements(newDoc.$id, appId);
+                            await syncGameAchievements(newDoc.id, appId);
                         }
                     }
                 } catch (e) {
-                    console.error(`Error processing game ${finalGameData.name} in Appwrite:`, e);
+                    console.error(`Error processing game ${finalGameData.name} in database:`, e);
                 }
             } else {
                 if (existingDoc) {
@@ -460,8 +457,16 @@ async function performRefresh() {
                         last_updated: new Date().toISOString(),
                         steam_app_type: 'invalid',
                     };
-                    await databases.updateDocument(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, existingDoc.$id, updatePayload);
-                    console.log(`(${processedCount}/${appIdsWithData.length}) Marked existing appid ${appId} as invalid as no PICS info was returned.`);
+                    const { error: updateError } = await supabase
+                        .from('games')
+                        .update(updatePayload)
+                        .eq('id', existingDoc.id);
+                    
+                    if (updateError) {
+                        console.error(`Error updating invalid game ${appId}:`, updateError);
+                    } else {
+                        console.log(`(${processedCount}/${appIdsWithData.length}) Marked existing appid ${appId} as invalid as no PICS info was returned.`);
+                    }
                 } else {
                     console.log(`(${processedCount}/${appIdsWithData.length}) Ignored new appid ${appId} as it has no PICS info.`);
                 }
@@ -499,14 +504,36 @@ async function runPicsRefreshService() {
 }
 
 async function incrementStat(key: string, incrementBy: number = 1) {
-    const dbId = config.appwrite.databaseId!;
-    const statsCollectionId = 'statistics';
     try {
-        const existing = await databases.listDocuments(dbId, statsCollectionId, [Query.equal('key', key)]);
-        if (existing.documents.length > 0) {
-            const doc = existing.documents[0];
-            const newCount = doc.count + incrementBy;
-            await databases.updateDocument(dbId, statsCollectionId, doc.$id, { count: newCount });
+        const { data: existing, error: fetchError } = await supabase
+            .from('statistics')
+            .select('id, count')
+            .eq('key', key)
+            .single();
+        
+        if (fetchError) {
+            if (fetchError.code === 'PGRST116') { // No rows returned
+                // Create new stat entry
+                const { error: insertError } = await supabase
+                    .from('statistics')
+                    .insert({ key, count: incrementBy });
+                
+                if (insertError) {
+                    console.error(`Failed to create stat for key: ${key}. Error: ${insertError}`);
+                }
+            } else {
+                console.error(`Failed to fetch stat for key: ${key}. Error: ${fetchError}`);
+            }
+        } else if (existing) {
+            const newCount = existing.count + incrementBy;
+            const { error: updateError } = await supabase
+                .from('statistics')
+                .update({ count: newCount })
+                .eq('id', existing.id);
+            
+            if (updateError) {
+                console.error(`Failed to update stat for key: ${key}. Error: ${updateError}`);
+            }
         }
     } catch (e) {
         console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
@@ -587,33 +614,27 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
         }));
 
         // Delete all old achievements for the game to ensure data is fresh
-        const oldAchievementsToDelete = [];
-        let hasMore = true;
-        let cursor;
-        while (hasMore) {
-            const queries: any[] = [Query.equal('steam_appid', steamAppId), Query.limit(100)];
-            if (cursor) {
-                queries.push(Query.cursorAfter(cursor));
-            }
-            const oldAchievements = await databases.listDocuments(config.appwrite.databaseId!, 'achievements', queries);
-            
-            if (oldAchievements.documents.length > 0) {
-                oldAchievementsToDelete.push(...oldAchievements.documents);
-                cursor = oldAchievements.documents[oldAchievements.documents.length - 1].$id;
-            } else {
-                hasMore = false;
-            }
-        }
+        const { data: oldAchievements, error: fetchError } = await supabase
+            .from('achievements')
+            .select('id')
+            .eq('steam_appid', steamAppId);
         
-        if (oldAchievementsToDelete.length > 0) {
-            console.log(`Deleting ${oldAchievementsToDelete.length} old achievements for appid ${steamAppId}.`);
+        if (fetchError) {
+            console.error(`Error fetching old achievements for appid ${steamAppId}:`, fetchError);
+        } else if (oldAchievements && oldAchievements.length > 0) {
+            console.log(`Deleting ${oldAchievements.length} old achievements for appid ${steamAppId}.`);
             const DELETE_BATCH_SIZE = 50;
-            for (let i = 0; i < oldAchievementsToDelete.length; i += DELETE_BATCH_SIZE) {
-                const batch = oldAchievementsToDelete.slice(i, i + DELETE_BATCH_SIZE);
-                const deletePromises = batch.map(doc =>
-                    databases.deleteDocument(config.appwrite.databaseId!, 'achievements', doc.$id)
-                );
-                await Promise.all(deletePromises);
+            for (let i = 0; i < oldAchievements.length; i += DELETE_BATCH_SIZE) {
+                const batch = oldAchievements.slice(i, i + DELETE_BATCH_SIZE);
+                const batchIds = batch.map(doc => doc.id);
+                const { error: deleteError } = await supabase
+                    .from('achievements')
+                    .delete()
+                    .in('id', batchIds);
+                
+                if (deleteError) {
+                    console.error(`Error deleting achievement batch for appid ${steamAppId}:`, deleteError);
+                }
             }
         }
         
@@ -621,13 +642,13 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
         const CREATE_BATCH_SIZE = 50;
         for (let i = 0; i < achievementsToCreate.length; i += CREATE_BATCH_SIZE) {
             const batch = achievementsToCreate.slice(i, i + CREATE_BATCH_SIZE);
-            const createPromises = batch.map(ach => databases.createDocument(
-                config.appwrite.databaseId!,
-                'achievements',
-                ID.unique(),
-                ach
-            ));
-            await Promise.all(createPromises);
+            const { error: createError } = await supabase
+                .from('achievements')
+                .insert(batch);
+            
+            if (createError) {
+                console.error(`Error creating achievement batch for appid ${steamAppId}:`, createError);
+            }
         }
 
         console.log(`Successfully synced ${achievementsToCreate.length} achievements for appid ${steamAppId}.`);
