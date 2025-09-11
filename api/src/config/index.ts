@@ -19,14 +19,14 @@ interface Config {
     id: number;
     total: number;
   };
-  // supabaseUrl: string | undefined;
-  // supabaseAnonKey: string | undefined;
-  // supabaseServiceRoleKey: string | undefined;
+  supabaseUrl: string | undefined;
+  supabaseAnonKey: string | undefined;
+  supabaseServiceRoleKey: string | undefined;
 }
 
 const config: Config = {
-  port: process.env.PORT ? parseInt(process.env.PORT, 10) : 8080,
-  steamApiKey: process.env.STEAM_API_KEY,
+  port: process.env.PORT ? parseInt(process.env.PORT, 10) : 6543,
+  steamApiKey: process.env.STEAM_API_KEY || process.env.STEAM_API_KEY_0,
   steamApiKeys: [
     process.env.STEAM_API_KEY_0,
     process.env.STEAM_API_KEY_1,
@@ -42,9 +42,9 @@ const config: Config = {
     id: process.env.WORKER_ID ? parseInt(process.env.WORKER_ID, 10) : 0,
     total: process.env.TOTAL_WORKERS ? parseInt(process.env.TOTAL_WORKERS, 10) : 1,
   },
-  // supabaseUrl: process.env.SUPABASE_URL,
-  // supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-  // supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  supabaseUrl: process.env.SUPABASE_URL,
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_KEY,
 };
 
 export default config; 

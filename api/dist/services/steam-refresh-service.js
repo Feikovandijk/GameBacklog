@@ -13,19 +13,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runRefreshService = runRefreshService;
-const node_appwrite_1 = require("node-appwrite");
 const steam_user_1 = __importDefault(require("steam-user"));
 const config_1 = __importDefault(require("../config"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const path_1 = __importDefault(require("path"));
-// Load environment variables from the root .env file
-dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
-const client = new node_appwrite_1.Client();
-client
-    .setEndpoint(config_1.default.appwrite.endpoint)
-    .setProject(config_1.default.appwrite.projectId)
-    .setKey(config_1.default.appwrite.apiKey);
-const databases = new node_appwrite_1.Databases(client);
+const client_1 = require("../supabase/client");
 const steamUser = new steam_user_1.default();
 steamUser.setOptions({
     enablePicsCache: true, // Required for getProductInfo
@@ -157,25 +147,32 @@ function fetchGameDetailsFromSteam(steamAppId) {
         }
     });
 }
-function recordReviewHistory(documentId, totalReviews) {
+function recordReviewHistory(gameId, totalReviews) {
     return __awaiter(this, void 0, void 0, function* () {
         if (typeof totalReviews !== 'number')
             return; // Don't record if no review data
         const historyData = {
-            game_id: documentId,
+            game_id: gameId,
             date: new Date().toISOString(),
             total_reviews: totalReviews,
         };
         try {
-            yield databases.createDocument(config_1.default.appwrite.databaseId, 'review_history', node_appwrite_1.ID.unique(), historyData);
-            console.log(`Successfully recorded review history for document ${documentId}.`);
+            const { error } = yield client_1.supabase
+                .from('review_history')
+                .insert(historyData);
+            if (error) {
+                console.error(`Error recording review history for game ${gameId}:`, error);
+            }
+            else {
+                console.log(`Successfully recorded review history for game ${gameId}.`);
+            }
         }
         catch (error) {
-            console.error(`Error recording review history for document ${documentId}:`, error);
+            console.error(`Error recording review history for game ${gameId}:`, error);
         }
     });
 }
-function updateGameInAppwrite(documentId, steamData, steamAppType) {
+function updateGameInSupabase(gameId, steamData, steamAppType) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2;
         if (steamData && steamAppType === 'game') {
@@ -238,20 +235,27 @@ function updateGameInAppwrite(documentId, steamData, steamAppType) {
                 has_steam_achievements: hasSteamAchievements,
             };
             try {
-                yield databases.updateDocument(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, documentId, gameData);
+                const { error } = yield client_1.supabase
+                    .from('games')
+                    .update(gameData)
+                    .eq('id', gameId);
+                if (error) {
+                    console.error(`Error updating game ${steamData.name} in Supabase:`, error);
+                    return false;
+                }
                 console.log(`Successfully updated game ${steamData.name}`);
                 if (hasSteamAchievements) {
                     console.log(`Game ${steamData.name} has achievements. Syncing...`);
-                    yield syncGameAchievements(documentId, steamData.steam_appid);
+                    yield syncGameAchievements(gameId, steamData.steam_appid);
                 }
                 // After successful update, record the review count for trend analysis
                 if (reviews === null || reviews === void 0 ? void 0 : reviews.total) {
-                    yield recordReviewHistory(documentId, reviews.total);
+                    yield recordReviewHistory(gameId, reviews.total);
                 }
                 return true;
             }
             catch (error) {
-                console.error(`Error updating game ${steamData.name} in Appwrite:`, error);
+                console.error(`Error updating game ${steamData.name} in Supabase:`, error);
                 return false;
             }
         }
@@ -263,12 +267,19 @@ function updateGameInAppwrite(documentId, steamData, steamAppType) {
                 steam_app_type: steamAppType,
             };
             try {
-                yield databases.updateDocument(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, documentId, gameData);
-                console.log(`Marked document ${documentId} as type '${steamAppType}'. It will be skipped in future updates.`);
+                const { error } = yield client_1.supabase
+                    .from('games')
+                    .update(gameData)
+                    .eq('id', gameId);
+                if (error) {
+                    console.error(`Error marking game ${gameId} as '${steamAppType}':`, error);
+                    return false;
+                }
+                console.log(`Marked game ${gameId} as type '${steamAppType}'. It will be skipped in future updates.`);
                 return false; // Return false because it wasn't a "successful game update"
             }
             catch (error) {
-                console.error(`Error marking document ${documentId} as '${steamAppType}':`, error);
+                console.error(`Error marking game ${gameId} as '${steamAppType}':`, error);
                 return false;
             }
         }
@@ -298,24 +309,30 @@ function runRefreshService() {
                 thresholdDate.setDate(thresholdDate.getDate() - UPDATE_INTERVAL_DAYS);
                 console.log(`\n[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Fetching batch of games starting from offset ${currentOffset}...`);
                 // --- Fetch a batch of games that have never been updated ---
-                const neverUpdatedResponse = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, [
-                    node_appwrite_1.Query.isNull('last_updated'),
-                    node_appwrite_1.Query.orderDesc('steam_appid'),
-                    node_appwrite_1.Query.limit(BATCH_SIZE),
-                    node_appwrite_1.Query.offset(currentOffset)
-                ]);
+                const { data: neverUpdatedData, error: neverUpdatedError } = yield client_1.supabase
+                    .from('games')
+                    .select('*')
+                    .is('last_updated', null)
+                    .order('steam_appid', { ascending: false })
+                    .range(currentOffset, currentOffset + BATCH_SIZE - 1);
+                if (neverUpdatedError) {
+                    console.error('Error fetching never updated games:', neverUpdatedError);
+                }
                 // --- Fetch a batch of games that were updated long ago ---
-                const oldGamesFilter = [node_appwrite_1.Query.lessThan('last_updated', thresholdDate.toISOString()), node_appwrite_1.Query.equal('steam_app_type', 'game')];
-                const oldGamesResponse = yield databases.listDocuments(config_1.default.appwrite.databaseId, config_1.default.appwrite.gamesCollectionId, [
-                    ...oldGamesFilter,
-                    node_appwrite_1.Query.orderDesc('steam_appid'),
-                    node_appwrite_1.Query.limit(BATCH_SIZE),
-                    node_appwrite_1.Query.offset(currentOffset)
-                ]);
+                const { data: oldGamesData, error: oldGamesError } = yield client_1.supabase
+                    .from('games')
+                    .select('*')
+                    .lt('last_updated', thresholdDate.toISOString())
+                    .eq('steam_app_type', 'game')
+                    .order('steam_appid', { ascending: false })
+                    .range(currentOffset, currentOffset + BATCH_SIZE - 1);
+                if (oldGamesError) {
+                    console.error('Error fetching old games:', oldGamesError);
+                }
                 // Combine, deduplicate, and get the top N newest games to process
-                const allStaleGames = [...neverUpdatedResponse.documents, ...oldGamesResponse.documents];
+                const allStaleGames = [...(neverUpdatedData || []), ...(oldGamesData || [])];
                 const staleGamesMap = new Map();
-                allStaleGames.forEach(game => staleGamesMap.set(game.$id, game));
+                allStaleGames.forEach(game => staleGamesMap.set(game.id, game));
                 const staleGames = Array.from(staleGamesMap.values())
                     .sort((a, b) => (b.steam_appid || 0) - (a.steam_appid || 0))
                     .slice(0, BATCH_SIZE);
@@ -326,13 +343,13 @@ function runRefreshService() {
                 console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Found ${staleGames.length} games. Starting batch processing...`);
                 for (const [index, game] of staleGames.entries()) {
                     if (!game.steam_appid) {
-                        console.warn(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Game document ${game.$id} has no steam_appid, skipping.`);
+                        console.warn(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Game ${game.id} has no steam_appid, skipping.`);
                         continue;
                     }
                     console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`);
                     const steamResponse = yield fetchGameDetailsFromSteam(game.steam_appid);
                     if (steamResponse.type) {
-                        const success = yield updateGameInAppwrite(game.$id, steamResponse.data, steamResponse.type);
+                        const success = yield updateGameInSupabase(game.id, steamResponse.data, steamResponse.type);
                         if (success) {
                             totalUpdatedCount++;
                             // Increment the stat immediately after a successful update
@@ -361,14 +378,25 @@ function runRefreshService() {
 }
 function incrementStat(key_1) {
     return __awaiter(this, arguments, void 0, function* (key, incrementBy = 1) {
-        const dbId = config_1.default.appwrite.databaseId;
-        const statsCollectionId = 'statistics';
         try {
-            const existing = yield databases.listDocuments(dbId, statsCollectionId, [node_appwrite_1.Query.equal('key', key)]);
-            if (existing.documents.length > 0) {
-                const doc = existing.documents[0];
-                const newCount = doc.count + incrementBy;
-                yield databases.updateDocument(dbId, statsCollectionId, doc.$id, { count: newCount });
+            const { data: existing, error: fetchError } = yield client_1.supabase
+                .from('statistics')
+                .select('*')
+                .eq('key', key)
+                .single();
+            if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
+                console.error(`Error fetching stat for key ${key}:`, fetchError);
+                return;
+            }
+            if (existing) {
+                const newCount = existing.count + incrementBy;
+                const { error: updateError } = yield client_1.supabase
+                    .from('statistics')
+                    .update({ count: newCount })
+                    .eq('key', key);
+                if (updateError) {
+                    console.error(`Error updating stat for key ${key}:`, updateError);
+                }
             }
         }
         catch (e) {
@@ -429,29 +457,26 @@ function syncGameAchievements(documentId, steamAppId) {
                 });
             });
             // Delete all old achievements for the game to ensure data is fresh
-            let hasMore = true;
-            let cursor;
-            while (hasMore) {
-                const queries = [node_appwrite_1.Query.equal('steam_appid', steamAppId), node_appwrite_1.Query.limit(100)];
-                if (cursor) {
-                    queries.push(node_appwrite_1.Query.cursorAfter(cursor));
-                }
-                const oldAchievements = yield databases.listDocuments(config_1.default.appwrite.databaseId, 'achievements', queries);
-                if (oldAchievements.documents.length > 0) {
-                    const deletePromises = oldAchievements.documents.map(doc => databases.deleteDocument(config_1.default.appwrite.databaseId, 'achievements', doc.$id));
-                    yield Promise.all(deletePromises);
-                    cursor = oldAchievements.documents[oldAchievements.documents.length - 1].$id;
-                }
-                else {
-                    hasMore = false;
-                }
+            const { error: deleteError } = yield client_1.supabase
+                .from('achievements')
+                .delete()
+                .eq('steam_appid', steamAppId);
+            if (deleteError) {
+                console.error(`Error deleting old achievements for appid ${steamAppId}:`, deleteError);
+            }
+            else {
+                console.log(`Deleted old achievements for appid ${steamAppId}.`);
             }
             // Create new ones in batches
             const BATCH_SIZE = 50;
             for (let i = 0; i < achievementsToCreate.length; i += BATCH_SIZE) {
                 const batch = achievementsToCreate.slice(i, i + BATCH_SIZE);
-                const createPromises = batch.map(ach => databases.createDocument(config_1.default.appwrite.databaseId, 'achievements', node_appwrite_1.ID.unique(), ach));
-                yield Promise.all(createPromises);
+                const { error: insertError } = yield client_1.supabase
+                    .from('achievements')
+                    .insert(batch);
+                if (insertError) {
+                    console.error(`Error inserting achievement batch for appid ${steamAppId}:`, insertError);
+                }
             }
             console.log(`Successfully synced ${achievementsToCreate.length} achievements for appid ${steamAppId}.`);
         }

@@ -31,18 +31,31 @@ jobs:
       - name: API - Run Build
         run: npm run --prefix api build
 
-      # ----------------- Dashboard Checks -----------------
-      - name: Dashboard - Install Dependencies
+      # ----------------- Developer Dashboard Checks -----------------
+      - name: Developer Dashboard - Install Dependencies
         run: npm install --prefix devdashboard
 
-      - name: Dashboard - Check for Vulnerabilities
+      - name: Developer Dashboard - Check for Vulnerabilities
         run: npm audit --prefix devdashboard --audit-level=high
 
-      - name: Dashboard - Run Linter
+      - name: Developer Dashboard - Run Linter
         run: npm run --prefix devdashboard lint
 
-      - name: Dashboard - Run Build
+      - name: Developer Dashboard - Run Build
         run: npm run --prefix devdashboard build
 
+      # ----------------- Dashboard Checks -----------------
+
+      - name: User Dashboard - Install Dependencies
+        run: npm install --prefix user-dashboard
+
+      - name: User Dashboard - Check for Vulnerabilities
+        run: npm audit --prefix user-dashboard --audit-level=high
+
+      - name: User Dashboard - Run Linter
+        run: npm run --prefix user-dashboard lint
+
+      - name: User Dashboard - Run Build
+        run: npm run --prefix user-dashboard build
 #      - name: Build and Push API Image
 #        uses: docker/build-push-action@v2 

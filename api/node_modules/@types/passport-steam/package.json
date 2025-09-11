@@ -1,0 +1,28 @@
+{
+    "name": "@types/passport-steam",
+    "version": "1.0.6",
+    "description": "TypeScript definitions for passport-steam",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/passport-steam",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Jonas D.",
+            "githubUsername": "nordowl",
+            "url": "https://github.com/nordowl"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/passport-steam"
+    },
+    "scripts": {},
+    "dependencies": {
+        "@types/express": "*",
+        "@types/passport": "*"
+    },
+    "typesPublisherContentHash": "0a0b3be10d6acf92cf9d9b6c458e528497639a8ccfd6c483f95fe2ae2cde2bfb",
+    "typeScriptVersion": "4.8"
+}

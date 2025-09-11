@@ -9,11 +9,10 @@
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "sync-games": "node dist/services/steam-sync-service.js",
-    "refresh-games": "node dist/scripts/steam-refresh-service.js",
+    "refresh-games": "node dist/services/steam-refresh-service.js",
     "refresh-games:pics": "ts-node src/services/steam-pics-refresh-service.ts",
     "enrich-games": "ts-node src/scripts/enrich-all-games.ts",
     "analytics:recalculate": "node dist/scripts/recalculate-analytics.js",
-    "setup-appwrite": "ts-node src/scripts/setup-appwrite.ts",
     "recalculate-stats": "ts-node src/scripts/recalculate-stats.ts",
     "lint": "eslint src/**/*.ts"
   },
@@ -22,10 +21,16 @@
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "@types/express-session": "^1.18.2",
+    "@types/passport": "^1.0.17",
+    "@types/passport-steam": "^1.0.6",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.18.2",
-    "node-appwrite": "^17.0.0",
+    "express-session": "^1.18.1",
+    "node-appwrite": "^19.0.0",
+    "passport": "^0.7.0",
+    "passport-steam": "^1.0.18",
     "steam-user": "^5.2.3"
   },
   "devDependencies": {
