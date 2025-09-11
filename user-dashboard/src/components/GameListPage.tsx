@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Input, Button, Tag, Avatar, Space, Typography, message } from 'antd';
-import { PlusOutlined, EditOutlined, CheckCircleOutlined, MessageOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Input, Button, Avatar, Space, Typography, message } from 'antd';
+import { PlusOutlined, EditOutlined, CheckCircleOutlined, MessageOutlined, FilterOutlined } from '@ant-design/icons';
 import * as api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import EditGameModal from './EditGameModal';
@@ -11,12 +11,12 @@ const { Search } = Input;
 // Using the UserGame from api.ts to avoid redefining
 type UserGame = api.UserGame;
 
-const statusColors: { [key: string]: string } = {
-  'Completed': 'blue',
-  'In Progress': 'green',
-  'To Play': 'purple',
-  'On Hold': 'red',
-};
+// const statusColors: { [key: string]: string } = {
+//   'Completed': 'blue',
+//   'In Progress': 'green',
+//   'To Play': 'purple',
+//   'On Hold': 'red',
+// };
 
 const GameListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -44,7 +44,7 @@ const GameListPage: React.FC = () => {
     fetchGames();
   }, []);
 
-  const handleTableChange = (pagination: any) => {
+  const handleTableChange = (pagination: { current?: number; pageSize?: number }) => {
     fetchGames(pagination.current, pagination.pageSize);
   };
 
@@ -108,7 +108,7 @@ const GameListPage: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      render: (text: any, record: UserGame) => (
+      render: (_text: string, record: UserGame) => (
         <Space size="middle">
           <a onClick={() => handleEdit(record)}><EditOutlined /></a>
           <a><CheckCircleOutlined /></a>

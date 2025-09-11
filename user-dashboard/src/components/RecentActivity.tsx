@@ -20,7 +20,7 @@ const iconMap: { [key: string]: React.ReactNode } = {
     'game.note_added': <FormOutlined style={{color: 'orange'}} />,
 };
 
-const textMap: { [key: string]: (metadata: any) => string } = {
+const textMap: { [key: string]: (metadata: { gameName?: string }) => string } = {
     'game.completed': (metadata) => `Completed "${metadata.gameName}"`,
     'game.added': (metadata) => `Added "${metadata.gameName}" to backlog`,
     'game.started': (metadata) => `Started "${metadata.gameName}"`,

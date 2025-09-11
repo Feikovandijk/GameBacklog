@@ -31,13 +31,13 @@ const CurrentlyPlaying: React.FC = () => {
     fetchCurrentlyPlaying();
   }, []);
 
-  const handleContinueResearch = (_game: UserGame) => {
+  const handleContinueResearch = (_userGame: UserGame) => {
     // Navigate to game detail page (to be implemented)
     // For now, navigate to edit or games list
     navigate('/games');
   };
 
-  const handleViewDetails = (_game: UserGame) => {
+  const handleViewDetails = (_userGame: UserGame) => {
     // Navigate to game detail page (to be implemented)
     navigate('/games');
   };

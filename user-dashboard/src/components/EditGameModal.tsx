@@ -1,15 +1,14 @@
 import React from 'react';
-import { Modal, Form, Input, Select, Row, Col, Typography, Upload, Button } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Select, Row, Col, Typography, Button } from 'antd';
 import type { UserGame } from '../services/api';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Option } = Select;
 
 interface EditGameModalProps {
   open: boolean;
   onCancel: () => void;
-  onOk: (values: any) => void;
+  onOk: (values: Partial<UserGame>) => void;
   onDelete: () => void;
   game: UserGame | null;
 }

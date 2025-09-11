@@ -70,6 +70,7 @@ app.use(passport.session());
 
 // Extend Express Request interface to include user
 declare global {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
     namespace Express {
         interface User {
             $id: string;
@@ -422,20 +423,16 @@ app.get('/api/user/games', requireAuth, async (req: Request, res: Response): Pro
     const gamesCollectionId = config.appwrite.gamesCollectionId!;
 
     // Get query parameters for filtering
-    const { status, priority, search, limit = 20, offset = 0 } = req.query;
+    const { status, priority, limit = 20, offset = 0 } = req.query;
 
-    let queries = [Query.equal('user_id', userId)];
-    
-    if (status) {
-      queries.push(Query.equal('status', status as string));
-    }
-    if (priority) {
-      queries.push(Query.equal('priority', parseInt(priority as string)));
-    }
-    
-    queries.push(Query.limit(parseInt(limit as string)));
-    queries.push(Query.offset(parseInt(offset as string)));
-    queries.push(Query.orderDesc('updated_at'));
+    const queries = [
+      Query.equal('user_id', userId),
+      ...(status ? [Query.equal('status', status as string)] : []),
+      ...(priority ? [Query.equal('priority', parseInt(priority as string))] : []),
+      Query.limit(parseInt(limit as string)),
+      Query.offset(parseInt(offset as string)),
+      Query.orderDesc('updated_at')
+    ];
 
     const userGamesResponse = await appwriteDatabases.listDocuments(
       databaseId,
@@ -496,7 +493,7 @@ app.get('/api/user/games/recently-played', requireAuth, async (req: Request, res
                 try {
                     const gameDoc = await appwriteDatabases.getDocument(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, userGame.game_id);
                     return { ...userGame, game: gameDoc };
-                } catch (e) {
+                } catch {
                      return { ...userGame, game: null }; // Game details not found
                 }
             }

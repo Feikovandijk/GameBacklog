@@ -108,7 +108,7 @@ const SteamTopSellers: React.FC = () => {
     }
   };
 
-  const formatPrice = (price: number, _currency: string) => {
+  const formatPrice = (price: number) => {
     if (price === 0) return 'Free';
     return `$${(price / 100).toFixed(2)}`;
   };
@@ -192,7 +192,7 @@ const SteamTopSellers: React.FC = () => {
                       {game.genres.slice(0, 2).join(', ')}
                     </Text>
                     <Text strong style={{ fontSize: '14px', color: '#52c41a' }}>
-                      {formatPrice(game.price_final, game.price_currency)}
+                      {formatPrice(game.price_final)}
                     </Text>
                   </div>
                 }

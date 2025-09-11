@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { List, Avatar, Typography, Spin, Card, Row, Col } from 'antd';
+import { List, Avatar, Spin, Card } from 'antd';
 import { userGamesAPI } from '../services/api';
 import type { UserGame } from '../services/api';
 
-const { Text } = Typography;
+// const { Text } = Typography;
 
 const RecentlyPlayed: React.FC = () => {
     const [loading, setLoading] = useState(true);

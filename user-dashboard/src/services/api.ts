@@ -100,6 +100,14 @@ export interface RecentAchievement {
     game: Game;
 }
 
+export interface UserActivity {
+  $id: string;
+  user_id: string;
+  type: string;
+  timestamp: string;
+  metadata_json: string;
+}
+
 // Authentication
 export const authAPI = {
   getCurrentUser: () => api.get<User>('/auth/me'),
@@ -129,7 +137,7 @@ export const userGamesAPI = {
   
   getRecentAchievements: () => api.get<RecentAchievement[]>('/api/user/achievements/recent'),
 
-  getActivity: () => api.get<any[]>('/api/user/activity'),
+  getActivity: () => api.get<UserActivity[]>('/api/user/activity'),
 
   getRecentlyPlayed: (limit = 5) => 
     api.get<UserGame[]>(`/api/user/games/recently-played?limit=${limit}`),

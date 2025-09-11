@@ -18,7 +18,7 @@ const App = () => {
       try {
         const currentUser = await authAPI.getCurrentUser();
         setUser(currentUser.data);
-      } catch (error) {
+      } catch {
         console.log('No user logged in');
       } finally {
         setLoading(false);
