@@ -31,12 +31,14 @@ const CurrentlyPlaying: React.FC = () => {
     fetchCurrentlyPlaying();
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleContinueResearch = (_userGame: UserGame) => {
     // Navigate to game detail page (to be implemented)
     // For now, navigate to edit or games list
     navigate('/games');
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleViewDetails = (_userGame: UserGame) => {
     // Navigate to game detail page (to be implemented)
     navigate('/games');
