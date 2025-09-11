@@ -22,8 +22,30 @@ const user_steam_sync_service_1 = require("./services/user-steam-sync-service");
 const app = (0, express_1.default)();
 app.set('trust proxy', 1);
 const port = config_1.default.port;
+// CORS Configuration
+// SECURITY NOTE: The CORS configuration allows requests from http://localhost:5173 and http://localhost:5174.
+// Ensure that process.env.FRONTEND_URL is properly validated and sanitized to prevent potential CORS vulnerabilities in production.
+// Using a wildcard (*) is not recommended for origin as it can expose the application to security risks.
+// 
+// Best practices for production:
+// 1. Always validate and sanitize FRONTEND_URL environment variable
+// 2. Use HTTPS URLs in production (never HTTP)
+// 3. Avoid wildcard origins (*) - they can expose your API to any website
+// 4. Consider using a whitelist of specific domains
+// 5. Regularly audit allowed origins for security compliance
+//
+// Example of proper FRONTEND_URL validation:
+// const isValidUrl = (url: string): boolean => {
+//     try {
+//         const parsed = new URL(url);
+//         return parsed.protocol === 'https:' && parsed.hostname !== 'localhost';
+//     } catch {
+//         return false;
+//     }
+// };
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
 if (process.env.FRONTEND_URL) {
+    // TODO: Add proper URL validation and sanitization for production
     allowedOrigins.push(process.env.FRONTEND_URL);
 }
 app.use((0, cors_1.default)({

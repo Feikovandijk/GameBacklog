@@ -26,7 +26,7 @@ GameBacklog/
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone <repository-url>
+   git clone 
    cd GameBacklog
    npm install
    cd api && npm install && cd ..
@@ -42,7 +42,7 @@ GameBacklog/
    
    Required variables:
    ```env
-   # Steam API Configuration
+   # Steam API Configuration, feel free to add multiple keys here
    STEAM_API_KEY=your_steam_api_key_here
    STEAM_API_KEY_0=your_steam_api_key_here
    STEAM_API_KEY_1=backup_steam_api_key_here
