@@ -43,7 +43,6 @@ GameBacklog/
    Required variables:
    ```env
    # Steam API Configuration, feel free to add multiple keys here
-   STEAM_API_KEY=your_steam_api_key_here
    STEAM_API_KEY_0=your_steam_api_key_here
    STEAM_API_KEY_1=backup_steam_api_key_here
    
@@ -57,7 +56,6 @@ GameBacklog/
    ```
 
 3. **Set up Supabase database:**
-   - Run the SQL schema script in your Supabase SQL Editor
    - See `api/database-schema.sql` for the complete setup
 
 ## 🛠️ Development
@@ -93,9 +91,13 @@ npm run build       # Build for production
 - `npm run dev` - Development server with hot reload
 - `npm run build` - Compile TypeScript to JavaScript
 - `npm start` - Start production server
-- `npm run sync-games` - Initial Steam games sync (one-time)
-- `npm run refresh-games` - Enrich game data from Steam
-- `npm run recalculate-stats` - Recalculate dashboard statistics
+- `npm run sync:games` - Initial Steam games sync (one-time)
+- `npm run sync:games:pics` - Refresh header images for all games
+- `npm run sync:players` - Sync current player count for all games
+- `npm run sync:enrich` - Enrich game data with additional information from the Steam API
+- `npm run refresh:games` - Enrich game data from Steam
+- `npm run recalculate:stats` - Recalculate dashboard statistics
+- `npm run recalculate:analytics` - Recalculate analytics data
 
 #### User Dashboard Scripts (`user-dashboard/`)
 - `npm run dev` - Development server (http://localhost:5173)
@@ -131,18 +133,17 @@ npm run build       # Build for production
 ```bash
 cd api
 npm run build
-npm run sync-games    # Initial Steam games sync
+npm run sync:games    # Initial Steam games sync
 ```
 
 #### Continuous Data Enrichment
 ```bash
 # Single worker
-npm run refresh-games
+npm run refresh:games
 
 # Multiple workers (faster processing)
-WORKER_ID=0 TOTAL_WORKERS=3 npm run refresh-games &
-WORKER_ID=1 TOTAL_WORKERS=3 npm run refresh-games &
-WORKER_ID=2 TOTAL_WORKERS=3 npm run refresh-games &
+WORKER_ID=0 TOTAL_WORKERS=2 npm run refresh:games &
+WORKER_ID=1 TOTAL_WORKERS=2 npm run refresh:games &
 ```
 
 ## 🚀 Production Deployment

@@ -16,7 +16,23 @@ Starts the API server from the compiled JavaScript files in the `dist/` director
 
 Compiles the TypeScript source code from `src/` into JavaScript in the `dist/` directory.
 
-### `npm run refresh-games`
+### `npm run sync:games`
+
+This script performs an initial sync of games from your Steam library into the database. It should typically only be run once during the initial setup.
+
+### `npm run sync:games:pics`
+
+This script refreshes the header images for all games.
+
+### `npm run sync:players`
+
+This script syncs the current player count for all games.
+
+### `npm run sync:enrich`
+
+This script enriches the game data with additional information from the Steam API.
+
+### `npm run refresh:games`
 
 This is the most important service for keeping the game database up-to-date. It runs a worker process that fetches the latest game information from Steam.
 
@@ -43,11 +59,7 @@ For example, to run **2 workers** on two different machines:
     ```bash
     WORKER_ID=1 TOTAL_WORKERS=2 npm run refresh-games --prefix api
     ```
-
-### `npm run sync-games`
-
-This script performs an initial sync of games from your Steam library into the database. It should typically only be run once during the initial setup.
-
+    
 ### `npm run setup-db`
 
 Executes a script to set up the necessary collections and indexes in your Appwrite database. This is a one-time setup command.

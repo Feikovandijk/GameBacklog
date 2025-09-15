@@ -63,13 +63,11 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
 async function fetchGameDetailsFromWebAPI(steamAppId: number): Promise<WebApiData | null> {
   const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
   const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
-  const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
 
   try {
-    const [appDetailsResponse, reviewResponse, playersResponse] = await Promise.all([
+    const [appDetailsResponse, reviewResponse] = await Promise.all([
       fetchWithRetry(appDetailsUrl),
       fetchWithRetry(reviewUrl),
-      fetchWithRetry(playersUrl),
     ]);
     
     if (!appDetailsResponse.ok) return null;
@@ -81,10 +79,6 @@ async function fetchGameDetailsFromWebAPI(steamAppId: number): Promise<WebApiDat
     if (reviewResponse.ok) {
         const reviewJson = await reviewResponse.json();
         if (reviewJson.success) gameData.review_summary = reviewJson.query_summary;
-    }
-    if (playersResponse.ok) {
-        const playersJson = await playersResponse.json();
-        if (playersJson.response?.result === 1) gameData.player_count = playersJson.response.player_count;
     }
     return gameData;
   } catch (error) {
@@ -140,7 +134,6 @@ function mergeApiData(picsData: Partial<GameDocument>, webData: WebApiData | nul
     mergedData.total_positive = reviews?.total_positive ?? null;
     mergedData.total_negative = reviews?.total_negative ?? null;
     mergedData.review_score_desc = reviews?.review_score_desc ?? null;
-    mergedData.current_players = webData.player_count ?? null;
     mergedData.metacritic_score = webData.metacritic?.score ?? mergedData.metacritic_score;
     mergedData.metacritic_url = webData.metacritic?.url ?? mergedData.metacritic_url;
     mergedData.genres = webData.genres ? webData.genres.map(g => g.description) : null;
