@@ -4,6 +4,11 @@ import path from 'path';
 // Load environment variables from the root .env file
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
+// --- DEBUG: Check if .env variables are loaded ---
+console.log('SUPABASE_URL is defined:', !!process.env.SUPABASE_URL);
+console.log('SUPABASE_SERVICE_KEY is defined:', !!process.env.SUPABASE_SERVICE_KEY);
+// --- END DEBUG ---
+
 interface Config {
   port: number;
   steamApiKey: string | undefined;

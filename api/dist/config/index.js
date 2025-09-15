@@ -7,6 +7,9 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 // Load environment variables from the root .env file
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
+// --- DEBUG: Check if .env variables are loaded ---
+console.log('SUPABASE_URL is defined:', !!process.env.SUPABASE_URL);
+console.log('SUPABASE_SERVICE_KEY is defined:', !!process.env.SUPABASE_SERVICE_KEY);
 const config = {
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : 6543,
     steamApiKey: process.env.STEAM_API_KEY || process.env.STEAM_API_KEY_0,
