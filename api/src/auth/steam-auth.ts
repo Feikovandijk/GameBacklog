@@ -3,29 +3,11 @@ import { Strategy as SteamStrategy } from 'passport-steam';
 import config from '../config';
 import { supabase } from '../supabase/client';
 import { syncUserWithSteam } from '../services/user-steam-sync-service';
+import { User } from '../types/steam.types';
 
 // Supabase client is imported from ../supabase/client
 
 // SteamProfile interface removed as it's not currently used
-
-interface User {
-    id: string;
-    steam_id: string;
-    display_name: string;
-    avatar_url: string;
-    profile_url: string;
-    real_name?: string;
-    country_code?: string;
-    is_public_profile: boolean;
-    auto_import_steam_games: boolean;
-    sync_steam_playtime: boolean;
-    default_game_status: string;
-    theme: string;
-    default_view: string;
-    created_at: string;
-    last_steam_sync?: string;
-    last_active?: string;
-}
 
 // Add a final check right before the strategy is configured
 console.log(`--- STEAM AUTH DEBUG ---`);
@@ -115,6 +97,17 @@ async function createOrUpdateUser(profile: any): Promise<User> {
             }
             
             console.log('Updated existing user:', updatedUser.id);
+
+            // Check if sync is due for existing user
+            const now = new Date();
+            const lastSync = updatedUser.last_steam_sync ? new Date(updatedUser.last_steam_sync) : null;
+            const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+
+            if (updatedUser.auto_import_steam_games && (!lastSync || lastSync < twentyFourHoursAgo)) {
+                console.log(`Auto-import enabled and sync due for ${updatedUser.display_name}. Starting sync in background.`);
+                syncUserWithSteam(updatedUser as unknown as User); // Fire-and-forget
+            }
+
             return updatedUser as User;
         } else {
             // Create new user

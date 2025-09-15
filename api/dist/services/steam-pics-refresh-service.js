@@ -320,9 +320,18 @@ function performRefresh() {
             });
         });
         const { currentChangenumber, appChanges } = productChanges;
+        // If the changenumber from Steam hasn't advanced, there's nothing to do.
+        if (currentChangenumber <= lastChangenumber) {
+            console.log(`Steam changenumber (${currentChangenumber}) has not advanced past local changenumber (${lastChangenumber}). No changes to fetch.`);
+            return;
+        }
+        // If there are no app changes, but the number has advanced (e.g., package updates),
+        // save the new changenumber to avoid getting stuck and exit.
         if (appChanges.length === 0) {
-            console.log("No new changes from Steam. Exiting.");
-            return; // Exit gracefully
+            console.log(`No new app changes from Steam, but changenumber has updated from ${lastChangenumber} to ${currentChangenumber}.`);
+            yield saveLatestChangenumber(currentChangenumber);
+            console.log("Database changenumber updated. Exiting.");
+            return;
         }
         console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
         const allAppIdsToProcess = appChanges.map((app) => app.appid);

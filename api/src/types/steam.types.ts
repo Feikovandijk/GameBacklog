@@ -73,3 +73,64 @@ export interface WebApiData {
     platforms?: { windows: boolean; mac: boolean; linux: boolean; };
     achievements?: { total: number; };
 }
+
+export interface OwnedGame {
+    appid: number;
+    name: string;
+    playtime_forever: number;
+    playtime_2weeks?: number;
+    img_icon_url: string;
+    img_logo_url: string;
+}
+
+export interface PlayerAchievement {
+    apiname: string;
+    achieved: number; // 1 for unlocked, 0 for locked
+    unlocktime: number; // Unix timestamp
+}
+
+export interface GameStats {
+    name: string;
+    value: number;
+}
+
+export interface Achievement {
+    name: string; // This is the API name
+    displayName: string;
+    description: string;
+    hidden: boolean;
+    icon: string;
+    icongray: string;
+    percent?: number; // from the global stats endpoint
+}
+
+export interface AchievementDocument {
+    game_id: string; // FK to games collection document $id
+    steam_appid: number;
+    api_name: string;
+    display_name: string;
+    description?: string | null;
+    icon?: string | null;
+    icon_gray?: string | null;
+    hidden?: boolean | null;
+    global_percentage?: number | null;
+}
+
+export interface User {
+    id: string;
+    steam_id: string;
+    display_name: string;
+    avatar_url: string;
+    profile_url: string;
+    real_name?: string;
+    country_code?: string;
+    is_public_profile: boolean;
+    auto_import_steam_games: boolean;
+    sync_steam_playtime: boolean;
+    default_game_status: string;
+    theme: string;
+    default_view: string;
+    created_at: string;
+    last_steam_sync?: string;
+    last_active?: string;
+}
