@@ -58,12 +58,10 @@ function fetchGameDetailsFromSteam(steamAppId) {
     return __awaiter(this, void 0, void 0, function* () {
         const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
         const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
-        const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
         try {
-            const [appDetailsResponse, reviewResponse, playersResponse] = yield Promise.all([
+            const [appDetailsResponse, reviewResponse] = yield Promise.all([
                 fetchWithRetry(appDetailsUrl),
                 fetchWithRetry(reviewUrl),
-                fetchWithRetry(playersUrl),
             ]);
             if (!appDetailsResponse.ok) {
                 console.error(`Steam API request failed for appid ${steamAppId}: ${appDetailsResponse.status} ${appDetailsResponse.statusText}`);
@@ -86,12 +84,6 @@ function fetchGameDetailsFromSteam(steamAppId) {
                 const reviewJson = yield reviewResponse.json();
                 if (reviewJson.success) {
                     gameData.review_summary = reviewJson.query_summary;
-                }
-            }
-            if (playersResponse.ok) {
-                const playersJson = yield playersResponse.json();
-                if (playersJson.response && playersJson.response.result === 1) {
-                    gameData.player_count = playersJson.response.player_count;
                 }
             }
             return gameData;
@@ -129,7 +121,7 @@ function recordReviewHistory(gameId, totalReviews) {
 }
 function updateGameInSupabase(gameId, steamData) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7;
         if (steamData) {
             // This is a valid game, do a full update
             const isEarlyAccess = (_b = (_a = steamData.genres) === null || _a === void 0 ? void 0 : _a.some((genre) => genre.description === "Early Access")) !== null && _b !== void 0 ? _b : false;
@@ -177,19 +169,18 @@ function updateGameInSupabase(gameId, steamData) {
                 total_negative: (_q = reviews === null || reviews === void 0 ? void 0 : reviews.total_negative) !== null && _q !== void 0 ? _q : null,
                 positive_rating_percentage: (reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) && (reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) > 0 ? Math.round((reviews.total_positive / reviews.total_reviews) * 100) : null,
                 review_score_desc: (_r = reviews === null || reviews === void 0 ? void 0 : reviews.review_score_desc) !== null && _r !== void 0 ? _r : null,
-                current_players: (_s = steamData.player_count) !== null && _s !== void 0 ? _s : null,
                 genres: genres,
-                metacritic_score: (_u = (_t = steamData.metacritic) === null || _t === void 0 ? void 0 : _t.score) !== null && _u !== void 0 ? _u : null,
-                metacritic_url: (_w = (_v = steamData.metacritic) === null || _v === void 0 ? void 0 : _v.url) !== null && _w !== void 0 ? _w : null,
-                platforms_windows: (_y = (_x = steamData.platforms) === null || _x === void 0 ? void 0 : _x.windows) !== null && _y !== void 0 ? _y : null,
-                platforms_mac: (_0 = (_z = steamData.platforms) === null || _z === void 0 ? void 0 : _z.mac) !== null && _0 !== void 0 ? _0 : null,
-                platforms_linux: (_2 = (_1 = steamData.platforms) === null || _1 === void 0 ? void 0 : _1.linux) !== null && _2 !== void 0 ? _2 : null,
-                pc_requirements: (_3 = steamData.pc_requirements) !== null && _3 !== void 0 ? _3 : null,
-                mac_requirements: (_4 = steamData.mac_requirements) !== null && _4 !== void 0 ? _4 : null,
-                linux_requirements: (_5 = steamData.linux_requirements) !== null && _5 !== void 0 ? _5 : null,
-                supported_languages: (_6 = steamData.supported_languages) !== null && _6 !== void 0 ? _6 : null,
-                dlc: (_7 = steamData.dlc) !== null && _7 !== void 0 ? _7 : null,
-                required_age: (_8 = steamData.required_age) !== null && _8 !== void 0 ? _8 : null,
+                metacritic_score: (_t = (_s = steamData.metacritic) === null || _s === void 0 ? void 0 : _s.score) !== null && _t !== void 0 ? _t : null,
+                metacritic_url: (_v = (_u = steamData.metacritic) === null || _u === void 0 ? void 0 : _u.url) !== null && _v !== void 0 ? _v : null,
+                platforms_windows: (_x = (_w = steamData.platforms) === null || _w === void 0 ? void 0 : _w.windows) !== null && _x !== void 0 ? _x : null,
+                platforms_mac: (_z = (_y = steamData.platforms) === null || _y === void 0 ? void 0 : _y.mac) !== null && _z !== void 0 ? _z : null,
+                platforms_linux: (_1 = (_0 = steamData.platforms) === null || _0 === void 0 ? void 0 : _0.linux) !== null && _1 !== void 0 ? _1 : null,
+                pc_requirements: (_2 = steamData.pc_requirements) !== null && _2 !== void 0 ? _2 : null,
+                mac_requirements: (_3 = steamData.mac_requirements) !== null && _3 !== void 0 ? _3 : null,
+                linux_requirements: (_4 = steamData.linux_requirements) !== null && _4 !== void 0 ? _4 : null,
+                supported_languages: (_5 = steamData.supported_languages) !== null && _5 !== void 0 ? _5 : null,
+                dlc: (_6 = steamData.dlc) !== null && _6 !== void 0 ? _6 : null,
+                required_age: (_7 = steamData.required_age) !== null && _7 !== void 0 ? _7 : null,
                 categories: categories.length > 0 ? categories : null,
                 has_steam_achievements: hasSteamAchievements,
             };
@@ -361,7 +352,8 @@ function incrementStat(key_1) {
             }
         }
         catch (e) {
-            console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
+            console.error(`
+Failed to increment stat for key: ${key}. Error: ${e}`);
         }
     });
 }

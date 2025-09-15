@@ -68,15 +68,12 @@ function fetchWithRetry(url_1) {
 }
 function fetchGameDetailsFromWebAPI(steamAppId) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
         const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
-        const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
         try {
-            const [appDetailsResponse, reviewResponse, playersResponse] = yield Promise.all([
+            const [appDetailsResponse, reviewResponse] = yield Promise.all([
                 fetchWithRetry(appDetailsUrl),
                 fetchWithRetry(reviewUrl),
-                fetchWithRetry(playersUrl),
             ]);
             if (!appDetailsResponse.ok)
                 return null;
@@ -89,11 +86,6 @@ function fetchGameDetailsFromWebAPI(steamAppId) {
                 const reviewJson = yield reviewResponse.json();
                 if (reviewJson.success)
                     gameData.review_summary = reviewJson.query_summary;
-            }
-            if (playersResponse.ok) {
-                const playersJson = yield playersResponse.json();
-                if (((_a = playersJson.response) === null || _a === void 0 ? void 0 : _a.result) === 1)
-                    gameData.player_count = playersJson.response.player_count;
             }
             return gameData;
         }
@@ -137,7 +129,7 @@ function formatPicsDataToGameDocument(appId, picsData) {
     };
 }
 function mergeApiData(picsData, webData) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
     const mergedData = Object.assign({}, picsData);
     if (!webData)
         return mergedData;
@@ -152,23 +144,22 @@ function mergeApiData(picsData, webData) {
     mergedData.total_positive = (_g = reviews === null || reviews === void 0 ? void 0 : reviews.total_positive) !== null && _g !== void 0 ? _g : null;
     mergedData.total_negative = (_h = reviews === null || reviews === void 0 ? void 0 : reviews.total_negative) !== null && _h !== void 0 ? _h : null;
     mergedData.review_score_desc = (_j = reviews === null || reviews === void 0 ? void 0 : reviews.review_score_desc) !== null && _j !== void 0 ? _j : null;
-    mergedData.current_players = (_k = webData.player_count) !== null && _k !== void 0 ? _k : null;
-    mergedData.metacritic_score = (_m = (_l = webData.metacritic) === null || _l === void 0 ? void 0 : _l.score) !== null && _m !== void 0 ? _m : mergedData.metacritic_score;
-    mergedData.metacritic_url = (_p = (_o = webData.metacritic) === null || _o === void 0 ? void 0 : _o.url) !== null && _p !== void 0 ? _p : mergedData.metacritic_url;
+    mergedData.metacritic_score = (_l = (_k = webData.metacritic) === null || _k === void 0 ? void 0 : _k.score) !== null && _l !== void 0 ? _l : mergedData.metacritic_score;
+    mergedData.metacritic_url = (_o = (_m = webData.metacritic) === null || _m === void 0 ? void 0 : _m.url) !== null && _o !== void 0 ? _o : mergedData.metacritic_url;
     mergedData.genres = webData.genres ? webData.genres.map(g => g.description) : null;
     // Add all new fields
-    mergedData.detailed_description = (_q = webData.detailed_description) !== null && _q !== void 0 ? _q : null;
-    mergedData.about_the_game = (_r = webData.about_the_game) !== null && _r !== void 0 ? _r : null;
-    mergedData.website = (_s = webData.website) !== null && _s !== void 0 ? _s : null;
+    mergedData.detailed_description = (_p = webData.detailed_description) !== null && _p !== void 0 ? _p : null;
+    mergedData.about_the_game = (_q = webData.about_the_game) !== null && _q !== void 0 ? _q : null;
+    mergedData.website = (_r = webData.website) !== null && _r !== void 0 ? _r : null;
     mergedData.screenshots = webData.screenshots ? webData.screenshots.map(s => s.path_full) : null;
     mergedData.movies = webData.movies ? webData.movies.map(m => m.mp4.max) : null;
-    mergedData.is_free = (_t = webData.is_free) !== null && _t !== void 0 ? _t : false;
-    mergedData.pc_requirements = (_u = webData.pc_requirements) !== null && _u !== void 0 ? _u : null;
-    mergedData.mac_requirements = (_v = webData.mac_requirements) !== null && _v !== void 0 ? _v : null;
-    mergedData.linux_requirements = (_w = webData.linux_requirements) !== null && _w !== void 0 ? _w : null;
-    mergedData.supported_languages = (_x = webData.supported_languages) !== null && _x !== void 0 ? _x : null;
-    mergedData.dlc = (_y = webData.dlc) !== null && _y !== void 0 ? _y : null;
-    mergedData.required_age = (_z = webData.required_age) !== null && _z !== void 0 ? _z : null;
+    mergedData.is_free = (_s = webData.is_free) !== null && _s !== void 0 ? _s : false;
+    mergedData.pc_requirements = (_t = webData.pc_requirements) !== null && _t !== void 0 ? _t : null;
+    mergedData.mac_requirements = (_u = webData.mac_requirements) !== null && _u !== void 0 ? _u : null;
+    mergedData.linux_requirements = (_v = webData.linux_requirements) !== null && _v !== void 0 ? _v : null;
+    mergedData.supported_languages = (_w = webData.supported_languages) !== null && _w !== void 0 ? _w : null;
+    mergedData.dlc = (_x = webData.dlc) !== null && _x !== void 0 ? _x : null;
+    mergedData.required_age = (_y = webData.required_age) !== null && _y !== void 0 ? _y : null;
     if ((reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) > 0) {
         mergedData.positive_rating_percentage = Math.round((reviews.total_positive / reviews.total_reviews) * 100);
     }

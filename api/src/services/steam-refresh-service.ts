@@ -46,13 +46,11 @@ async function fetchWithRetry(url: string, retries: number = 3, backoff: number 
 async function fetchGameDetailsFromSteam(steamAppId: number): Promise<WebApiData | null> {
   const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
   const reviewUrl = `${REVIEW_API_BASE_URL}/${steamAppId}?json=1&purchase_type=all`;
-  const playersUrl = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${steamAppId}`;
 
   try {
-    const [appDetailsResponse, reviewResponse, playersResponse] = await Promise.all([
+    const [appDetailsResponse, reviewResponse] = await Promise.all([
       fetchWithRetry(appDetailsUrl),
       fetchWithRetry(reviewUrl),
-      fetchWithRetry(playersUrl),
     ]);
 
     if (!appDetailsResponse.ok) {
@@ -86,12 +84,7 @@ async function fetchGameDetailsFromSteam(steamAppId: number): Promise<WebApiData
         }
     }
 
-    if (playersResponse.ok) {
-        const playersJson = await playersResponse.json();
-        if (playersJson.response && playersJson.response.result === 1) {
-            gameData.player_count = playersJson.response.player_count;
-        }
-    }
+    
 
     return gameData;
 
@@ -177,7 +170,6 @@ async function updateGameInSupabase(gameId: string, steamData: WebApiData | null
             total_negative: reviews?.total_negative ?? null,
             positive_rating_percentage: reviews?.total_reviews && reviews?.total_reviews > 0 ? Math.round((reviews.total_positive / reviews.total_reviews) * 100) : null,
             review_score_desc: reviews?.review_score_desc ?? null,
-            current_players: steamData.player_count ?? null,
             genres: genres,
             metacritic_score: steamData.metacritic?.score ?? null,
             metacritic_url: steamData.metacritic?.url ?? null,
@@ -388,7 +380,8 @@ async function incrementStat(key: string, incrementBy: number = 1) {
             }
         }
     } catch (e) {
-        console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
+        console.error(`
+Failed to increment stat for key: ${key}. Error: ${e}`);
     }
 }
 

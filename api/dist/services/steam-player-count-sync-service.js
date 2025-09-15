@@ -102,8 +102,9 @@ function runPlayerCountSync() {
             thresholdDate.setHours(thresholdDate.getHours() - UPDATE_INTERVAL_HOURS);
             const { data: games, error } = yield client_1.supabase
                 .from('games')
-                .select('id, steam_appid, name, player_count_last_updated')
+                .select('id, steam_appid, name, player_count_last_updated, player_count_zero_sync_streak')
                 .or(`player_count_last_updated.is.null,player_count_last_updated.lt.${thresholdDate.toISOString()}`)
+                .lt('player_count_zero_sync_streak', 2)
                 .eq('steam_app_type', 'game')
                 .order('steam_appid', { ascending: true })
                 .range(offset, offset + BATCH_SIZE - 1);
@@ -121,11 +122,14 @@ function runPlayerCountSync() {
                     continue;
                 const playerCount = yield getPlayerCount(game.steam_appid);
                 if (playerCount !== null) {
+                    const currentStreak = game.player_count_zero_sync_streak || 0;
+                    const newStreak = playerCount === 0 ? currentStreak + 1 : 0;
                     const { error: updateError } = yield client_1.supabase
                         .from('games')
                         .update({
                         current_players: playerCount,
                         player_count_last_updated: new Date().toISOString(),
+                        player_count_zero_sync_streak: newStreak,
                     })
                         .eq('id', game.id);
                     if (updateError) {
