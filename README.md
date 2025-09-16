@@ -1,8 +1,8 @@
 # GameBacklog Manager
 
-A comprehensive Steam game library management system with user dashboards, analytics, and automated data synchronization.
+A Steam game library management system with user dashboards, analytics, and automated data synchronization.
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```
 GameBacklog/
@@ -13,7 +13,7 @@ GameBacklog/
 └── docker-compose.yml     # Docker orchestration
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
