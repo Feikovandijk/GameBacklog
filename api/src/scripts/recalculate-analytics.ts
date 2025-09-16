@@ -1,4 +1,3 @@
-import config from '../config';
 import { supabase } from '../supabase/client';
 
 // Helper to fetch a sample of documents from the games collection

@@ -1,7 +1,6 @@
 import SteamUser from 'steam-user';
 import config from '../config';
 import { supabase } from '../supabase/client';
-import { GameDocument } from '../types/steam.types';
 
 const steamUser = new SteamUser();
 steamUser.setOptions({
