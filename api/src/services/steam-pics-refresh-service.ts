@@ -38,7 +38,6 @@ const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
 const GAMES_PER_MINUTE_LIMIT = 13; // Each game update can be 3-5 API calls. With a 100k/day limit (~69/min), this is a safe throttle.
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 const STATE_DOCUMENT_ID = 'steam_changenumber';
-const STATE_COLLECTION_ID = 'steam_state';
 
 async function fetchWithRetry(url: string, retries: number = 3, backoff: number = 1000): Promise<Response> {
     for (let i = 0; i < retries; i++) {

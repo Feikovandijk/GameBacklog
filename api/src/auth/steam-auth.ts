@@ -56,8 +56,6 @@ passport.deserializeUser(async (userId: string, done) => {
 });
 
 async function createOrUpdateUser(profile: any): Promise<User> {
-    const databaseId = config.appwrite.databaseId!;
-    const usersCollectionId = 'users';
     const steamId = profile._json.steamid;
     
     try {

@@ -1,4 +1,3 @@
-import config from '../config';
 import { supabase } from '../supabase/client';
 
 // This is a one-time script to accurately count documents and populate the statistics collection.

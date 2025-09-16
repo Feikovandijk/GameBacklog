@@ -1,9 +1,8 @@
 import axios from 'axios';
 import config from '../config';
-import { User } from '../auth/steam-auth';
 import { supabase } from '../supabase/client';
 
-import { OwnedGame, PlayerAchievement, GameStats, Achievement, AchievementDocument } from '../types/steam.types';
+import { OwnedGame, PlayerAchievement, GameStats } from '../types/steam.types';
 
 const STEAM_API_BASE = 'https://api.steampowered.com';
 
