@@ -1,0 +1,21 @@
+{
+  "name": "migration",
+  "version": "1.0.0",
+  "description": "Data gathering scripts for Neo4j",
+  "main": "",
+  "scripts": {
+    "setup-neo4j": "ts-node setup-neo4j.ts",
+    "sync-steam-games": "ts-node steam-sync-service.ts",
+    "refresh-steam-games": "ts-node steam-refresh-service.ts",
+    "sync-player-count": "ts-node steam-player-count-sync-service.ts",
+    "refresh-pics": "ts-node steam-pics-refresh-service.ts"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
+    "neo4j-driver": "^5.14.0",
+    "steam-user": "^5.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
+  }
+}

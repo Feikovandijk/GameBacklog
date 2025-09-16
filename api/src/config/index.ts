@@ -27,6 +27,9 @@ interface Config {
   supabaseUrl: string | undefined;
   supabaseAnonKey: string | undefined;
   supabaseServiceRoleKey: string | undefined;
+  neo4jUri: string | undefined;
+  neo4jUser: string | undefined;
+  neo4jPassword: string | undefined;
 }
 
 const config: Config = {
@@ -50,6 +53,9 @@ const config: Config = {
   supabaseUrl: process.env.SUPABASE_URL,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_KEY,
+  neo4jUri: process.env.NEO4J_URI,
+  neo4jUser: process.env.NEO4J_USER,
+  neo4jPassword: process.env.NEO4J_PASSWORD,
 };
 
 export default config; 
