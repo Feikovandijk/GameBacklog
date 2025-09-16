@@ -126,6 +126,11 @@ npm run build       # Build for production
    - Syncs individual user's Steam game libraries
    - Tracks playtime, achievements, and game statistics
    - Updates user's personal game backlog
+  
+4. **steam-player-count-sync-service** - Sync current player count for all games
+   - Syncs **only** player counts
+   - Refreshes player counts after a set interval (1 hour by default)
+   - Games that have a player count of 0 for 24 hours are blocked from future syncing
 
 ### Running Steam Services
 
@@ -146,11 +151,11 @@ WORKER_ID=0 TOTAL_WORKERS=2 npm run refresh:games &
 WORKER_ID=1 TOTAL_WORKERS=2 npm run refresh:games &
 ```
 
-## 🚀 Production Deployment
+## Production Deployment
 
 ### PM2 Deployment
 
-The project includes a comprehensive PM2 ecosystem configuration for production deployment.
+The project includes a PM2 ecosystem configuration for production deployment.
 
 #### Deploy All Services
 ```bash
@@ -206,7 +211,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-## 📊 Database Schema
+## Database Schema
 
 ### Core Tables
 
@@ -226,7 +231,7 @@ docker-compose down
 - **Optimized indexes** for query performance
 - **Foreign key constraints** for data integrity
 
-## 🔧 Configuration
+## Configuration
 
 ### API Configuration (`api/src/config/index.ts`)
 
@@ -256,48 +261,12 @@ interface Config {
 | `WORKER_ID` | Worker ID for parallel processing | ❌ |
 | `TOTAL_WORKERS` | Total number of workers | ❌ |
 
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Environment Variables Not Loading
-```bash
-# Check if .env file exists and has correct path
-ls -la .env
-cat .env
-
-# Test environment loading
-cd api && node -e "console.log(require('./dist/config/index.js').default)"
-```
-
-#### Steam API Rate Limiting
-- The services include built-in rate limiting
-- Adjust `GAMES_PER_MINUTE_LIMIT` in services if needed
-- Use multiple Steam API keys for higher limits
-
-#### Database Connection Issues
-- Verify Supabase credentials in `.env`
-- Check Supabase project status
-- Ensure database schema is properly set up
-
-#### PM2 Process Issues
-```bash
-# Check PM2 status
-pm2 status
-
-# View detailed logs
-pm2 logs --lines 100
-
-# Restart problematic process
-pm2 restart <process-name>
-```
 
 ### Performance Optimization
 
 #### Memory Usage
 - **API Server**: ~1GB
 - **Steam Workers**: ~2GB each
-- **Total Recommended**: 8-10GB RAM
 
 #### Scaling Workers
 ```bash
@@ -305,42 +274,7 @@ pm2 restart <process-name>
 # Increase TOTAL_WORKERS and add more worker configurations
 ```
 
-## 📝 Development Guidelines
-
-### Code Style
-
-- **TypeScript** for all backend code
-- **React** with TypeScript for frontend
-- **ESLint** configuration included
-- **Prettier** for code formatting
-
-### Git Workflow
-
-```bash
-# Feature development
-git checkout -b feature/new-feature
-# Make changes
-git commit -m "feat: add new feature"
-git push origin feature/new-feature
-
-# Create pull request
-# Merge after review
-```
-
-### Testing
-
-```bash
-# Run linting
-cd api && npm run lint
-
-# Build test
-npm run build
-
-# Manual testing
-npm run dev
-```
-
-## 📚 API Documentation
+## API Documentation
 
 ### Authentication
 - Steam OAuth integration
