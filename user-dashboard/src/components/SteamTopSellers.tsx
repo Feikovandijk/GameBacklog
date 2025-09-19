@@ -30,54 +30,59 @@ const SteamTopSellers: React.FC = () => {
       const mockData: TopSellerGame[] = [
         {
           steam_appid: 1245620,
-          name: "ELDEN RING",
-          header_image: "https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg",
+          name: 'ELDEN RING',
+          header_image:
+            'https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg',
           price_final: 5999,
-          price_currency: "USD",
-          developers: ["FromSoftware Inc."],
-          genres: ["Action", "RPG"],
-          rank: 1
+          price_currency: 'USD',
+          developers: ['FromSoftware Inc.'],
+          genres: ['Action', 'RPG'],
+          rank: 1,
         },
         {
           steam_appid: 1086940,
           name: "Baldur's Gate 3",
-          header_image: "https://cdn.akamai.steamstatic.com/steam/apps/1086940/header.jpg",
+          header_image:
+            'https://cdn.akamai.steamstatic.com/steam/apps/1086940/header.jpg',
           price_final: 5999,
-          price_currency: "USD",
-          developers: ["Larian Studios"],
-          genres: ["RPG", "Strategy"],
-          rank: 2
+          price_currency: 'USD',
+          developers: ['Larian Studios'],
+          genres: ['RPG', 'Strategy'],
+          rank: 2,
         },
         {
           steam_appid: 1172470,
-          name: "Apex Legends",
-          header_image: "https://cdn.akamai.steamstatic.com/steam/apps/1172470/header.jpg",
+          name: 'Apex Legends',
+          header_image:
+            'https://cdn.akamai.steamstatic.com/steam/apps/1172470/header.jpg',
           price_final: 0,
-          price_currency: "USD",
-          developers: ["Respawn Entertainment"],
-          genres: ["Action", "Free to Play"],
-          rank: 3
+          price_currency: 'USD',
+          developers: ['Respawn Entertainment'],
+          genres: ['Action', 'Free to Play'],
+          rank: 3,
         },
         {
           steam_appid: 570,
-          name: "Dota 2",
-          header_image: "https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg",
+          name: 'Dota 2',
+          header_image:
+            'https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg',
           price_final: 0,
-          price_currency: "USD",
-          developers: ["Valve"],
-          genres: ["Strategy", "Free to Play"],
-          rank: 4
+          price_currency: 'USD',
+          developers: ['Valve'],
+          genres: ['Strategy', 'Free to Play'],
+          rank: 4,
         },
         {
           steam_appid: 730,
-          name: "Counter-Strike 2",
-          header_image: "https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg",
+          name: 'Counter-Strike 2',
+          header_image:
+            'https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg',
           price_final: 0,
-          price_currency: "USD",
-          developers: ["Valve"],
-          genres: ["Action", "Free to Play"],
-          rank: 5
-        }
+          price_currency: 'USD',
+          developers: ['Valve'],
+          genres: ['Action', 'Free to Play'],
+          rank: 5,
+        },
       ];
 
       // Simulate API delay
@@ -92,7 +97,7 @@ const SteamTopSellers: React.FC = () => {
 
   const handleAddToBacklog = async (game: TopSellerGame) => {
     setAdding(prev => ({ ...prev, [game.steam_appid]: true }));
-    
+
     try {
       await userGamesAPI.addGame({
         steam_appid: game.steam_appid,
@@ -101,8 +106,10 @@ const SteamTopSellers: React.FC = () => {
       });
       message.success(`${game.name} added to your backlog!`);
     } catch (error) {
-      console.error("Error adding game:", error);
-      message.error(`Failed to add ${game.name}. It might already be in your backlog.`);
+      console.error('Error adding game:', error);
+      message.error(
+        `Failed to add ${game.name}. It might already be in your backlog.`
+      );
     } finally {
       setAdding(prev => ({ ...prev, [game.steam_appid]: false }));
     }
@@ -116,8 +123,10 @@ const SteamTopSellers: React.FC = () => {
   if (loading) {
     return (
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-          <Spin size="large" />
+        <div
+          style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}
+        >
+          <Spin size='large' />
         </div>
       </Card>
     );
@@ -126,25 +135,39 @@ const SteamTopSellers: React.FC = () => {
   return (
     <Card>
       <div style={{ marginBottom: '16px' }}>
-        <Title level={4} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Title
+          level={4}
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
           <FireOutlined style={{ color: '#ff4d4f' }} />
           Steam Weekly Top Sellers
         </Title>
-        <Text type="secondary">Trending games this week - perfect for market research</Text>
+        <Text type='secondary'>
+          Trending games this week - perfect for market research
+        </Text>
       </div>
-      
+
       <Row gutter={[16, 16]}>
-        {topSellers.map((game) => (
+        {topSellers.map(game => (
           <Col xs={24} sm={12} lg={8} xl={4.8} key={game.steam_appid}>
             <Card
-              size="small"
+              size='small'
               hoverable
               cover={
                 <div style={{ position: 'relative' }}>
                   <img
                     alt={game.name}
                     src={game.header_image}
-                    style={{ width: '100%', height: '120px', objectFit: 'cover' }}
+                    style={{
+                      width: '100%',
+                      height: '120px',
+                      objectFit: 'cover',
+                    }}
                   />
                   <div
                     style={{
@@ -156,7 +179,7 @@ const SteamTopSellers: React.FC = () => {
                       padding: '2px 8px',
                       borderRadius: '4px',
                       fontSize: '12px',
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     #{game.rank}
@@ -165,16 +188,16 @@ const SteamTopSellers: React.FC = () => {
               }
               actions={[
                 <Button
-                  key="add"
-                  type="primary"
-                  size="small"
+                  key='add'
+                  type='primary'
+                  size='small'
                   icon={<PlusOutlined />}
                   loading={adding[game.steam_appid]}
                   onClick={() => handleAddToBacklog(game)}
                   block
                 >
                   Add to Backlog
-                </Button>
+                </Button>,
               ]}
             >
               <Card.Meta
@@ -185,10 +208,16 @@ const SteamTopSellers: React.FC = () => {
                 }
                 description={
                   <div>
-                    <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                    <Text
+                      type='secondary'
+                      style={{ fontSize: '12px', display: 'block' }}
+                    >
                       {game.developers[0]}
                     </Text>
-                    <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                    <Text
+                      type='secondary'
+                      style={{ fontSize: '12px', display: 'block' }}
+                    >
                       {game.genres.slice(0, 2).join(', ')}
                     </Text>
                     <Text strong style={{ fontSize: '14px', color: '#52c41a' }}>
@@ -205,4 +234,4 @@ const SteamTopSellers: React.FC = () => {
   );
 };
 
-export default SteamTopSellers; 
+export default SteamTopSellers;

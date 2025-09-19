@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Typography, Spin, Space } from 'antd';
-import { PlayCircleOutlined, EditOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import {
+  PlayCircleOutlined,
+  EditOutlined,
+  ClockCircleOutlined,
+} from '@ant-design/icons';
 import { userGamesAPI } from '../services/api';
 import type { UserGame } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -16,13 +20,13 @@ const CurrentlyPlaying: React.FC = () => {
     const fetchCurrentlyPlaying = async () => {
       setLoading(true);
       try {
-        const response = await userGamesAPI.get({ 
+        const response = await userGamesAPI.get({
           status: 'currently_playing',
-          limit: 6 
+          limit: 6,
         });
         setCurrentlyPlaying(response.data.documents);
       } catch (error) {
-        console.error("Error fetching currently playing games:", error);
+        console.error('Error fetching currently playing games:', error);
       } finally {
         setLoading(false);
       }
@@ -53,8 +57,10 @@ const CurrentlyPlaying: React.FC = () => {
   if (loading) {
     return (
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-          <Spin size="large" />
+        <div
+          style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}
+        >
+          <Spin size='large' />
         </div>
       </Card>
     );
@@ -64,16 +70,28 @@ const CurrentlyPlaying: React.FC = () => {
     return (
       <Card>
         <div style={{ marginBottom: '16px' }}>
-          <Title level={4} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Title
+            level={4}
+            style={{
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
             <PlayCircleOutlined style={{ color: '#52c41a' }} />
             Currently Analyzing
           </Title>
-          <Text type="secondary">Games you're actively researching</Text>
+          <Text type='secondary'>Games you're actively researching</Text>
         </div>
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}>
-          <PlayCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+        <div
+          style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}
+        >
+          <PlayCircleOutlined
+            style={{ fontSize: '48px', marginBottom: '16px' }}
+          />
           <div>No games currently being analyzed</div>
-          <Text type="secondary">Start analyzing games to see them here</Text>
+          <Text type='secondary'>Start analyzing games to see them here</Text>
         </div>
       </Card>
     );
@@ -82,28 +100,42 @@ const CurrentlyPlaying: React.FC = () => {
   return (
     <Card>
       <div style={{ marginBottom: '16px' }}>
-        <Title level={4} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Title
+          level={4}
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
           <PlayCircleOutlined style={{ color: '#52c41a' }} />
           Currently Analyzing ({currentlyPlaying.length})
         </Title>
-        <Text type="secondary">Games you're actively researching</Text>
+        <Text type='secondary'>Games you're actively researching</Text>
       </div>
-      
+
       <Row gutter={[16, 16]}>
-        {currentlyPlaying.map((userGame) => (
+        {currentlyPlaying.map(userGame => (
           <Col xs={24} sm={12} lg={8} key={userGame.$id}>
             <Card
               hoverable
               cover={
-                <div style={{ position: 'relative', height: '160px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    height: '160px',
+                    overflow: 'hidden',
+                  }}
+                >
                   <img
                     alt={userGame.game?.name}
                     src={userGame.game?.header_image}
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
+                    style={{
+                      width: '100%',
+                      height: '100%',
                       objectFit: 'cover',
-                      transition: 'transform 0.3s ease'
+                      transition: 'transform 0.3s ease',
                     }}
                   />
                   <div
@@ -112,17 +144,29 @@ const CurrentlyPlaying: React.FC = () => {
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                      background:
+                        'linear-gradient(transparent, rgba(0,0,0,0.7))',
                       padding: '20px 12px 12px',
-                      color: 'white'
+                      color: 'white',
                     }}
                   >
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>
+                    <div
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        marginBottom: '4px',
+                      }}
+                    >
                       {userGame.game?.name}
                     </div>
-                    <Space align="center">
+                    <Space align='center'>
                       <ClockCircleOutlined />
-                      <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px' }}>
+                      <Text
+                        style={{
+                          color: 'rgba(255,255,255,0.9)',
+                          fontSize: '12px',
+                        }}
+                      >
                         {formatPlaytime(userGame.hours_played)}
                       </Text>
                     </Space>
@@ -132,17 +176,24 @@ const CurrentlyPlaying: React.FC = () => {
               styles={{ body: { padding: '12px' } }}
             >
               <div style={{ marginBottom: '8px' }}>
-                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                <Text
+                  type='secondary'
+                  style={{ fontSize: '12px', display: 'block' }}
+                >
                   {userGame.game?.developers?.join(', ')}
                 </Text>
-                <Text type="secondary" style={{ fontSize: '12px' }}>
+                <Text type='secondary' style={{ fontSize: '12px' }}>
                   {userGame.game?.genres?.slice(0, 2).join(', ')}
                 </Text>
               </div>
-              
-              <Space direction="vertical" style={{ width: '100%' }} size="small">
+
+              <Space
+                direction='vertical'
+                style={{ width: '100%' }}
+                size='small'
+              >
                 <Button
-                  type="primary"
+                  type='primary'
                   icon={<PlayCircleOutlined />}
                   onClick={() => handleContinueResearch(userGame)}
                   block
@@ -150,11 +201,11 @@ const CurrentlyPlaying: React.FC = () => {
                   Continue Research
                 </Button>
                 <Button
-                  type="default"
+                  type='default'
                   icon={<EditOutlined />}
                   onClick={() => handleViewDetails(userGame)}
                   block
-                  size="small"
+                  size='small'
                 >
                   View Details
                 </Button>
@@ -163,10 +214,13 @@ const CurrentlyPlaying: React.FC = () => {
           </Col>
         ))}
       </Row>
-      
+
       {currentlyPlaying.length >= 6 && (
         <div style={{ textAlign: 'center', marginTop: '16px' }}>
-          <Button type="link" onClick={() => navigate('/games?status=currently_playing')}>
+          <Button
+            type='link'
+            onClick={() => navigate('/games?status=currently_playing')}
+          >
             View All Analyzing Games →
           </Button>
         </div>
@@ -175,4 +229,4 @@ const CurrentlyPlaying: React.FC = () => {
   );
 };
 
-export default CurrentlyPlaying; 
+export default CurrentlyPlaying;
