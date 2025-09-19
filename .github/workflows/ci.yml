@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -6,56 +6,196 @@ on:
   pull_request:
     branches: [ "main", "dev" ]
 
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+env:
+  NODE_VERSION: '20.x'
 
-      - name: Use Node.js 20.x
+jobs:
+  # Job 1: Code Quality Checks
+  code-quality:
+    name: Code Quality & Formatting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      # ----------------- API Checks -----------------
-      - name: API - Install Dependencies
+      # ================== API Quality Checks ==================
+      - name: 📦 API - Install Dependencies
         run: npm install --prefix api
 
-      - name: API - Check for Vulnerabilities
-        run: npm audit --prefix api --audit-level=high
+      - name: 🔍 API - Check Code Formatting
+        run: npm run --prefix api format:check
 
-      - name: API - Run Linter
+      - name: 🧹 API - Run ESLint
         run: npm run --prefix api lint
 
-      - name: API - Run Build
-        run: npm run --prefix api build
+      - name: 🔧 API - Type Check
+        run: npm run --prefix api type-check
 
-      # ----------------- Developer Dashboard Checks -----------------
-      - name: Developer Dashboard - Install Dependencies
+      - name: 🔒 API - Security Audit
+        run: npm audit --prefix api --audit-level=high
+
+      # ================== Dev Dashboard Quality Checks ==================
+      - name: 📦 Dev Dashboard - Install Dependencies
         run: npm install --prefix devdashboard
 
-      - name: Developer Dashboard - Check for Vulnerabilities
-        run: npm audit --prefix devdashboard --audit-level=high
+      - name: 🔍 Dev Dashboard - Check Code Formatting
+        run: npm run --prefix devdashboard format:check
 
-      - name: Developer Dashboard - Run Linter
+      - name: 🧹 Dev Dashboard - Run ESLint
         run: npm run --prefix devdashboard lint
 
-      - name: Developer Dashboard - Run Build
-        run: npm run --prefix devdashboard build
+      - name: 🔧 Dev Dashboard - Type Check
+        run: npm run --prefix devdashboard type-check
 
-      # ----------------- Dashboard Checks -----------------
+      - name: 🔒 Dev Dashboard - Security Audit
+        run: npm audit --prefix devdashboard --audit-level=high
 
-      - name: User Dashboard - Install Dependencies
+      # ================== User Dashboard Quality Checks ==================
+      - name: 📦 User Dashboard - Install Dependencies
         run: npm install --prefix user-dashboard
 
-      - name: User Dashboard - Check for Vulnerabilities
-        run: npm audit --prefix user-dashboard --audit-level=high
+      - name: 🔍 User Dashboard - Check Code Formatting
+        run: npm run --prefix user-dashboard format:check
 
-      - name: User Dashboard - Run Linter
+      - name: 🧹 User Dashboard - Run ESLint
         run: npm run --prefix user-dashboard lint
 
-      - name: User Dashboard - Run Build
-        run: npm run --prefix user-dashboard build
+      - name: 🔧 User Dashboard - Type Check
+        run: npm run --prefix user-dashboard type-check
+
+      - name: 🔒 User Dashboard - Security Audit
+        run: npm audit --prefix user-dashboard --audit-level=high
+
+  # Job 2: Build & Test
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: code-quality
+    
+    strategy:
+      matrix:
+        project: [api, devdashboard, user-dashboard]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies - ${{ matrix.project }}
+        run: npm install --prefix ${{ matrix.project }}
+
+      - name: 🏗️ Build - ${{ matrix.project }}
+        run: npm run --prefix ${{ matrix.project }} build
+
+      - name: 🧪 Test - ${{ matrix.project }}
+        run: npm run --prefix ${{ matrix.project }} test
+        continue-on-error: true  # Allow tests to fail for now
+
+      - name: 📊 Upload Build Artifacts - ${{ matrix.project }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.project }}-${{ github.sha }}
+          path: |
+            ${{ matrix.project }}/dist/
+            ${{ matrix.project }}/build/
+          retention-days: 7
+
+  # Job 3: Additional Quality Checks
+  additional-checks:
+    name: Additional Quality Checks
+    runs-on: ubuntu-latest
+    needs: code-quality
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📊 Check for TODO/FIXME comments
+        run: |
+          echo "🔍 Scanning for TODO and FIXME comments..."
+          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./dist/*" \
+            -not -path "./build/*" \
+            -exec grep -Hn "TODO\|FIXME\|XXX\|HACK" {} \; || true
+
+      - name: 📏 Check file sizes
+        run: |
+          echo "📏 Checking for large files..."
+          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./dist/*" \
+            -not -path "./build/*" \
+            -size +100k -exec ls -lh {} \; || true
+
+      - name: 🔍 Check for sensitive patterns
+        run: |
+          echo "🔍 Scanning for potential secrets..."
+          # Check for common secret patterns (excluding test files)
+          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./dist/*" \
+            -not -path "./build/*" \
+            -not -path "*test*" \
+            -not -path "*spec*" \
+            -exec grep -l "password\|secret\|token\|key" {} \; || true
+
+  # Job 4: Dependency Analysis
+  dependency-analysis:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📊 Analyze API Dependencies
+        run: |
+          cd api
+          npm install
+          echo "📦 Checking for outdated packages in API..."
+          npm outdated || true
+          echo "🔍 Checking for duplicate dependencies..."
+          npm ls --depth=0 || true
+
+      - name: 📊 Analyze Dev Dashboard Dependencies
+        run: |
+          cd devdashboard
+          npm install
+          echo "📦 Checking for outdated packages in Dev Dashboard..."
+          npm outdated || true
+          echo "🔍 Checking for duplicate dependencies..."
+          npm ls --depth=0 || true
+
+      - name: 📊 Analyze User Dashboard Dependencies
+        run: |
+          cd user-dashboard
+          npm install
+          echo "📦 Checking for outdated packages in User Dashboard..."
+          npm outdated || true
+          echo "🔍 Checking for duplicate dependencies..."
+          npm ls --depth=0 || true
 #      - name: Build and Push API Image
 #        uses: docker/build-push-action@v2 
