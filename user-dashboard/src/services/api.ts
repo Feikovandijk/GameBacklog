@@ -48,7 +48,13 @@ export interface UserGame {
   user_id: string;
   game_id: string;
   steam_appid: number;
-  status: 'want_to_play' | 'currently_playing' | 'completed' | 'completed_100' | 'on_hold' | 'dropped';
+  status:
+    | 'want_to_play'
+    | 'currently_playing'
+    | 'completed'
+    | 'completed_100'
+    | 'on_hold'
+    | 'dropped';
   priority: number;
   user_rating?: number;
   user_notes: string;
@@ -90,14 +96,14 @@ export interface Achievement {
 }
 
 export interface RecentAchievement {
-    $id: string;
-    user_id: string;
-    achievement_id: string;
-    steam_appid: number;
-    is_unlocked: boolean;
-    unlock_time: string;
-    achievement: Achievement;
-    game: Game;
+  $id: string;
+  user_id: string;
+  achievement_id: string;
+  steam_appid: number;
+  is_unlocked: boolean;
+  unlock_time: string;
+  achievement: Achievement;
+  game: Game;
 }
 
 export interface UserActivity {
@@ -119,27 +125,41 @@ export const authAPI = {
 
 // User Games
 export const userGamesAPI = {
-  get: (params?: { status?: string; priority?: number; limit?: number; offset?: number; search?: string; }) => 
-    api.get<{ documents: UserGame[]; total: number }>('/api/user/games', { params }),
-  
-  addGame: (gameData: { steam_appid: number; status: string; priority?: number; user_notes?: string; user_tags?: string[] }) =>
-    api.post<UserGame>('/api/user/games', gameData),
-  
+  get: (params?: {
+    status?: string;
+    priority?: number;
+    limit?: number;
+    offset?: number;
+    search?: string;
+  }) =>
+    api.get<{ documents: UserGame[]; total: number }>('/api/user/games', {
+      params,
+    }),
+
+  addGame: (gameData: {
+    steam_appid: number;
+    status: string;
+    priority?: number;
+    user_notes?: string;
+    user_tags?: string[];
+  }) => api.post<UserGame>('/api/user/games', gameData),
+
   updateGame: (gameId: string, updateData: Partial<UserGame>) =>
     api.put<UserGame>(`/api/user/games/${gameId}`, updateData),
-  
-  removeGame: (gameId: string) =>
-    api.delete(`/api/user/games/${gameId}`),
-  
+
+  removeGame: (gameId: string) => api.delete(`/api/user/games/${gameId}`),
+
   getStats: () => api.get<UserStats>('/api/user/stats'),
 
-  getExtendedStats: () => api.get<ExtendedUserStats>('/api/user/stats/extended'),
-  
-  getRecentAchievements: () => api.get<RecentAchievement[]>('/api/user/achievements/recent'),
+  getExtendedStats: () =>
+    api.get<ExtendedUserStats>('/api/user/stats/extended'),
+
+  getRecentAchievements: () =>
+    api.get<RecentAchievement[]>('/api/user/achievements/recent'),
 
   getActivity: () => api.get<UserActivity[]>('/api/user/activity'),
 
-  getRecentlyPlayed: (limit = 5) => 
+  getRecentlyPlayed: (limit = 5) =>
     api.get<UserGame[]>(`/api/user/games/recently-played?limit=${limit}`),
 };
 
@@ -155,4 +175,4 @@ export const getUserGames = userGamesAPI.get;
 export const updateUserGame = userGamesAPI.updateGame;
 export const removeUserGame = userGamesAPI.removeGame;
 
-export default api; 
+export default api;

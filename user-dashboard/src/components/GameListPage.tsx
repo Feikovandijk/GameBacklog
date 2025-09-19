@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Input, Button, Avatar, Space, Typography, message } from 'antd';
-import { PlusOutlined, EditOutlined, CheckCircleOutlined, MessageOutlined, FilterOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  EditOutlined,
+  CheckCircleOutlined,
+  MessageOutlined,
+  FilterOutlined,
+} from '@ant-design/icons';
 import * as api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import EditGameModal from './EditGameModal';
@@ -22,19 +28,37 @@ const GameListPage: React.FC = () => {
   const navigate = useNavigate();
   const [games, setGames] = useState<UserGame[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState<UserGame | null>(null);
 
-  const fetchGames = async (page = 1, pageSize = 10, search = '', filters = {}) => {
+  const fetchGames = async (
+    page = 1,
+    pageSize = 10,
+    search = '',
+    filters = {}
+  ) => {
     setLoading(true);
     try {
       const offset = (page - 1) * pageSize;
-      const response = await api.getUserGames({ offset, limit: pageSize, search, ...filters });
+      const response = await api.getUserGames({
+        offset,
+        limit: pageSize,
+        search,
+        ...filters,
+      });
       setGames(response.data.documents);
-      setPagination(prev => ({ ...prev, total: response.data.total, current: page }));
+      setPagination(prev => ({
+        ...prev,
+        total: response.data.total,
+        current: page,
+      }));
     } catch (error) {
-      console.error("Error fetching games:", error);
+      console.error('Error fetching games:', error);
     } finally {
       setLoading(false);
     }
@@ -44,7 +68,10 @@ const GameListPage: React.FC = () => {
     fetchGames();
   }, []);
 
-  const handleTableChange = (pagination: { current?: number; pageSize?: number }) => {
+  const handleTableChange = (pagination: {
+    current?: number;
+    pageSize?: number;
+  }) => {
     fetchGames(pagination.current, pagination.pageSize);
   };
 
@@ -62,7 +89,7 @@ const GameListPage: React.FC = () => {
       fetchGames(pagination.current, pagination.pageSize); // Refresh data
     } catch (error) {
       message.error('Failed to update game.');
-      console.error("Error updating game:", error);
+      console.error('Error updating game:', error);
     }
   };
 
@@ -75,7 +102,7 @@ const GameListPage: React.FC = () => {
       fetchGames(pagination.current, pagination.pageSize); // Refresh data
     } catch (error) {
       message.error('Failed to remove game.');
-      console.error("Error removing game:", error);
+      console.error('Error removing game:', error);
     }
   };
 
@@ -86,7 +113,7 @@ const GameListPage: React.FC = () => {
       key: 'title',
       render: (_text: string, record: UserGame) => (
         <Space>
-          <Avatar shape="square" size="large" src={record.game?.header_image} />
+          <Avatar shape='square' size='large' src={record.game?.header_image} />
           <span>{record.game?.name}</span>
         </Space>
       ),
@@ -95,15 +122,18 @@ const GameListPage: React.FC = () => {
       title: 'Genre',
       dataIndex: ['game', 'genres'],
       key: 'genre',
-      render: (genres: string[]) => <>{genres?.join(', ')}</>
+      render: (genres: string[]) => <>{genres?.join(', ')}</>,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Typography.Text type="secondary" style={{ textTransform: 'capitalize' }}>
-            {status.replace(/_/g, ' ')}
+        <Typography.Text
+          type='secondary'
+          style={{ textTransform: 'capitalize' }}
+        >
+          {status.replace(/_/g, ' ')}
         </Typography.Text>
       ),
     },
@@ -113,19 +143,26 @@ const GameListPage: React.FC = () => {
       key: 'notes',
     },
     {
-        title: 'Last Played',
-        dataIndex: 'last_played',
-        key: 'lastPlayed',
-        render: (date: string) => date ? new Date(date).toLocaleDateString() : 'N/A',
+      title: 'Last Played',
+      dataIndex: 'last_played',
+      key: 'lastPlayed',
+      render: (date: string) =>
+        date ? new Date(date).toLocaleDateString() : 'N/A',
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_text: string, record: UserGame) => (
-        <Space size="middle">
-          <a onClick={() => handleEdit(record)}><EditOutlined /></a>
-          <a><CheckCircleOutlined /></a>
-          <a><MessageOutlined /></a>
+        <Space size='middle'>
+          <a onClick={() => handleEdit(record)}>
+            <EditOutlined />
+          </a>
+          <a>
+            <CheckCircleOutlined />
+          </a>
+          <a>
+            <MessageOutlined />
+          </a>
         </Space>
       ),
     },
@@ -133,32 +170,60 @@ const GameListPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: 32,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 600 }}>Game List</h1>
-          <Typography.Text type="secondary">Manage your complete game backlog.</Typography.Text>
+          <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 600 }}>
+            Game List
+          </h1>
+          <Typography.Text type='secondary'>
+            Manage your complete game backlog.
+          </Typography.Text>
         </div>
-        <Button size="large" type="primary" icon={<PlusOutlined />} onClick={() => navigate('/add-game')}>Add New Game</Button>
+        <Button
+          size='large'
+          type='primary'
+          icon={<PlusOutlined />}
+          onClick={() => navigate('/add-game')}
+        >
+          Add New Game
+        </Button>
       </div>
-      <div style={{ 
-        background: '#fff', 
-        padding: '24px', 
-        borderRadius: '8px', 
-        boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)' 
-      }}>
-        <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          background: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+        }}
+      >
+        <div
+          style={{
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'space-between',
+          }}
+        >
           <Search
-            placeholder="Search by title, genre, or status..."
-            onSearch={(value) => fetchGames(1, pagination.pageSize, value)}
+            placeholder='Search by title, genre, or status...'
+            onSearch={value => fetchGames(1, pagination.pageSize, value)}
             style={{ width: 300 }}
-            size="large"
+            size='large'
           />
-          <Button size="large" icon={<FilterOutlined />}>Filter</Button>
+          <Button size='large' icon={<FilterOutlined />}>
+            Filter
+          </Button>
         </div>
         <Table
           columns={columns}
           dataSource={games}
-          rowKey="$id"
+          rowKey='$id'
           loading={loading}
           pagination={pagination}
           onChange={handleTableChange}
@@ -176,4 +241,4 @@ const GameListPage: React.FC = () => {
   );
 };
 
-export default GameListPage; 
+export default GameListPage;
