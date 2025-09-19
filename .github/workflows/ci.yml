@@ -33,7 +33,7 @@ jobs:
         run: npm run --prefix api format:check
 
       - name: 🧹 API - Run ESLint
-        run: npm run --prefix api lint
+        run: npm run --prefix api lint:ci
 
       - name: 🔧 API - Type Check
         run: npm run --prefix api type-check
@@ -49,7 +49,7 @@ jobs:
         run: npm run --prefix devdashboard format:check
 
       - name: 🧹 Dev Dashboard - Run ESLint
-        run: npm run --prefix devdashboard lint
+        run: npm run --prefix devdashboard lint:ci
 
       - name: 🔧 Dev Dashboard - Type Check
         run: npm run --prefix devdashboard type-check
@@ -65,7 +65,7 @@ jobs:
         run: npm run --prefix user-dashboard format:check
 
       - name: 🧹 User Dashboard - Run ESLint
-        run: npm run --prefix user-dashboard lint
+        run: npm run --prefix user-dashboard lint:ci
 
       - name: 🔧 User Dashboard - Type Check
         run: npm run --prefix user-dashboard type-check

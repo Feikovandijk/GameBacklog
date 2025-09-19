@@ -25,27 +25,30 @@ passport.use(
       apiKey: config.steamApiKey!,
       passReqToCallback: true,
     },
-    async (req: any, identifier: string, profile: any, done: any) => {
-      try {
-        // More detailed logging
-        console.log(
-          'Steam callback received. Headers:',
-          JSON.stringify(req.headers, null, 2)
-        );
+    (req: any, identifier: string, profile: any, done: any) => {
+      // Handle async operations with proper error handling
+      void (async () => {
+        try {
+          // More detailed logging
+          console.log(
+            'Steam callback received. Headers:',
+            JSON.stringify(req.headers, null, 2)
+          );
 
-        // Extract Steam ID from identifier
-        const steamId = identifier.split('/').pop()!;
+          // Extract Steam ID from identifier
+          const steamId = identifier.split('/').pop()!;
 
-        console.log('Steam auth callback for Steam ID:', steamId);
-        console.log('Profile data:', JSON.stringify(profile._json, null, 2));
+          console.log('Steam auth callback for Steam ID:', steamId);
+          console.log('Profile data:', JSON.stringify(profile._json, null, 2));
 
-        // Create or update user
-        const user = await createOrUpdateUser(profile);
-        return done(null, user);
-      } catch (error) {
-        console.error('Steam auth error:', error);
-        return done(error, false);
-      }
+          // Create or update user
+          const user = await createOrUpdateUser(profile);
+          return done(null, user);
+        } catch (error) {
+          console.error('Steam auth error:', error);
+          return done(error, false);
+        }
+      })();
     }
   )
 );
@@ -56,13 +59,16 @@ passport.serializeUser((user: any, done) => {
 });
 
 // Deserialize user from session
-passport.deserializeUser(async (userId: string, done) => {
-  try {
-    const user = await getUserById(userId);
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
+passport.deserializeUser((userId: string, done) => {
+  // Handle async operations with proper error handling
+  void (async () => {
+    try {
+      const user = await getUserById(userId);
+      done(null, user);
+    } catch (error) {
+      done(error, null);
+    }
+  })();
 });
 
 async function createOrUpdateUser(profile: any): Promise<User> {
@@ -112,7 +118,7 @@ async function createOrUpdateUser(profile: any): Promise<User> {
       // Check if sync is due for existing user
       const now = new Date();
       const lastSync = updatedUser.last_steam_sync
-        ? new Date(updatedUser.last_steam_sync)
+        ? new Date(String(updatedUser.last_steam_sync))
         : null;
       const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -123,7 +129,7 @@ async function createOrUpdateUser(profile: any): Promise<User> {
         console.log(
           `Auto-import enabled and sync due for ${updatedUser.display_name}. Starting sync in background.`
         );
-        syncUserWithSteam(updatedUser as unknown as User); // Fire-and-forget
+        void syncUserWithSteam(updatedUser as unknown as User); // Fire-and-forget
       }
 
       return updatedUser as User;
@@ -156,7 +162,7 @@ async function createOrUpdateUser(profile: any): Promise<User> {
         console.log(
           `Auto-import enabled for ${newUser.display_name}. Starting sync in background.`
         );
-        syncUserWithSteam(newUser as unknown as User); // Fire-and-forget
+        void syncUserWithSteam(newUser as unknown as User); // Fire-and-forget
       }
 
       return newUser as User;

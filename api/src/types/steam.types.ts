@@ -1,3 +1,22 @@
+export interface Requirements {
+    minimum: string;
+    recommended: string;
+}
+
+export interface ReviewSummary {
+    num_reviews: number;
+    review_score: number;
+    review_score_desc: string;
+    total_positive: number;
+    total_negative: number;
+    total_reviews: number;
+}
+
+export interface Webm {
+    '480': string;
+    max: string;
+}
+
 export interface GameDocument {
   steam_appid: number;
   name: string;
@@ -32,9 +51,9 @@ export interface GameDocument {
   platforms_windows?: boolean | null;
   platforms_mac?: boolean | null;
   platforms_linux?: boolean | null;
-  pc_requirements?: any | null;
-  mac_requirements?: any | null;
-  linux_requirements?: any | null;
+  pc_requirements?: string | Requirements | null;
+  mac_requirements?: string | Requirements | null;
+  linux_requirements?: string | Requirements | null;
   supported_languages?: string | null;
   dlc?: number[] | null;
   required_age?: number | null;
@@ -56,9 +75,9 @@ export interface WebApiData {
   supported_languages?: string;
   header_image: string;
   website?: string;
-  pc_requirements?: any;
-  mac_requirements?: any;
-  linux_requirements?: any;
+  pc_requirements?: string | Requirements;
+  mac_requirements?: string | Requirements;
+  linux_requirements?: string | Requirements;
   developers: string[];
   publishers: string[];
   price_overview?: {
@@ -75,11 +94,11 @@ export interface WebApiData {
     id: number;
     name: string;
     thumbnail: string;
-    webm: any;
+    webm: Webm;
     mp4: { 480: string; max: string };
   }[];
   release_date: { coming_soon: boolean; date: string };
-  review_summary?: any;
+  review_summary?: ReviewSummary;
   player_count?: number;
   platforms?: { windows: boolean; mac: boolean; linux: boolean };
   achievements?: { total: number };

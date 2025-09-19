@@ -6,6 +6,7 @@ import path from 'path';
 
 // Load environment variables from the root .env file
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
 const steamUser = new SteamUser();
 steamUser.setOptions({
   enablePicsCache: true,
@@ -87,16 +88,21 @@ async function fetchGameDetailsFromWebAPI(
       fetchWithRetry(reviewUrl),
     ]);
 
-    if (!appDetailsResponse.ok) return null;
+    if (!appDetailsResponse.ok) {
+      return null;
+    }
     const appDetailsJson = await appDetailsResponse.json();
     const appDetails = appDetailsJson[steamAppId];
-    if (!appDetails?.success) return null;
+    if (!appDetails?.success) {
+      return null;
+    }
 
     const gameData: WebApiData = appDetails.data;
     if (reviewResponse.ok) {
       const reviewJson = await reviewResponse.json();
-      if (reviewJson.success)
+      if (reviewJson.success) {
         gameData.review_summary = reviewJson.query_summary;
+      }
     }
     return gameData;
   } catch (error) {
@@ -113,20 +119,25 @@ function formatPicsDataToGameDocument(
   const developers: string[] = [],
     publishers: string[] = [];
   if (common.associations) {
-    Object.values(common.associations).forEach((assoc: any) => {
-      if (assoc.type === 'developer') developers.push(assoc.name);
-      else if (assoc.type === 'publisher') publishers.push(assoc.name);
+    Object.values(common.associations as Record<string, unknown>).forEach((assoc: any) => {
+      if (assoc.type === 'developer') {
+        developers.push(String(assoc.name));
+      } else if (assoc.type === 'publisher') {
+        publishers.push(String(assoc.name));
+      }
     });
   }
   const oslist = common.oslist?.split(',') || [];
   let releaseDateForDb: string | null = null;
   const ts = common.steam_release_date;
-  if (ts) releaseDateForDb = new Date(parseInt(ts, 10) * 1000).toISOString();
+  if (ts) {
+    releaseDateForDb = new Date(parseInt(String(ts), 10) * 1000).toISOString();
+  }
 
   const tags = common.store_tags
-    ? (Object.values(common.store_tags) as string[])
+    ? Object.values(common.store_tags as Record<string, unknown>).map(String)
     : [];
-  const categories = common.category ? Object.keys(common.category) : [];
+  const categories = common.category ? Object.keys(common.category as Record<string, unknown>) : [];
   const has_steam_achievements = categories.includes('category_22');
   let headerImageUrl: string | null = null;
   if (common.header_image?.english) {
@@ -153,7 +164,7 @@ function formatPicsDataToGameDocument(
     metacritic_url: common.metacritic?.url ?? null,
     is_early_access: common.releasestate === 'prerelease',
     positive_rating_percentage: common.review_percentage
-      ? parseInt(common.review_percentage, 10)
+      ? parseInt(String(common.review_percentage), 10)
       : null,
   };
 }
@@ -163,7 +174,9 @@ function mergeApiData(
   webData: WebApiData | null
 ): Partial<GameDocument> {
   const mergedData = { ...picsData };
-  if (!webData) return mergedData;
+  if (!webData) {
+    return mergedData;
+  }
   const reviews = webData.review_summary;
   const price = webData.price_overview;
 
@@ -203,7 +216,7 @@ function mergeApiData(
   mergedData.dlc = webData.dlc ?? null;
   mergedData.required_age = webData.required_age ?? null;
 
-  if (reviews?.total_reviews > 0) {
+  if (reviews && reviews.total_reviews > 0 && typeof reviews.total_positive === 'number') {
     mergedData.positive_rating_percentage = Math.round(
       (reviews.total_positive / reviews.total_reviews) * 100
     );
@@ -272,11 +285,11 @@ async function enrichAllGames() {
         );
 
         const picsPromise = new Promise(resolve => {
-          steamUser.getProductInfo([game.steam_appid], [], false, (err, apps) =>
+          void steamUser.getProductInfo([Number(game.steam_appid)], [], false, (err, apps) =>
             resolve(apps?.[game.steam_appid] ?? null)
           );
         });
-        const webApiPromise = fetchGameDetailsFromWebAPI(game.steam_appid);
+        const webApiPromise = fetchGameDetailsFromWebAPI(Number(game.steam_appid));
 
         const [picsData, webApiData] = await Promise.all([
           picsPromise,
@@ -285,7 +298,7 @@ async function enrichAllGames() {
 
         if (picsData) {
           const formattedPicsData = formatPicsDataToGameDocument(
-            game.steam_appid,
+            Number(game.steam_appid),
             picsData
           );
           const finalGameData = mergeApiData(formattedPicsData, webApiData);

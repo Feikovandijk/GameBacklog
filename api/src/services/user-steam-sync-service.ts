@@ -2,9 +2,16 @@ import axios from 'axios';
 import config from '../config';
 import { supabase } from '../supabase/client';
 
-import { OwnedGame, PlayerAchievement, GameStats } from '../types/steam.types';
+import { GameStats, OwnedGame, PlayerAchievement } from '../types/steam.types';
 
 const STEAM_API_BASE = 'https://api.steampowered.com';
+
+interface OwnedGamesResponse {
+  response: {
+    game_count: number;
+    games: OwnedGame[];
+  };
+}
 
 /**
  * Fetches the list of games owned by a user from the Steam API.
@@ -15,7 +22,7 @@ async function getOwnedGames(
 ): Promise<OwnedGame[]> {
   const url = `${STEAM_API_BASE}/IPlayerService/GetOwnedGames/v1/`;
   try {
-    const response = await axios.get(url, {
+    const response = await axios.get<OwnedGamesResponse>(url, {
       params: {
         key: apiKey,
         steamid: steamId,
@@ -31,6 +38,15 @@ async function getOwnedGames(
   }
 }
 
+interface PlayerAchievementsResponse {
+  playerstats: {
+    steamID: string;
+    gameName: string;
+    achievements: PlayerAchievement[];
+    success: boolean;
+  };
+}
+
 /**
  * Fetches a user's achievements for a specific game.
  */
@@ -41,7 +57,7 @@ async function getPlayerAchievements(
 ): Promise<PlayerAchievement[]> {
   const url = `${STEAM_API_BASE}/ISteamUserStats/GetPlayerAchievements/v1/`;
   try {
-    const response = await axios.get(url, {
+    const response = await axios.get<PlayerAchievementsResponse>(url, {
       params: {
         key: apiKey,
         steamid: steamId,
@@ -57,6 +73,18 @@ async function getPlayerAchievements(
   }
 }
 
+interface UserStatsForGameResponse {
+  playerstats: {
+    steamID: string;
+    gameName: string;
+    stats: GameStats[];
+    achievements: {
+      name: string;
+      achieved: number;
+    }[];
+  };
+}
+
 /**
  * Fetches a user's stats for a specific game (e.g., kills, deaths).
  */
@@ -67,7 +95,7 @@ async function getUserStatsForGame(
 ): Promise<GameStats[]> {
   const url = `${STEAM_API_BASE}/ISteamUserStats/GetUserStatsForGame/v2/`;
   try {
-    const response = await axios.get(url, {
+    const response = await axios.get<UserStatsForGameResponse>(url, {
       params: {
         key: apiKey,
         steamid: steamId,
@@ -104,7 +132,7 @@ async function getUserBacklog(userId: string): Promise<Map<number, any>> {
     }
 
     if (data.length > 0) {
-      data.forEach(doc => backlog.set(doc.steam_appid, doc));
+      data.forEach(doc => backlog.set(Number(doc.steam_appid), doc));
       page++;
       if (data.length < pageSize) {
         hasMore = false;
@@ -123,7 +151,7 @@ async function syncGameStats(
   gameId: string,
   appId: number,
   apiKey: string
-) {
+): Promise<void> {
   const stats = await getUserStatsForGame(steamId, appId, apiKey);
   if (stats.length > 0) {
     const statsJson = JSON.stringify(stats);
@@ -139,9 +167,11 @@ async function syncGameAchievements(
   userId: string,
   appId: number,
   apiKey: string
-) {
+): Promise<void> {
   const achievements = await getPlayerAchievements(steamId, appId, apiKey);
-  if (achievements.length === 0) return;
+  if (achievements.length === 0) {
+    return;
+  }
 
   const recordsToUpsert = achievements.map(ach => ({
     user_id: userId,
@@ -164,7 +194,7 @@ async function syncGameAchievements(
 /**
  * The main service function to sync a user's Steam library with Supabase.
  */
-export async function syncUserWithSteam(user: any) {
+export async function syncUserWithSteam(user: any): Promise<void> {
   console.log(
     `Starting Steam sync for user: ${user.display_name} (${user.steam_id})`
   );
@@ -175,14 +205,16 @@ export async function syncUserWithSteam(user: any) {
   }
 
   // 1. Fetch all owned games from Steam
-  const ownedGames = await getOwnedGames(user.steam_id, config.steamApiKey);
+  const ownedGames = await getOwnedGames(String(user.steam_id), config.steamApiKey);
   console.log(
     `Found ${ownedGames.length} owned games for user ${user.steam_id}.`
   );
-  if (ownedGames.length === 0) return;
+  if (ownedGames.length === 0) {
+    return;
+  }
 
   // 2. Get user's existing backlog from Supabase
-  const userBacklog = await getUserBacklog(user.id);
+  const userBacklog = await getUserBacklog(String(user.id));
   console.log(`User has ${userBacklog.size} games in their backlog.`);
 
   // 3. Process each game
@@ -269,15 +301,15 @@ export async function syncUserWithSteam(user: any) {
     if (gameDocument) {
       await Promise.all([
         syncGameAchievements(
-          user.steam_id,
-          user.id,
+          String(user.steam_id),
+          String(user.id),
           game.appid,
           config.steamApiKey
         ),
         syncGameStats(
-          user.steam_id,
-          user.id,
-          gameDocument.id,
+          String(user.steam_id),
+          String(user.id),
+          String(gameDocument.id),
           game.appid,
           config.steamApiKey
         ),
