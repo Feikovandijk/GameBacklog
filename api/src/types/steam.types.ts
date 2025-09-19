@@ -8,7 +8,7 @@ export interface GameDocument {
   website?: string | null;
   screenshots?: string[] | null;
   movies?: string[] | null;
-  release_date?: string | null; 
+  release_date?: string | null;
   last_updated: string;
   developers?: string[] | null;
   publishers?: string[] | null;
@@ -44,93 +44,104 @@ export interface GameDocument {
 }
 
 export interface WebApiData {
-    type: string;
+  type: string;
+  name: string;
+  steam_appid: number;
+  short_description?: string;
+  required_age?: number;
+  is_free?: boolean;
+  dlc?: number[];
+  detailed_description?: string;
+  about_the_game?: string;
+  supported_languages?: string;
+  header_image: string;
+  website?: string;
+  pc_requirements?: any;
+  mac_requirements?: any;
+  linux_requirements?: any;
+  developers: string[];
+  publishers: string[];
+  price_overview?: {
+    currency: string;
+    initial: number;
+    final: number;
+    discount_percent: number;
+  };
+  metacritic?: { score: number; url: string };
+  categories?: { id: number; description: string }[];
+  genres?: { id: string; description: string }[];
+  screenshots?: { id: number; path_thumbnail: string; path_full: string }[];
+  movies?: {
+    id: number;
     name: string;
-    steam_appid: number;
-    short_description?: string;
-    required_age?: number;
-    is_free?: boolean;
-    dlc?: number[];
-    detailed_description?: string;
-    about_the_game?: string;
-    supported_languages?: string;
-    header_image: string;
-    website?: string;
-    pc_requirements?: any;
-    mac_requirements?: any;
-    linux_requirements?: any;
-    developers: string[];
-    publishers: string[];
-    price_overview?: { currency: string; initial: number; final: number; discount_percent: number; };
-    metacritic?: { score: number; url: string; };
-    categories?: { id: number; description: string }[];
-    genres?: { id: string; description: string }[];
-    screenshots?: {id: number; path_thumbnail: string; path_full: string;}[];
-    movies?: {id: number; name: string; thumbnail: string; webm: any; mp4: {480: string; max: string;};}[];
-    release_date: { coming_soon: boolean; date: string; };
-    review_summary?: any;
-    player_count?: number;
-    platforms?: { windows: boolean; mac: boolean; linux: boolean; };
-    achievements?: { total: number; };
+    thumbnail: string;
+    webm: any;
+    mp4: { 480: string; max: string };
+  }[];
+  release_date: { coming_soon: boolean; date: string };
+  review_summary?: any;
+  player_count?: number;
+  platforms?: { windows: boolean; mac: boolean; linux: boolean };
+  achievements?: { total: number };
 }
 
 export interface OwnedGame {
-    appid: number;
-    name: string;
-    playtime_forever: number;
-    playtime_2weeks?: number;
-    img_icon_url: string;
-    img_logo_url: string;
+  appid: number;
+  name: string;
+  playtime_forever: number;
+  playtime_2weeks?: number;
+  img_icon_url: string;
+  img_logo_url: string;
 }
 
 export interface PlayerAchievement {
-    apiname: string;
-    achieved: number; // 1 for unlocked, 0 for locked
-    unlocktime: number; // Unix timestamp
+  apiname: string;
+  achieved: number; // 1 for unlocked, 0 for locked
+  unlocktime: number; // Unix timestamp
 }
 
 export interface GameStats {
-    name: string;
-    value: number;
+  name: string;
+  value: number;
 }
 
 export interface Achievement {
-    name: string; // This is the API name
-    displayName: string;
-    description: string;
-    hidden: boolean;
-    icon: string;
-    icongray: string;
-    percent?: number; // from the global stats endpoint
+  name: string; // This is the API name
+  displayName: string;
+  description: string;
+  hidden: boolean;
+  icon: string;
+  icongray: string;
+  percent?: number; // from the global stats endpoint
 }
 
 export interface AchievementDocument {
-    game_id: string; // FK to games collection document $id
-    steam_appid: number;
-    api_name: string;
-    display_name: string;
-    description?: string | null;
-    icon?: string | null;
-    icon_gray?: string | null;
-    hidden?: boolean | null;
-    global_percentage?: number | null;
+  game_id: string; // FK to games collection document $id
+  steam_appid: number;
+  api_name: string;
+  display_name: string;
+  description?: string | null;
+  icon?: string | null;
+  icon_gray?: string | null;
+  hidden?: boolean | null;
+  global_percentage?: number | null;
 }
 
 export interface User {
-    id: string;
-    steam_id: string;
-    display_name: string;
-    avatar_url: string;
-    profile_url: string;
-    real_name?: string;
-    country_code?: string;
-    is_public_profile: boolean;
-    auto_import_steam_games: boolean;
-    sync_steam_playtime: boolean;
-    default_game_status: string;
-    theme: string;
-    default_view: string;
-    created_at: string;
-    last_steam_sync?: string;
-    last_active?: string;
+  id: string;
+  steam_id: string;
+  display_name: string;
+  avatar_url: string;
+  profile_url: string;
+  real_name?: string;
+  country_code?: string;
+  is_public_profile: boolean;
+  auto_import_steam_games: boolean;
+  sync_steam_playtime: boolean;
+  default_game_status: string;
+  theme: string;
+  default_view: string;
+  created_at: string;
+  last_steam_sync?: string;
+  last_active?: string;
 }
