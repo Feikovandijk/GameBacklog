@@ -150,9 +150,12 @@ function formatPicsDataToGameDocument(
   const developers: string[] = [],
     publishers: string[] = [];
   if (common.associations) {
-    Object.values(common.associations).forEach((assoc: any) => {
-      if (assoc.type === 'developer') developers.push(assoc.name);
-      else if (assoc.type === 'publisher') publishers.push(assoc.name);
+    Object.values(common.associations as Record<string, unknown> || {}).forEach((assoc: any) => {
+      if (assoc.type === 'developer') {
+        developers.push(String(assoc.name));
+      } else if (assoc.type === 'publisher') {
+        publishers.push(String(assoc.name));
+      }
     });
   }
 
@@ -162,7 +165,7 @@ function formatPicsDataToGameDocument(
   const steamReleaseTimestamp = common.steam_release_date;
   if (steamReleaseTimestamp) {
     // The timestamp is in seconds, so we multiply by 1000 for milliseconds
-    const parsedDate = new Date(parseInt(steamReleaseTimestamp, 10) * 1000);
+        const parsedDate = new Date(parseInt(String(steamReleaseTimestamp), 10) * 1000);
     if (!isNaN(parsedDate.getTime())) {
       releaseDateForDb = parsedDate.toISOString();
     }
@@ -170,11 +173,11 @@ function formatPicsDataToGameDocument(
 
   // PICS provides tag IDs. The actual names aren't in this response.
   const tags = common.store_tags
-    ? (Object.values(common.store_tags) as string[])
+    ? Object.values(common.store_tags as Record<string, unknown>).map(String)
     : [];
 
   // PICS provides category IDs in the format "category_X". We'll store them as is.
-  const categories = common.category ? Object.keys(common.category) : [];
+    const categories = Object.keys(common.category as Record<string, unknown> || {});
   const hasSteamAchievements = categories.includes('category_22'); // Category 22 is "Steam Achievements"
 
   let headerImageUrl: string | null = null;
@@ -218,7 +221,7 @@ function formatPicsDataToGameDocument(
 
     // Fields available in PICS but not the old method
     positive_rating_percentage: common.review_percentage
-      ? parseInt(common.review_percentage, 10)
+      ? parseInt(String(common.review_percentage), 10)
       : null,
   };
 }
@@ -388,7 +391,7 @@ async function performRefresh() {
 
   const productChanges = await new Promise<ProductChanges>(
     (resolve, reject) => {
-      steamUser.getProductChanges(
+      void steamUser.getProductChanges(
         lastChangenumber,
         (err, currentChangenumber, appChanges, packageChanges) => {
           console.log('DEBUG: getProductChanges callback fired.');
@@ -448,7 +451,7 @@ async function performRefresh() {
     // Use a smaller chunk size for database queries to ensure reliability.
     // The getProductInfo call can still handle a larger batch.
     const DB_CHUNK_SIZE = 25;
-    const gameDocsByAppId = new Map();
+    const gameDocsByAppId = new Map<number, any>();
     console.log(
       'Checking which of the changed apps are already in the database...'
     );
@@ -468,7 +471,7 @@ async function performRefresh() {
           );
         } else {
           games?.forEach((doc: any) =>
-            gameDocsByAppId.set(doc.steam_appid, doc)
+            gameDocsByAppId.set(Number(doc.steam_appid), doc)
           );
         }
       } catch (e) {
@@ -484,7 +487,7 @@ async function performRefresh() {
 
     const apps = await new Promise<{ [key: string]: any }>(
       (resolve, reject) => {
-        steamUser.getProductInfo(
+        void steamUser.getProductInfo(
           allAppIdsToProcess,
           [],
           false,
@@ -546,7 +549,7 @@ async function performRefresh() {
               console.log(
                 `Game ${finalGameData.name} has achievements. Syncing...`
               );
-              await syncGameAchievements(existingDoc.id, appId);
+              await syncGameAchievements(String(existingDoc.id), Number(appId));
             }
           } else {
             // --- CREATE NEW GAME ---
@@ -570,7 +573,7 @@ async function performRefresh() {
               console.log(
                 `Game ${finalGameData.name} has achievements. Syncing...`
               );
-              await syncGameAchievements(newDoc.id, appId);
+              await syncGameAchievements(String(newDoc.id), Number(appId));
             }
           }
         } catch (e) {
@@ -656,12 +659,14 @@ async function incrementStat(key: string, incrementBy: number = 1) {
 
         if (insertError) {
           console.error(
-            `Failed to create stat for key: ${key}. Error: ${insertError}`
+            `Failed to create stat for key: ${key}. Error:`,
+            insertError
           );
         }
       } else {
         console.error(
-          `Failed to fetch stat for key: ${key}. Error: ${fetchError}`
+          `Failed to fetch stat for key: ${key}. Error:`,
+          fetchError
         );
       }
     } else if (existing) {
@@ -673,12 +678,13 @@ async function incrementStat(key: string, incrementBy: number = 1) {
 
       if (updateError) {
         console.error(
-          `Failed to update stat for key: ${key}. Error: ${updateError}`
+          `Failed to update stat for key: ${key}. Error:`,
+          updateError
         );
       }
     }
   } catch (e) {
-    console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
+    console.error(`\nFailed to increment stat for key: ${key}. Error:`, e);
   }
 }
 
@@ -739,12 +745,14 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
       if (percentagesJson?.achievementpercentages?.achievements) {
         percentagesJson.achievementpercentages.achievements.forEach(
           (ach: { name: string; percent: any }) => {
-            const percentValue = parseFloat(ach.percent);
+            const percentValue = parseFloat(String(ach.percent));
             if (!isNaN(percentValue)) {
               percentagesData[ach.name] = percentValue;
             } else {
               console.warn(
-                `Could not parse achievement percent for ${ach.name} as a float. Value was: ${ach.percent}`
+                `Could not parse achievement percent for ${String(
+                  ach.name
+                )} as a float. Value was: ${String(ach.percent)}`
               );
             }
           }
@@ -760,11 +768,11 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
       ach => ({
         game_id: documentId,
         steam_appid: steamAppId,
-        api_name: ach.name,
-        display_name: ach.displayName,
-        description: ach.description || null,
-        icon: ach.icon || null,
-        icon_gray: ach.icongray || null,
+        api_name: String(ach.name),
+        display_name: String(ach.displayName),
+        description: ach.description ? String(ach.description) : null,
+        icon: ach.icon ? String(ach.icon) : null,
+        icon_gray: ach.icongray ? String(ach.icongray) : null,
         hidden: !!ach.hidden,
         global_percentage: percentagesData[ach.name] ?? null,
       })
@@ -788,7 +796,7 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
       const DELETE_BATCH_SIZE = 50;
       for (let i = 0; i < oldAchievements.length; i += DELETE_BATCH_SIZE) {
         const batch = oldAchievements.slice(i, i + DELETE_BATCH_SIZE);
-        const batchIds = batch.map(doc => doc.id);
+                const batchIds = batch.map(doc => String(doc.id));
         const { error: deleteError } = await supabase
           .from('achievements')
           .delete()

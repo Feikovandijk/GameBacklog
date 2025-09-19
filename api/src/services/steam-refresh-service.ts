@@ -114,7 +114,9 @@ async function fetchGameDetailsFromSteam(
 }
 
 async function recordReviewHistory(gameId: string, totalReviews: number) {
-  if (typeof totalReviews !== 'number') return; // Don't record if no review data
+    if (typeof totalReviews !== 'number') {
+    return; // Don't record if no review data
+  }
 
   const historyData = {
     game_id: gameId,
@@ -246,7 +248,7 @@ async function updateGameInSupabase(
       }
 
       if (reviews?.total_reviews) {
-        await recordReviewHistory(gameId, reviews.total_reviews);
+        await recordReviewHistory(gameId, Number(reviews.total_reviews));
       }
 
       return true;
@@ -395,9 +397,9 @@ async function runRefreshService() {
         console.log(
           `[Worker ${config.worker.id}/${config.worker.total}] Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`
         );
-        const steamData = await fetchGameDetailsFromSteam(game.steam_appid);
+        const steamData = await fetchGameDetailsFromSteam(Number(game.steam_appid));
 
-        const success = await updateGameInSupabase(game.id, steamData);
+        const success = await updateGameInSupabase(String(game.id), steamData);
         if (success) {
           totalUpdatedCount++;
           await incrementStat('updatedGames');
@@ -459,7 +461,7 @@ async function incrementStat(key: string, incrementBy: number = 1) {
     }
   } catch (e) {
     console.error(`
-Failed to increment stat for key: ${key}. Error: ${e}`);
+Failed to increment stat for key: ${key}. Error: ${String(e)}`);
   }
 }
 
@@ -517,7 +519,7 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
       if (percentagesJson?.achievementpercentages?.achievements) {
         percentagesJson.achievementpercentages.achievements.forEach(
           (ach: { name: string; percent: any }) => {
-            const percentValue = parseFloat(ach.percent);
+            const percentValue = parseFloat(String(ach.percent));
             if (!isNaN(percentValue)) {
               percentagesData[ach.name] = percentValue;
             } else {
@@ -538,11 +540,11 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
       ach => ({
         game_id: documentId,
         steam_appid: steamAppId,
-        api_name: ach.name,
-        display_name: ach.displayName,
-        description: ach.description || null,
-        icon: ach.icon || null,
-        icon_gray: ach.icongray || null,
+        api_name: String(ach.name),
+        display_name: String(ach.displayName),
+        description: ach.description ? String(ach.description) : null,
+        icon: ach.icon ? String(ach.icon) : null,
+        icon_gray: ach.icongray ? String(ach.icongray) : null,
         hidden: !!ach.hidden,
         global_percentage: percentagesData[ach.name] ?? null,
       })
@@ -589,7 +591,7 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
 
 // Autorun the service when the script is executed
 if (require.main === module) {
-  runRefreshService();
+  void runRefreshService();
 }
 
 export { runRefreshService }; // Export if you plan to import it elsewhere

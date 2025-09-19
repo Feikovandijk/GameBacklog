@@ -72,7 +72,9 @@ async function getPlayerCount(steamAppId: number): Promise<number | null> {
 }
 
 async function recordPlayerCountHistory(gameId: string, playerCount: number) {
-  if (typeof playerCount !== 'number') return;
+    if (typeof playerCount !== 'number') {
+    return;
+  }
 
   const historyData = {
     game_id: gameId,
@@ -136,9 +138,11 @@ async function runPlayerCountSync() {
     console.log(`Found ${games.length} games to update player count.`);
 
     for (const game of games) {
-      if (!game.steam_appid) continue;
+            if (!game.steam_appid) {
+        continue;
+      }
 
-      const playerCount = await getPlayerCount(game.steam_appid);
+            const playerCount = await getPlayerCount(Number(game.steam_appid));
 
       if (playerCount !== null) {
         const currentStreak = game.player_count_zero_sync_streak || 0;
@@ -163,7 +167,7 @@ async function runPlayerCountSync() {
             `Updated player count for ${game.name} to ${playerCount}`
           );
           totalUpdatedCount++;
-          await recordPlayerCountHistory(game.id, playerCount);
+                    await recordPlayerCountHistory(String(game.id), playerCount);
         }
       }
 

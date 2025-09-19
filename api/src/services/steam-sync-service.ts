@@ -41,7 +41,7 @@ async function getExistingGameIds(): Promise<Set<number>> {
     if (data.length > 0) {
       data.forEach(doc => {
         if (doc.steam_appid) {
-          existingIds.add(doc.steam_appid);
+          existingIds.add(Number(doc.steam_appid));
         }
       });
       console.log(
@@ -148,5 +148,5 @@ async function runSyncService() {
 
 // Autorun the service when the script is executed
 if (require.main === module) {
-  runSyncService();
+  void runSyncService();
 }
