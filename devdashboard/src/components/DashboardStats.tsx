@@ -12,7 +12,8 @@ const DashboardStats: React.FC = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+        const apiUrl =
+          import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
         const response = await fetch(`${apiUrl}/api/stats`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -21,11 +22,11 @@ const DashboardStats: React.FC = () => {
         setStats(data);
       } catch (e: unknown) {
         if (e instanceof Error) {
-            setError(e.message);
+          setError(e.message);
         } else {
-            setError("An unknown error occurred");
+          setError('An unknown error occurred');
         }
-        console.error("Error fetching stats:", e);
+        console.error('Error fetching stats:', e);
       }
     };
 
@@ -37,21 +38,30 @@ const DashboardStats: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const StatCard: React.FC<{ title: string; value: string | number }> = ({ title, value }) => (
-    <div className="stat-card">
-      <h3 className="stat-title">{title}</h3>
-      <p className="stat-value">{value}</p>
+  const StatCard: React.FC<{ title: string; value: string | number }> = ({
+    title,
+    value,
+  }) => (
+    <div className='stat-card'>
+      <h3 className='stat-title'>{title}</h3>
+      <p className='stat-value'>{value}</p>
     </div>
   );
 
   return (
-    <div className="dashboard-stats">
+    <div className='dashboard-stats'>
       <h2>Database Statistics</h2>
-      {error && <p className="error-message">Error loading stats: {error}</p>}
+      {error && <p className='error-message'>Error loading stats: {error}</p>}
       {stats ? (
-        <div className="stats-container">
-          <StatCard title="Total Games in Database" value={stats.totalGames.toLocaleString()} />
-          <StatCard title="Games Fully Updated" value={stats.updatedGames.toLocaleString()} />
+        <div className='stats-container'>
+          <StatCard
+            title='Total Games in Database'
+            value={stats.totalGames.toLocaleString()}
+          />
+          <StatCard
+            title='Games Fully Updated'
+            value={stats.updatedGames.toLocaleString()}
+          />
         </div>
       ) : (
         <p>Loading stats...</p>
@@ -60,4 +70,4 @@ const DashboardStats: React.FC = () => {
   );
 };
 
-export default DashboardStats; 
+export default DashboardStats;

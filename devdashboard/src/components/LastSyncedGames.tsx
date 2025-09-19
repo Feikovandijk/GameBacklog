@@ -12,27 +12,39 @@ interface AchievementDocument {
 }
 
 interface GameDocument {
-    $id: string;
-    name: string;
-    steam_appid: number;
-    last_updated: string;
-    // Allow for other dynamic properties from Appwrite
-    [key: string]: unknown;
+  $id: string;
+  name: string;
+  steam_appid: number;
+  last_updated: string;
+  // Allow for other dynamic properties from Appwrite
+  [key: string]: unknown;
 }
-
 
 interface GameWithDetails extends GameDocument {
   achievements: AchievementDocument[];
 }
 
 const renderValue = (value: unknown) => {
-    if (value === null || typeof value === 'undefined') return <span className="value-null">null</span>;
-    if (typeof value === 'boolean') return <span className={value ? "value-true" : "value-false"}>{value.toString()}</span>;
-    if (Array.isArray(value)) return `[${value.join(', ')}]`;
-    if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('https://'))) {
-        return <a href={value} target="_blank" rel="noopener noreferrer">{value}</a>;
-    }
-    return String(value);
+  if (value === null || typeof value === 'undefined')
+    return <span className='value-null'>null</span>;
+  if (typeof value === 'boolean')
+    return (
+      <span className={value ? 'value-true' : 'value-false'}>
+        {value.toString()}
+      </span>
+    );
+  if (Array.isArray(value)) return `[${value.join(', ')}]`;
+  if (
+    typeof value === 'string' &&
+    (value.startsWith('http') || value.startsWith('https://'))
+  ) {
+    return (
+      <a href={value} target='_blank' rel='noopener noreferrer'>
+        {value}
+      </a>
+    );
+  }
+  return String(value);
 };
 
 const LastSyncedGames: React.FC = () => {
@@ -45,9 +57,11 @@ const LastSyncedGames: React.FC = () => {
     const fetchLatestSynced = async () => {
       try {
         setLoading(true);
-        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+        const apiUrl =
+          import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
         const response = await fetch(`${apiUrl}/api/latest-synced-games`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok)
+          throw new Error(`HTTP error! status: ${response.status}`);
         const data: GameWithDetails[] = await response.json();
         setGames(data);
       } catch (e: unknown) {
@@ -56,7 +70,7 @@ const LastSyncedGames: React.FC = () => {
         } else {
           setError('An unknown error occurred while fetching data.');
         }
-        console.error("Error fetching latest synced games:", e);
+        console.error('Error fetching latest synced games:', e);
       } finally {
         setLoading(false);
       }
@@ -68,65 +82,109 @@ const LastSyncedGames: React.FC = () => {
     setExpandedGame(expandedGame === gameId ? null : gameId);
   };
 
-  if (loading) return <div className="last-synced-container"><h2>Last 10 Synced Games</h2><p>Loading...</p></div>;
-  if (error) return <div className="last-synced-container"><h2>Last 10 Synced Games</h2><p className="error-message">Error: {error}</p></div>;
-  if (!games || games.length === 0) return <div className="last-synced-container"><h2>Last 10 Synced Games</h2><p>No recently synced games found.</p></div>;
+  if (loading)
+    return (
+      <div className='last-synced-container'>
+        <h2>Last 10 Synced Games</h2>
+        <p>Loading...</p>
+      </div>
+    );
+  if (error)
+    return (
+      <div className='last-synced-container'>
+        <h2>Last 10 Synced Games</h2>
+        <p className='error-message'>Error: {error}</p>
+      </div>
+    );
+  if (!games || games.length === 0)
+    return (
+      <div className='last-synced-container'>
+        <h2>Last 10 Synced Games</h2>
+        <p>No recently synced games found.</p>
+      </div>
+    );
 
   return (
-    <div className="last-synced-container">
+    <div className='last-synced-container'>
       <h2>Last 10 Synced Games</h2>
-      <div className="game-list">
-        {games.map((game) => (
-          <div key={game.$id} className="game-item">
-            <div className="game-header" onClick={() => toggleGame(game.$id)}>
-              <span className="game-name">{game.name} <small>(AppID: {game.steam_appid})</small></span>
-              <span className="game-info">Synced: {new Date(game.last_updated).toLocaleString()}</span>
+      <div className='game-list'>
+        {games.map(game => (
+          <div key={game.$id} className='game-item'>
+            <div className='game-header' onClick={() => toggleGame(game.$id)}>
+              <span className='game-name'>
+                {game.name} <small>(AppID: {game.steam_appid})</small>
+              </span>
+              <span className='game-info'>
+                Synced: {new Date(game.last_updated).toLocaleString()}
+              </span>
             </div>
             {expandedGame === game.$id && (
-              <div className="game-details-container">
+              <div className='game-details-container'>
                 <h3>Game Data</h3>
-                <div className="game-data-grid">
-                    {Object.entries(game).map(([key, value]) => {
-                        if (key === 'achievements') return null; // Handled separately
-                        return (
-                            <React.Fragment key={key}>
-                                <div className="data-key">{key}</div>
-                                <div className="data-value">{renderValue(value)}</div>
-                            </React.Fragment>
-                        );
-                    })}
+                <div className='game-data-grid'>
+                  {Object.entries(game).map(([key, value]) => {
+                    if (key === 'achievements') return null; // Handled separately
+                    return (
+                      <React.Fragment key={key}>
+                        <div className='data-key'>{key}</div>
+                        <div className='data-value'>{renderValue(value)}</div>
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
 
                 {game.achievements && game.achievements.length > 0 && (
-                    <>
-                        <h3 style={{marginTop: '1.5rem'}}>Achievements ({game.achievements.length})</h3>
-                        <div className="achievements-table-container">
-                        <table className="achievements-table">
-                            <thead>
-                            <tr>
-                                <th>Icon</th>
-                                <th>Display Name</th>
-                                <th>API Name</th>
-                                <th>Description</th>
-                                <th>Global %</th>
-                                <th>Hidden</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {game.achievements.sort((a,b) => (b.global_percentage ?? 0) - (a.global_percentage ?? 0)).map((ach) => (
-                                <tr key={ach.$id}>
-                                <td>{ach.icon && <img src={ach.icon} alt={ach.display_name} className="achievement-icon" />}</td>
+                  <>
+                    <h3 style={{ marginTop: '1.5rem' }}>
+                      Achievements ({game.achievements.length})
+                    </h3>
+                    <div className='achievements-table-container'>
+                      <table className='achievements-table'>
+                        <thead>
+                          <tr>
+                            <th>Icon</th>
+                            <th>Display Name</th>
+                            <th>API Name</th>
+                            <th>Description</th>
+                            <th>Global %</th>
+                            <th>Hidden</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {game.achievements
+                            .sort(
+                              (a, b) =>
+                                (b.global_percentage ?? 0) -
+                                (a.global_percentage ?? 0)
+                            )
+                            .map(ach => (
+                              <tr key={ach.$id}>
+                                <td>
+                                  {ach.icon && (
+                                    <img
+                                      src={ach.icon}
+                                      alt={ach.display_name}
+                                      className='achievement-icon'
+                                    />
+                                  )}
+                                </td>
                                 <td>{ach.display_name}</td>
-                                <td><code>{ach.api_name}</code></td>
-                                <td className="achievement-description">{ach.description}</td>
-                                <td>{ach.global_percentage?.toFixed(2) ?? 'N/A'}</td>
+                                <td>
+                                  <code>{ach.api_name}</code>
+                                </td>
+                                <td className='achievement-description'>
+                                  {ach.description}
+                                </td>
+                                <td>
+                                  {ach.global_percentage?.toFixed(2) ?? 'N/A'}
+                                </td>
                                 <td>{ach.hidden ? 'Yes' : 'No'}</td>
-                                </tr>
+                              </tr>
                             ))}
-                            </tbody>
-                        </table>
-                        </div>
-                    </>
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -137,4 +195,4 @@ const LastSyncedGames: React.FC = () => {
   );
 };
 
-export default LastSyncedGames; 
+export default LastSyncedGames;

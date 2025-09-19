@@ -23,8 +23,11 @@ const GameSearch: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-      const response = await fetch(`${apiUrl}/api/games/search?q=${encodeURIComponent(searchQuery)}`);
+      const apiUrl =
+        import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const response = await fetch(
+        `${apiUrl}/api/games/search?q=${encodeURIComponent(searchQuery)}`
+      );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -34,9 +37,9 @@ const GameSearch: React.FC = () => {
       if (e instanceof Error) {
         setError(e.message);
       } else {
-        setError("An unknown error occurred");
+        setError('An unknown error occurred');
       }
-      console.error("Error searching games:", e);
+      console.error('Error searching games:', e);
     } finally {
       setIsLoading(false);
     }
@@ -60,36 +63,46 @@ const GameSearch: React.FC = () => {
   };
 
   return (
-    <div className="game-search">
+    <div className='game-search'>
       <h2>Search for a Game in DB</h2>
       <input
-        type="text"
+        type='text'
         value={query}
         onChange={handleInputChange}
-        placeholder="E.g., Cyberpunk 2077..."
-        className="search-input"
+        placeholder='E.g., Cyberpunk 2077...'
+        className='search-input'
       />
       {isLoading && <p>Searching...</p>}
-      {error && <p className="error-message">Error: {error}</p>}
-      <div className="search-results">
-        {results.length > 0 ? (
-          results.map(game => (
-            <div key={game.$id} className="search-result-item">
-               <a href={`https://store.steampowered.com/app/${game.steam_appid}`} target="_blank" rel="noopener noreferrer">
-                  <img src={game.header_image || ''} alt={game.name} className="result-game-image" />
-               </a>
-               <div className="result-game-info">
-                    <h4>{game.name}</h4>
-                    <p>Reviews: {game.total_reviews?.toLocaleString() || 'N/A'}</p>
-               </div>
-            </div>
-          ))
-        ) : (
-          query.length >= 3 && !isLoading && !error && <p className="no-results-message">No results found.</p>
-        )}
+      {error && <p className='error-message'>Error: {error}</p>}
+      <div className='search-results'>
+        {results.length > 0
+          ? results.map(game => (
+              <div key={game.$id} className='search-result-item'>
+                <a
+                  href={`https://store.steampowered.com/app/${game.steam_appid}`}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                >
+                  <img
+                    src={game.header_image || ''}
+                    alt={game.name}
+                    className='result-game-image'
+                  />
+                </a>
+                <div className='result-game-info'>
+                  <h4>{game.name}</h4>
+                  <p>
+                    Reviews: {game.total_reviews?.toLocaleString() || 'N/A'}
+                  </p>
+                </div>
+              </div>
+            ))
+          : query.length >= 3 &&
+            !isLoading &&
+            !error && <p className='no-results-message'>No results found.</p>}
       </div>
     </div>
   );
 };
 
-export default GameSearch; 
+export default GameSearch;
