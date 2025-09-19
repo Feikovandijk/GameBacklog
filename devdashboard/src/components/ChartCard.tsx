@@ -8,13 +8,18 @@ interface ChartCardProps {
   height?: number;
 }
 
-const ChartCard: React.FC<ChartCardProps> = ({ title, children, className = '', height = 300 }) => (
+const ChartCard: React.FC<ChartCardProps> = ({
+  title,
+  children,
+  className = '',
+  height = 300,
+}) => (
   <div className={`chart-card ${className}`}>
     <h3>{title}</h3>
-    <ResponsiveContainer width="100%" height={height}>
+    <ResponsiveContainer width='100%' height={height}>
       {children}
     </ResponsiveContainer>
   </div>
 );
 
-export default ChartCard; 
+export default ChartCard;
