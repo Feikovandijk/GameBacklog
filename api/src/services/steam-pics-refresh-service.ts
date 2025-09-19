@@ -150,7 +150,9 @@ function formatPicsDataToGameDocument(
   const developers: string[] = [],
     publishers: string[] = [];
   if (common.associations) {
-    Object.values(common.associations as Record<string, unknown> || {}).forEach((assoc: any) => {
+    Object.values(
+      (common.associations as Record<string, unknown>) || {}
+    ).forEach((assoc: any) => {
       if (assoc.type === 'developer') {
         developers.push(String(assoc.name));
       } else if (assoc.type === 'publisher') {
@@ -165,7 +167,9 @@ function formatPicsDataToGameDocument(
   const steamReleaseTimestamp = common.steam_release_date;
   if (steamReleaseTimestamp) {
     // The timestamp is in seconds, so we multiply by 1000 for milliseconds
-        const parsedDate = new Date(parseInt(String(steamReleaseTimestamp), 10) * 1000);
+    const parsedDate = new Date(
+      parseInt(String(steamReleaseTimestamp), 10) * 1000
+    );
     if (!isNaN(parsedDate.getTime())) {
       releaseDateForDb = parsedDate.toISOString();
     }
@@ -177,7 +181,9 @@ function formatPicsDataToGameDocument(
     : [];
 
   // PICS provides category IDs in the format "category_X". We'll store them as is.
-    const categories = Object.keys(common.category as Record<string, unknown> || {});
+  const categories = Object.keys(
+    (common.category as Record<string, unknown>) || {}
+  );
   const hasSteamAchievements = categories.includes('category_22'); // Category 22 is "Steam Achievements"
 
   let headerImageUrl: string | null = null;
@@ -796,7 +802,7 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
       const DELETE_BATCH_SIZE = 50;
       for (let i = 0; i < oldAchievements.length; i += DELETE_BATCH_SIZE) {
         const batch = oldAchievements.slice(i, i + DELETE_BATCH_SIZE);
-                const batchIds = batch.map(doc => String(doc.id));
+        const batchIds = batch.map(doc => String(doc.id));
         const { error: deleteError } = await supabase
           .from('achievements')
           .delete()

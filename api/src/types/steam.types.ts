@@ -1,20 +1,20 @@
 export interface Requirements {
-    minimum: string;
-    recommended: string;
+  minimum: string;
+  recommended: string;
 }
 
 export interface ReviewSummary {
-    num_reviews: number;
-    review_score: number;
-    review_score_desc: string;
-    total_positive: number;
-    total_negative: number;
-    total_reviews: number;
+  num_reviews: number;
+  review_score: number;
+  review_score_desc: string;
+  total_positive: number;
+  total_negative: number;
+  total_reviews: number;
 }
 
 export interface Webm {
-    '480': string;
-    max: string;
+  '480': string;
+  max: string;
 }
 
 export interface GameDocument {

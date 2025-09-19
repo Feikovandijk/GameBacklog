@@ -205,7 +205,10 @@ export async function syncUserWithSteam(user: any): Promise<void> {
   }
 
   // 1. Fetch all owned games from Steam
-  const ownedGames = await getOwnedGames(String(user.steam_id), config.steamApiKey);
+  const ownedGames = await getOwnedGames(
+    String(user.steam_id),
+    config.steamApiKey
+  );
   console.log(
     `Found ${ownedGames.length} owned games for user ${user.steam_id}.`
   );
