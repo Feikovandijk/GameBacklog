@@ -114,7 +114,7 @@ async function fetchGameDetailsFromSteam(
 }
 
 async function recordReviewHistory(gameId: string, totalReviews: number) {
-    if (typeof totalReviews !== 'number') {
+  if (typeof totalReviews !== 'number') {
     return; // Don't record if no review data
   }
 
@@ -397,7 +397,9 @@ async function runRefreshService() {
         console.log(
           `[Worker ${config.worker.id}/${config.worker.total}] Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`
         );
-        const steamData = await fetchGameDetailsFromSteam(Number(game.steam_appid));
+        const steamData = await fetchGameDetailsFromSteam(
+          Number(game.steam_appid)
+        );
 
         const success = await updateGameInSupabase(String(game.id), steamData);
         if (success) {

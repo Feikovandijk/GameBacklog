@@ -85,7 +85,7 @@ async function upsertStat(key: string, count: number) {
 }
 
 if (require.main === module) {
-  void recalculateStats().catch((error) => {
+  void recalculateStats().catch(error => {
     console.error('Failed to recalculate stats:', error);
     process.exit(1);
   });

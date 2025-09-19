@@ -119,13 +119,15 @@ function formatPicsDataToGameDocument(
   const developers: string[] = [],
     publishers: string[] = [];
   if (common.associations) {
-    Object.values(common.associations as Record<string, unknown>).forEach((assoc: any) => {
-      if (assoc.type === 'developer') {
-        developers.push(String(assoc.name));
-      } else if (assoc.type === 'publisher') {
-        publishers.push(String(assoc.name));
+    Object.values(common.associations as Record<string, unknown>).forEach(
+      (assoc: any) => {
+        if (assoc.type === 'developer') {
+          developers.push(String(assoc.name));
+        } else if (assoc.type === 'publisher') {
+          publishers.push(String(assoc.name));
+        }
       }
-    });
+    );
   }
   const oslist = common.oslist?.split(',') || [];
   let releaseDateForDb: string | null = null;
@@ -137,7 +139,9 @@ function formatPicsDataToGameDocument(
   const tags = common.store_tags
     ? Object.values(common.store_tags as Record<string, unknown>).map(String)
     : [];
-  const categories = common.category ? Object.keys(common.category as Record<string, unknown>) : [];
+  const categories = common.category
+    ? Object.keys(common.category as Record<string, unknown>)
+    : [];
   const has_steam_achievements = categories.includes('category_22');
   let headerImageUrl: string | null = null;
   if (common.header_image?.english) {
@@ -216,7 +220,11 @@ function mergeApiData(
   mergedData.dlc = webData.dlc ?? null;
   mergedData.required_age = webData.required_age ?? null;
 
-  if (reviews && reviews.total_reviews > 0 && typeof reviews.total_positive === 'number') {
+  if (
+    reviews?.total_reviews &&
+    reviews.total_reviews > 0 &&
+    typeof reviews.total_positive === 'number'
+  ) {
     mergedData.positive_rating_percentage = Math.round(
       (reviews.total_positive / reviews.total_reviews) * 100
     );
@@ -285,11 +293,16 @@ async function enrichAllGames() {
         );
 
         const picsPromise = new Promise(resolve => {
-          void steamUser.getProductInfo([Number(game.steam_appid)], [], false, (err, apps) =>
-            resolve(apps?.[game.steam_appid] ?? null)
+          void steamUser.getProductInfo(
+            [Number(game.steam_appid)],
+            [],
+            false,
+            (err, apps) => resolve(apps?.[game.steam_appid] ?? null)
           );
         });
-        const webApiPromise = fetchGameDetailsFromWebAPI(Number(game.steam_appid));
+        const webApiPromise = fetchGameDetailsFromWebAPI(
+          Number(game.steam_appid)
+        );
 
         const [picsData, webApiData] = await Promise.all([
           picsPromise,
