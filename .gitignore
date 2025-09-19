@@ -34,3 +34,6 @@ yarn-error.log*
 *.tsbuildinfo 
 node_modules
 .env.backup
+
+# cursor
+.cursorrules
