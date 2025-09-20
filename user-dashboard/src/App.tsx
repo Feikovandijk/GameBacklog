@@ -13,6 +13,7 @@ import BoardView from './components/BoardView';
 import DashboardOverview from './components/DashboardOverview';
 import GameListPage from './components/GameListPage';
 import AddGamePage from './components/AddGamePage';
+import WishlistPage from './components/WishlistPage';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -66,6 +67,7 @@ const App = () => {
               <Route path='/board' element={<BoardView />} />
               <Route path='/games' element={<GameListPage />} />
               <Route path='/add-game' element={<AddGamePage />} />
+              <Route path='/steam-wishlist' element={<WishlistPage />} />
               <Route path='/profile' element={<div>Profile Page</div>} />
               <Route path='*' element={<Navigate to='/dashboard' />} />
             </Routes>

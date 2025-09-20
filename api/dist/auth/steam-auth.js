@@ -33,42 +33,46 @@ passport_1.default.use(new passport_steam_1.Strategy({
     returnURL: 'http://localhost:6543/auth/steam/return',
     realm: 'http://localhost:6543/',
     apiKey: config_1.default.steamApiKey,
-    passReqToCallback: true
-}, (req, identifier, profile, done) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        // More detailed logging
-        console.log('Steam callback received. Headers:', JSON.stringify(req.headers, null, 2));
-        // Extract Steam ID from identifier
-        const steamId = identifier.split('/').pop();
-        console.log('Steam auth callback for Steam ID:', steamId);
-        console.log('Profile data:', JSON.stringify(profile._json, null, 2));
-        // Create or update user
-        const user = yield createOrUpdateUser(profile);
-        return done(null, user);
-    }
-    catch (error) {
-        console.error('Steam auth error:', error);
-        return done(error, false);
-    }
-})));
+    passReqToCallback: true,
+}, (req, identifier, profile, done) => {
+    // Handle async operations with proper error handling
+    void (() => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            // More detailed logging
+            console.log('Steam callback received. Headers:', JSON.stringify(req.headers, null, 2));
+            // Extract Steam ID from identifier
+            const steamId = identifier.split('/').pop();
+            console.log('Steam auth callback for Steam ID:', steamId);
+            console.log('Profile data:', JSON.stringify(profile._json, null, 2));
+            // Create or update user
+            const user = yield createOrUpdateUser(profile);
+            return done(null, user);
+        }
+        catch (error) {
+            console.error('Steam auth error:', error);
+            return done(error, false);
+        }
+    }))();
+}));
 // Serialize user for session
 passport_1.default.serializeUser((user, done) => {
     done(null, user.id);
 });
 // Deserialize user from session
-passport_1.default.deserializeUser((userId, done) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const user = yield getUserById(userId);
-        done(null, user);
-    }
-    catch (error) {
-        done(error, null);
-    }
-}));
+passport_1.default.deserializeUser((userId, done) => {
+    // Handle async operations with proper error handling
+    void (() => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const user = yield getUserById(userId);
+            done(null, user);
+        }
+        catch (error) {
+            done(error, null);
+        }
+    }))();
+});
 function createOrUpdateUser(profile) {
     return __awaiter(this, void 0, void 0, function* () {
-        const databaseId = config_1.default.appwrite.databaseId;
-        const usersCollectionId = 'users';
         const steamId = profile._json.steamid;
         try {
             // Check if user already exists
@@ -82,12 +86,14 @@ function createOrUpdateUser(profile) {
             const userData = {
                 steam_id: steamId,
                 display_name: profile.displayName || profile._json.personaname,
-                avatar_url: profile._json.avatarfull || profile._json.avatarmedium || profile._json.avatar,
+                avatar_url: profile._json.avatarfull ||
+                    profile._json.avatarmedium ||
+                    profile._json.avatar,
                 profile_url: profile._json.profileurl,
                 real_name: profile._json.realname || undefined,
                 country_code: profile._json.loccountrycode || undefined,
                 is_public_profile: profile._json.communityvisibilitystate === 3, // 3 = public profile
-                last_active: new Date().toISOString()
+                last_active: new Date().toISOString(),
             };
             if (existingUsers && existingUsers.length > 0) {
                 // Update existing user
@@ -104,11 +110,14 @@ function createOrUpdateUser(profile) {
                 console.log('Updated existing user:', updatedUser.id);
                 // Check if sync is due for existing user
                 const now = new Date();
-                const lastSync = updatedUser.last_steam_sync ? new Date(updatedUser.last_steam_sync) : null;
-                const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-                if (updatedUser.auto_import_steam_games && (!lastSync || lastSync < twentyFourHoursAgo)) {
+                const lastSync = updatedUser.last_steam_sync
+                    ? new Date(String(updatedUser.last_steam_sync))
+                    : null;
+                const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                if (updatedUser.auto_import_steam_games &&
+                    (!lastSync || lastSync < twentyFourHoursAgo)) {
                     console.log(`Auto-import enabled and sync due for ${updatedUser.display_name}. Starting sync in background.`);
-                    (0, user_steam_sync_service_1.syncUserWithSteam)(updatedUser); // Fire-and-forget
+                    void (0, user_steam_sync_service_1.syncUserWithSteam)(updatedUser); // Fire-and-forget
                 }
                 return updatedUser;
             }
@@ -127,7 +136,7 @@ function createOrUpdateUser(profile) {
                 // Optionally import Steam library if auto_import is enabled
                 if (newUserData.auto_import_steam_games) {
                     console.log(`Auto-import enabled for ${newUser.display_name}. Starting sync in background.`);
-                    (0, user_steam_sync_service_1.syncUserWithSteam)(newUser); // Fire-and-forget
+                    void (0, user_steam_sync_service_1.syncUserWithSteam)(newUser); // Fire-and-forget
                 }
                 return newUser;
             }
@@ -147,7 +156,8 @@ function getUserById(userId) {
                 .eq('id', userId)
                 .single();
             if (error) {
-                if (error.code === 'PGRST116') { // No rows returned
+                if (error.code === 'PGRST116') {
+                    // No rows returned
                     return null;
                 }
                 throw error;

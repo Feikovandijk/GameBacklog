@@ -44,6 +44,7 @@ const mainMenuItems: MenuItem[] = [
   getItem('Game List', '/games', <UnorderedListOutlined />),
   getItem('Kanban Board', '/board', <AppstoreOutlined />),
   getItem('Add Game', '/add-game', <PlusOutlined />),
+  getItem('Steam Wishlist', '/steam-wishlist', <UnorderedListOutlined />),
 ];
 
 const bottomMenuItems: MenuItem[] = [

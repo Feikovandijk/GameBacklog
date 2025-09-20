@@ -87,5 +87,8 @@ function upsertStat(key, count) {
     });
 }
 if (require.main === module) {
-    recalculateStats();
+    void recalculateStats().catch(error => {
+        console.error('Failed to recalculate stats:', error);
+        process.exit(1);
+    });
 }

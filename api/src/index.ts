@@ -3,6 +3,7 @@ import session from 'express-session';
 import cors from 'cors';
 import config from './config';
 import { passport, User } from './auth/steam-auth';
+import { getWishlist } from './services/steam-wishlist-service';
 import { syncUserWithSteam } from './services/user-steam-sync-service';
 import { supabase } from './supabase/client';
 
@@ -459,6 +460,24 @@ app.get(
         error: 'Failed to fetch latest steam games',
         details: errorMessage,
       });
+    }
+  }
+);
+
+app.get(
+  '/api/user/wishlist',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const wishlist = await getWishlist(req.user!.steam_id);
+      res.json(wishlist);
+    } catch (error: unknown) {
+      console.error('Error fetching user wishlist:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res
+        .status(500)
+        .json({ error: 'Failed to fetch user wishlist', details: errorMessage });
     }
   }
 );

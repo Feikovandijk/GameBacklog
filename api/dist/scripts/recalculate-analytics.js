@@ -66,7 +66,7 @@ function run() {
         // 1. Release Year Distribution
         const releaseYearDistribution = gameSample.reduce((acc, game) => {
             if (game.release_date) {
-                const year = new Date(game.release_date).getFullYear();
+                const year = new Date(String(game.release_date)).getFullYear();
                 if (year && year > 1980 && year <= new Date().getFullYear()) {
                     acc[year] = (acc[year] || 0) + 1;
                 }
@@ -78,7 +78,9 @@ function run() {
         const genreDistribution = gameSample.reduce((acc, game) => {
             if (game.categories) {
                 game.categories.forEach((cat) => {
-                    if (cat !== "Steam Achievements" && cat !== "Steam Cloud" && cat !== "Single-player") {
+                    if (cat !== 'Steam Achievements' &&
+                        cat !== 'Steam Cloud' &&
+                        cat !== 'Single-player') {
                         acc[cat] = (acc[cat] || 0) + 1;
                     }
                 });

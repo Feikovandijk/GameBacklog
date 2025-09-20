@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:6543';
 
-const api = axios.create({
+const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // Important for session cookies
 });
@@ -116,11 +116,11 @@ export interface UserActivity {
 
 // Authentication
 export const authAPI = {
-  getCurrentUser: () => api.get<User>('/auth/me'),
+  getCurrentUser: () => axiosInstance.get<User>('/auth/me'),
   login: () => {
     window.location.href = `${API_BASE_URL}/auth/steam`;
   },
-  logout: () => api.post('/auth/logout'),
+  logout: () => axiosInstance.post('/auth/logout'),
 };
 
 // User Games
@@ -132,7 +132,7 @@ export const userGamesAPI = {
     offset?: number;
     search?: string;
   }) =>
-    api.get<{ documents: UserGame[]; total: number }>('/api/user/games', {
+    axiosInstance.get<{ documents: UserGame[]; total: number }>('/api/user/games', {
       params,
     }),
 
@@ -142,31 +142,42 @@ export const userGamesAPI = {
     priority?: number;
     user_notes?: string;
     user_tags?: string[];
-  }) => api.post<UserGame>('/api/user/games', gameData),
+  }) => axiosInstance.post<UserGame>('/api/user/games', gameData),
 
   updateGame: (gameId: string, updateData: Partial<UserGame>) =>
-    api.put<UserGame>(`/api/user/games/${gameId}`, updateData),
+    axiosInstance.put<UserGame>(`/api/user/games/${gameId}`, updateData),
 
-  removeGame: (gameId: string) => api.delete(`/api/user/games/${gameId}`),
+  removeGame: (gameId: string) => axiosInstance.delete(`/api/user/games/${gameId}`),
 
-  getStats: () => api.get<UserStats>('/api/user/stats'),
+  getStats: () => axiosInstance.get<UserStats>('/api/user/stats'),
 
   getExtendedStats: () =>
-    api.get<ExtendedUserStats>('/api/user/stats/extended'),
+    axiosInstance.get<ExtendedUserStats>('/api/user/stats/extended'),
 
   getRecentAchievements: () =>
-    api.get<RecentAchievement[]>('/api/user/achievements/recent'),
+    axiosInstance.get<RecentAchievement[]>('/api/user/achievements/recent'),
 
-  getActivity: () => api.get<UserActivity[]>('/api/user/activity'),
+  getActivity: () => axiosInstance.get<UserActivity[]>('/api/user/activity'),
 
   getRecentlyPlayed: (limit = 5) =>
-    api.get<UserGame[]>(`/api/user/games/recently-played?limit=${limit}`),
+    axiosInstance.get<UserGame[]>(`/api/user/games/recently-played?limit=${limit}`),
+
+  getWishlist: () => axiosInstance.get<any[]>('/api/user/wishlist'),
+
+  addGameToBacklog: (steamAppId: string, status: string) =>
+    axiosInstance.post('/api/user/games', { steam_appid: steamAppId, status }),
 };
 
 // Public Games (for search)
 export const gamesAPI = {
   searchGames: (query: string, limit = 20) =>
-    api.get<Game[]>('/api/games/search', { params: { q: query, limit } }),
+    axiosInstance.get<Game[]>('/api/games/search', { params: { q: query, limit } }),
+};
+
+export const api = {
+  ...authAPI,
+  ...userGamesAPI,
+  ...gamesAPI,
 };
 
 export const getActivity = () => userGamesAPI.getActivity();
@@ -175,4 +186,3 @@ export const getUserGames = userGamesAPI.get;
 export const updateUserGame = userGamesAPI.updateGame;
 export const removeUserGame = userGamesAPI.removeGame;
 
-export default api;

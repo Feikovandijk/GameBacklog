@@ -19,14 +19,14 @@ const client_1 = require("../supabase/client");
 const steamUser = new steam_user_1.default();
 steamUser.setOptions({
     enablePicsCache: true, // Required for getProductInfo
-    changelistUpdateInterval: 0 // We don't need automatic updates
+    changelistUpdateInterval: 0, // We don't need automatic updates
 });
 const STEAM_API_KEY = config_1.default.steamApiKeys[config_1.default.worker.id] || config_1.default.steamApiKey;
 if (!STEAM_API_KEY) {
     throw new Error(`[Worker ${config_1.default.worker.id}] Steam API key is missing. Ensure STEAM_API_KEY_${config_1.default.worker.id} or a fallback STEAM_API_KEY is defined in your .env file.`);
 }
-const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
-const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
+const STEAM_API_BASE_URL = 'https://store.steampowered.com/api/appdetails';
+const REVIEW_API_BASE_URL = 'https://store.steampowered.com/appreviews';
 const UPDATE_INTERVAL_DAYS = 7;
 const GAMES_PER_MINUTE_LIMIT = 30; // Stay under the 100k/day Steam API limit
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
@@ -96,17 +96,16 @@ function fetchGameDetailsFromSteam(steamAppId) {
 }
 function recordReviewHistory(gameId, totalReviews) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (typeof totalReviews !== 'number')
+        if (typeof totalReviews !== 'number') {
             return; // Don't record if no review data
+        }
         const historyData = {
             game_id: gameId,
             date: new Date().toISOString(),
             total_reviews: totalReviews,
         };
         try {
-            const { error } = yield client_1.supabase
-                .from('review_history')
-                .insert(historyData);
+            const { error } = yield client_1.supabase.from('review_history').insert(historyData);
             if (error) {
                 console.error(`Error recording review history for game ${gameId}:`, error);
             }
@@ -124,10 +123,12 @@ function updateGameInSupabase(gameId, steamData) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7;
         if (steamData) {
             // This is a valid game, do a full update
-            const isEarlyAccess = (_b = (_a = steamData.genres) === null || _a === void 0 ? void 0 : _a.some((genre) => genre.description === "Early Access")) !== null && _b !== void 0 ? _b : false;
+            const isEarlyAccess = (_b = (_a = steamData.genres) === null || _a === void 0 ? void 0 : _a.some(genre => genre.description === 'Early Access')) !== null && _b !== void 0 ? _b : false;
             let releaseDateForDb;
             const steamReleaseDate = steamData.release_date;
-            if (steamReleaseDate && !steamReleaseDate.coming_soon && steamReleaseDate.date) {
+            if (steamReleaseDate &&
+                !steamReleaseDate.coming_soon &&
+                steamReleaseDate.date) {
                 const parsedDate = new Date(steamReleaseDate.date);
                 if (!isNaN(parsedDate.getTime())) {
                     releaseDateForDb = parsedDate.toISOString();
@@ -142,8 +143,10 @@ function updateGameInSupabase(gameId, steamData) {
             const price = steamData.price_overview;
             const reviews = steamData.review_summary;
             const categories = (_d = (_c = steamData.categories) === null || _c === void 0 ? void 0 : _c.map(c => c.description)) !== null && _d !== void 0 ? _d : [];
-            const hasSteamAchievements = categories.includes("Steam Achievements");
-            const genres = steamData.genres ? steamData.genres.map(g => g.description) : null;
+            const hasSteamAchievements = categories.includes('Steam Achievements');
+            const genres = steamData.genres
+                ? steamData.genres.map(g => g.description)
+                : null;
             const gameData = {
                 name: steamData.name,
                 short_description: steamData.short_description,
@@ -151,7 +154,9 @@ function updateGameInSupabase(gameId, steamData) {
                 about_the_game: (_f = steamData.about_the_game) !== null && _f !== void 0 ? _f : null,
                 header_image: steamData.header_image,
                 website: (_g = steamData.website) !== null && _g !== void 0 ? _g : null,
-                screenshots: steamData.screenshots ? steamData.screenshots.map(s => s.path_full) : null,
+                screenshots: steamData.screenshots
+                    ? steamData.screenshots.map(s => s.path_full)
+                    : null,
                 movies: steamData.movies ? steamData.movies.map(m => m.mp4.max) : null,
                 release_date: releaseDateForDb !== null && releaseDateForDb !== void 0 ? releaseDateForDb : null,
                 last_updated: new Date().toISOString(),
@@ -167,7 +172,9 @@ function updateGameInSupabase(gameId, steamData) {
                 discount_percent: (_o = price === null || price === void 0 ? void 0 : price.discount_percent) !== null && _o !== void 0 ? _o : null,
                 total_positive: (_p = reviews === null || reviews === void 0 ? void 0 : reviews.total_positive) !== null && _p !== void 0 ? _p : null,
                 total_negative: (_q = reviews === null || reviews === void 0 ? void 0 : reviews.total_negative) !== null && _q !== void 0 ? _q : null,
-                positive_rating_percentage: (reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) && (reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) > 0 ? Math.round((reviews.total_positive / reviews.total_reviews) * 100) : null,
+                positive_rating_percentage: (reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) && (reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) > 0
+                    ? Math.round((reviews.total_positive / reviews.total_reviews) * 100)
+                    : null,
                 review_score_desc: (_r = reviews === null || reviews === void 0 ? void 0 : reviews.review_score_desc) !== null && _r !== void 0 ? _r : null,
                 genres: genres,
                 metacritic_score: (_t = (_s = steamData.metacritic) === null || _s === void 0 ? void 0 : _s.score) !== null && _t !== void 0 ? _t : null,
@@ -199,7 +206,7 @@ function updateGameInSupabase(gameId, steamData) {
                     yield syncGameAchievements(gameId, steamData.steam_appid);
                 }
                 if (reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) {
-                    yield recordReviewHistory(gameId, reviews.total_reviews);
+                    yield recordReviewHistory(gameId, Number(reviews.total_reviews));
                 }
                 return true;
             }
@@ -234,27 +241,29 @@ function updateGameInSupabase(gameId, steamData) {
 }
 function runRefreshService() {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Local Steam refresh service started. It will run continuously until all games are updated.");
+        console.log('Local Steam refresh service started. It will run continuously until all games are updated.');
         let totalUpdatedCount = 0;
         try {
-            const { count, error: countError } = yield client_1.supabase.from('games').select('*', { count: 'exact', head: true });
+            const { count, error: countError } = yield client_1.supabase
+                .from('games')
+                .select('*', { count: 'exact', head: true });
             if (countError) {
-                console.error("Error counting games in database:", countError);
-                throw new Error("Could not count games in database.");
+                console.error('Error counting games in database:', countError);
+                throw new Error('Could not count games in database.');
             }
             if (count === 0) {
                 console.log("\nThe 'games' table is empty. This script is for refreshing existing game data.");
                 console.log("--> Please run the 'steam-sync-service.ts' script first to populate your database with all games from Steam.");
                 return; // Exit gracefully
             }
-            console.log("Logging into Steam anonymously...");
+            console.log('Logging into Steam anonymously...');
             steamUser.logOn({ anonymous: true });
             yield new Promise((resolve, reject) => {
                 steamUser.on('loggedOn', () => {
                     console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Logged into Steam successfully.`);
                     resolve();
                 });
-                steamUser.on('error', (err) => {
+                steamUser.on('error', err => {
                     console.error(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Steam login error:`, err);
                     reject(err);
                 });
@@ -285,7 +294,10 @@ function runRefreshService() {
                 if (oldGamesError) {
                     console.error('Error fetching old games:', oldGamesError);
                 }
-                const allStaleGames = [...(neverUpdatedData || []), ...(oldGamesData || [])];
+                const allStaleGames = [
+                    ...(neverUpdatedData || []),
+                    ...(oldGamesData || []),
+                ];
                 const staleGamesMap = new Map();
                 allStaleGames.forEach(game => staleGamesMap.set(game.id, game));
                 const staleGames = Array.from(staleGamesMap.values())
@@ -302,8 +314,8 @@ function runRefreshService() {
                         continue;
                     }
                     console.log(`[Worker ${config_1.default.worker.id}/${config_1.default.worker.total}] Processing game: ${game.name} (Steam AppID: ${game.steam_appid})`);
-                    const steamData = yield fetchGameDetailsFromSteam(game.steam_appid);
-                    const success = yield updateGameInSupabase(game.id, steamData);
+                    const steamData = yield fetchGameDetailsFromSteam(Number(game.steam_appid));
+                    const success = yield updateGameInSupabase(String(game.id), steamData);
                     if (success) {
                         totalUpdatedCount++;
                         yield incrementStat('updatedGames');
@@ -336,7 +348,8 @@ function incrementStat(key_1) {
                 .select('*')
                 .eq('key', key)
                 .single();
-            if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                // PGRST116 is "not found"
                 console.error(`Error fetching stat for key ${key}:`, fetchError);
                 return;
             }
@@ -353,7 +366,7 @@ function incrementStat(key_1) {
         }
         catch (e) {
             console.error(`
-Failed to increment stat for key: ${key}. Error: ${e}`);
+Failed to increment stat for key: ${key}. Error: ${String(e)}`);
         }
     });
 }
@@ -365,7 +378,7 @@ function syncGameAchievements(documentId, steamAppId) {
         try {
             const [schemaResponse, percentagesResponse] = yield Promise.all([
                 fetchWithRetry(schemaUrl),
-                fetchWithRetry(percentagesUrl)
+                fetchWithRetry(percentagesUrl),
             ]);
             if (!schemaResponse.ok) {
                 console.warn(`Could not fetch achievement schema for appid ${steamAppId}. Status: ${schemaResponse.status}`);
@@ -382,7 +395,7 @@ function syncGameAchievements(documentId, steamAppId) {
                 const percentagesJson = yield percentagesResponse.json();
                 if ((_d = percentagesJson === null || percentagesJson === void 0 ? void 0 : percentagesJson.achievementpercentages) === null || _d === void 0 ? void 0 : _d.achievements) {
                     percentagesJson.achievementpercentages.achievements.forEach((ach) => {
-                        const percentValue = parseFloat(ach.percent);
+                        const percentValue = parseFloat(String(ach.percent));
                         if (!isNaN(percentValue)) {
                             percentagesData[ach.name] = percentValue;
                         }
@@ -400,11 +413,11 @@ function syncGameAchievements(documentId, steamAppId) {
                 return ({
                     game_id: documentId,
                     steam_appid: steamAppId,
-                    api_name: ach.name,
-                    display_name: ach.displayName,
-                    description: ach.description || null,
-                    icon: ach.icon || null,
-                    icon_gray: ach.icongray || null,
+                    api_name: String(ach.name),
+                    display_name: String(ach.displayName),
+                    description: ach.description ? String(ach.description) : null,
+                    icon: ach.icon ? String(ach.icon) : null,
+                    icon_gray: ach.icongray ? String(ach.icongray) : null,
                     hidden: !!ach.hidden,
                     global_percentage: (_a = percentagesData[ach.name]) !== null && _a !== void 0 ? _a : null,
                 });
@@ -440,5 +453,5 @@ function syncGameAchievements(documentId, steamAppId) {
 }
 // Autorun the service when the script is executed
 if (require.main === module) {
-    runRefreshService();
+    void runRefreshService();
 }
