@@ -114,6 +114,55 @@ export interface UserActivity {
   metadata_json: string;
 }
 
+// Notes and Templates
+export interface GameNote {
+  $id: string;
+  user_id: string;
+  game_id?: string; // Optional - notes can be standalone or linked to games
+  title: string;
+  content: string;
+  color?: string; // For Google Keep-like colored notes
+  tags: string[];
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+  game?: Game; // Populated when linked to a game
+}
+
+export interface NoteTemplate {
+  $id: string;
+  name: string;
+  category: 'ui_ux' | 'narrative' | 'gameplay' | 'monetization' | 'technical' | 'general';
+  description: string;
+  fields: TemplateField[];
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface TemplateField {
+  id: string;
+  label: string;
+  type: 'text' | 'textarea' | 'rating' | 'multiselect' | 'checkbox' | 'number';
+  required: boolean;
+  options?: string[]; // for multiselect/checkbox
+  placeholder?: string;
+  max_length?: number;
+}
+
+export interface StructuredNote {
+  $id: string;
+  user_id: string;
+  game_id: string;
+  template_id: string;
+  title: string;
+  analysis_data: Record<string, any>; // Dynamic data based on template
+  insights: string; // Free-form insights summary
+  created_at: string;
+  updated_at: string;
+  template?: NoteTemplate;
+  game?: Game;
+}
+
 // Authentication
 export const authAPI = {
   getCurrentUser: () => axiosInstance.get<User>('/auth/me'),
@@ -166,6 +215,8 @@ export const userGamesAPI = {
 
   addGameToBacklog: (steamAppId: string, status: string) =>
     axiosInstance.post('/api/user/games', { steam_appid: steamAppId, status }),
+
+  syncUserGames: () => axiosInstance.post('/api/user/sync'),
 };
 
 // Public Games (for search)
@@ -174,10 +225,66 @@ export const gamesAPI = {
     axiosInstance.get<Game[]>('/api/games/search', { params: { q: query, limit } }),
 };
 
+// Notes
+export const notesAPI = {
+  // Get all notes for the current user
+  getNotes: (params?: {
+    game_id?: string;
+    search?: string;
+    tags?: string[];
+    limit?: number;
+    offset?: number;
+  }) =>
+    axiosInstance.get<{ documents: GameNote[]; total: number }>('/api/user/notes', {
+      params,
+    }),
+
+  // Create a new note
+  createNote: (noteData: {
+    title: string;
+    content: string;
+    game_id?: string;
+    color?: string;
+    tags?: string[];
+    is_pinned?: boolean;
+  }) => axiosInstance.post<GameNote>('/api/user/notes', noteData),
+
+  // Update an existing note
+  updateNote: (noteId: string, updateData: Partial<GameNote>) =>
+    axiosInstance.put<GameNote>(`/api/user/notes/${noteId}`, updateData),
+
+  // Delete a note
+  deleteNote: (noteId: string) => axiosInstance.delete(`/api/user/notes/${noteId}`),
+
+  // Get note templates
+  getTemplates: () => axiosInstance.get<NoteTemplate[]>('/api/note-templates'),
+
+  // Create structured analysis note
+  createStructuredNote: (noteData: {
+    game_id: string;
+    template_id: string;
+    title: string;
+    analysis_data: Record<string, any>;
+    insights: string;
+  }) => axiosInstance.post<StructuredNote>('/api/user/structured-notes', noteData),
+
+  // Get structured notes
+  getStructuredNotes: (params?: {
+    game_id?: string;
+    template_id?: string;
+    limit?: number;
+    offset?: number;
+  }) =>
+    axiosInstance.get<{ documents: StructuredNote[]; total: number }>('/api/user/structured-notes', {
+      params,
+    }),
+};
+
 export const api = {
   ...authAPI,
   ...userGamesAPI,
   ...gamesAPI,
+  ...notesAPI,
 };
 
 export const getActivity = () => userGamesAPI.getActivity();

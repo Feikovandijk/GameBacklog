@@ -68,7 +68,7 @@ const DroppableColumn = ({
         >
           <Title
             level={5}
-            style={{ margin: 0, textTransform: 'uppercase', color: '#6B778C' }}
+            style={{ margin: 0, textTransform: 'uppercase', color: 'var(--text-secondary)' }}
           >
             {title}
           </Title>

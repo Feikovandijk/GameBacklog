@@ -693,6 +693,7 @@ app.get('/api/user/stats', requireAuth, (req, res) => __awaiter(void 0, void 0, 
 // Helper function to log user activity
 function logUserActivity(userId, type, metadata) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         try {
             yield client_1.supabase.from('user_activity').insert({
                 user_id: userId,
@@ -702,6 +703,12 @@ function logUserActivity(userId, type, metadata) {
             });
         }
         catch (error) {
+            const err = error;
+            // If table missing (42P01), downgrade to debug to avoid noisy logs
+            if (err && (err.code === '42P01' || ((_a = err.message) === null || _a === void 0 ? void 0 : _a.includes('relation "public.user_activity" does not exist')))) {
+                console.debug('user_activity table not found; skipping activity log.');
+                return;
+            }
             console.error(`Failed to log user activity of type ${type} for user ${userId}:`, error);
         }
     });
@@ -764,6 +771,7 @@ app.get('/api/user/achievements/recent', requireAuth, (req, res) => __awaiter(vo
 }));
 // GET /api/user/activity - Get user's most recent activities
 app.get('/api/user/activity', requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const userId = req.user.id;
         const { data: activities, error } = yield client_1.supabase
@@ -773,6 +781,11 @@ app.get('/api/user/activity', requireAuth, (req, res) => __awaiter(void 0, void 
             .order('timestamp', { ascending: false })
             .limit(10);
         if (error) {
+            // If table missing, just return empty array
+            if (error.code === '42P01' || ((_a = error.message) === null || _a === void 0 ? void 0 : _a.includes('relation "public.user_activity" does not exist'))) {
+                res.json([]);
+                return;
+            }
             throw error;
         }
         res.json(activities || []);
@@ -782,6 +795,232 @@ app.get('/api/user/activity', requireAuth, (req, res) => __awaiter(void 0, void 
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
         res.status(500).json({
             error: 'Failed to fetch user activity',
+            details: errorMessage,
+        });
+    }
+}));
+// ====================
+// NOTES API ENDPOINTS
+// ====================
+// GET /api/user/notes - Get user's notes
+app.get('/api/user/notes', requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const { search, game_id, tags, limit = 100, offset = 0 } = req.query;
+        let query = client_1.supabase
+            .from('game_notes')
+            .select(`
+          *,
+          games:game_id (
+            id,
+            steam_appid,
+            name,
+            header_image,
+            short_description
+          )
+        `)
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false });
+        // Apply filters
+        if (search) {
+            query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
+        }
+        if (game_id) {
+            query = query.eq('game_id', game_id);
+        }
+        if (tags && Array.isArray(tags)) {
+            query = query.contains('tags', tags);
+        }
+        query = query.range(Number(offset), Number(offset) + Number(limit) - 1);
+        const { data: notes, error, count } = yield query;
+        if (error) {
+            throw error;
+        }
+        // Transform the data to match frontend expectations
+        const transformedNotes = (notes === null || notes === void 0 ? void 0 : notes.map(note => ({
+            $id: note.id,
+            user_id: note.user_id,
+            game_id: note.game_id,
+            title: note.title || '',
+            content: note.content || '',
+            color: note.color,
+            tags: note.tags || [],
+            is_pinned: note.is_pinned || false,
+            created_at: note.created_at,
+            updated_at: note.updated_at,
+            game: note.games ? {
+                $id: note.games.id,
+                steam_appid: note.games.steam_appid,
+                name: note.games.name,
+                header_image: note.games.header_image,
+                short_description: note.games.short_description
+            } : null
+        }))) || [];
+        res.json({
+            documents: transformedNotes,
+            total: count || transformedNotes.length
+        });
+    }
+    catch (error) {
+        console.error('Error fetching notes:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        res.status(500).json({
+            error: 'Failed to fetch notes',
+            details: errorMessage,
+        });
+    }
+}));
+// POST /api/user/notes - Create a new note
+app.post('/api/user/notes', requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const { title, content, game_id, color, tags, is_pinned } = req.body;
+        if (!content) {
+            res.status(400).json({ error: 'Content is required' });
+            return;
+        }
+        const noteData = {
+            user_id: userId,
+            title: title || '',
+            content,
+            game_id: game_id || null,
+            color: color || null,
+            tags: tags || [],
+            is_pinned: is_pinned || false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+        const { data: note, error } = yield client_1.supabase
+            .from('game_notes')
+            .insert(noteData)
+            .select()
+            .single();
+        if (error) {
+            throw error;
+        }
+        // Transform response to match frontend expectations
+        const transformedNote = {
+            $id: note.id,
+            user_id: note.user_id,
+            game_id: note.game_id,
+            title: note.title || '',
+            content: note.content || '',
+            color: note.color,
+            tags: note.tags || [],
+            is_pinned: note.is_pinned || false,
+            created_at: note.created_at,
+            updated_at: note.updated_at
+        };
+        res.json(transformedNote);
+    }
+    catch (error) {
+        console.error('Error creating note:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        res.status(500).json({
+            error: 'Failed to create note',
+            details: errorMessage,
+        });
+    }
+}));
+// PUT /api/user/notes/:id - Update an existing note
+app.put('/api/user/notes/:id', requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const noteId = req.params.id;
+        const { title, content, color, tags, is_pinned } = req.body;
+        // Verify ownership
+        const { data: existingNote, error: fetchError } = yield client_1.supabase
+            .from('game_notes')
+            .select('user_id')
+            .eq('id', noteId)
+            .single();
+        if (fetchError || !existingNote) {
+            res.status(404).json({ error: 'Note not found' });
+            return;
+        }
+        if (existingNote.user_id !== userId) {
+            res.status(403).json({ error: 'Forbidden: Not your note' });
+            return;
+        }
+        const updateData = {
+            updated_at: new Date().toISOString()
+        };
+        if (title !== undefined)
+            updateData.title = title;
+        if (content !== undefined)
+            updateData.content = content;
+        if (color !== undefined)
+            updateData.color = color;
+        if (tags !== undefined)
+            updateData.tags = tags;
+        if (is_pinned !== undefined)
+            updateData.is_pinned = is_pinned;
+        const { data: note, error } = yield client_1.supabase
+            .from('game_notes')
+            .update(updateData)
+            .eq('id', noteId)
+            .select()
+            .single();
+        if (error) {
+            throw error;
+        }
+        // Transform response to match frontend expectations
+        const transformedNote = {
+            $id: note.id,
+            user_id: note.user_id,
+            game_id: note.game_id,
+            title: note.title || '',
+            content: note.content || '',
+            color: note.color,
+            tags: note.tags || [],
+            is_pinned: note.is_pinned || false,
+            created_at: note.created_at,
+            updated_at: note.updated_at
+        };
+        res.json(transformedNote);
+    }
+    catch (error) {
+        console.error('Error updating note:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        res.status(500).json({
+            error: 'Failed to update note',
+            details: errorMessage,
+        });
+    }
+}));
+// DELETE /api/user/notes/:id - Delete a note
+app.delete('/api/user/notes/:id', requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const noteId = req.params.id;
+        // Verify ownership
+        const { data: existingNote, error: fetchError } = yield client_1.supabase
+            .from('game_notes')
+            .select('user_id')
+            .eq('id', noteId)
+            .single();
+        if (fetchError || !existingNote) {
+            res.status(404).json({ error: 'Note not found' });
+            return;
+        }
+        if (existingNote.user_id !== userId) {
+            res.status(403).json({ error: 'Forbidden: Not your note' });
+            return;
+        }
+        const { error } = yield client_1.supabase
+            .from('game_notes')
+            .delete()
+            .eq('id', noteId);
+        if (error) {
+            throw error;
+        }
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Error deleting note:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        res.status(500).json({
+            error: 'Failed to delete note',
             details: errorMessage,
         });
     }

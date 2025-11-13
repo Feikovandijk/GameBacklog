@@ -18,7 +18,6 @@ const GameCard: React.FC<GameCardProps> = ({ game, onTitleClick }) => {
   return (
     <Card
       hoverable
-      style={{ background: '#fff' }}
       styles={{ body: { padding: '16px' } }}
     >
       <Card.Meta

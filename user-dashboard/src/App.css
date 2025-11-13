@@ -1,1 +1,22 @@
-/* We will use Ant Design for styling, so this file can be cleared. */
+/* GameBacklog Dark Theme Styles */
+
+.App {
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Ensure all text elements use proper colors */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+}
+
+p, span, div {
+  color: var(--text-primary);
+}
+
+/* Override any remaining light theme artifacts */
+.ant-layout-content {
+  background-color: var(--primary-bg) !important;
+  color: var(--text-primary) !important;
+}

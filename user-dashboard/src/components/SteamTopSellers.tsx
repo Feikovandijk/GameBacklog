@@ -174,7 +174,7 @@ const SteamTopSellers: React.FC = () => {
                       position: 'absolute',
                       top: '8px',
                       left: '8px',
-                      background: '#ff4d4f',
+                      background: 'var(--accent-blue)',
                       color: 'white',
                       padding: '2px 8px',
                       borderRadius: '4px',
@@ -220,7 +220,7 @@ const SteamTopSellers: React.FC = () => {
                     >
                       {game.genres.slice(0, 2).join(', ')}
                     </Text>
-                    <Text strong style={{ fontSize: '14px', color: '#52c41a' }}>
+                    <Text strong style={{ fontSize: '14px', color: 'var(--accent-blue)' }}>
                       {formatPrice(game.price_final)}
                     </Text>
                   </div>

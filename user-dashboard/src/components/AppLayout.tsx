@@ -12,12 +12,17 @@ import {
   Dropdown,
 } from 'antd';
 import {
-  AppstoreOutlined,
-  UnorderedListOutlined,
   PlusOutlined,
   SearchOutlined,
   UserOutlined,
   LogoutOutlined,
+  DashboardOutlined,
+  BookOutlined,
+  SettingOutlined,
+  SyncOutlined,
+  DownOutlined,
+  LayoutOutlined,
+  ContainerOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import type { User, Game } from '../services/api';
@@ -40,15 +45,18 @@ function getItem(
 }
 
 const mainMenuItems: MenuItem[] = [
-  getItem('Dashboard', '/dashboard', <AppstoreOutlined />),
-  getItem('Game List', '/games', <UnorderedListOutlined />),
-  getItem('Kanban Board', '/board', <AppstoreOutlined />),
-  getItem('Add Game', '/add-game', <PlusOutlined />),
-  getItem('Steam Wishlist', '/steam-wishlist', <UnorderedListOutlined />),
+  getItem('Dashboard', '/dashboard', <DashboardOutlined />, [
+    getItem('Overview', '/dashboard'),
+    getItem('Notes', '/dashboard/notes'),
+    getItem('Tags', '/dashboard/tags'),
+  ]),
+  getItem('Workspace', '/workspace', <LayoutOutlined />),
+  getItem('Backlog', '/backlog', <ContainerOutlined />),
+  getItem('Game Library', '/games', <BookOutlined />),
 ];
 
 const bottomMenuItems: MenuItem[] = [
-  getItem('Profile', '/profile', <UserOutlined />),
+  getItem('Settings', '/settings', <SettingOutlined />),
 ];
 
 interface AppLayoutProps {
@@ -63,11 +71,29 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
   const [searchOptions, setSearchOptions] = useState<
     { label: React.ReactNode; value: string; game?: Game }[]
   >([]);
+  const [openKeys, setOpenKeys] = useState<string[]>(['/dashboard']);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMenuClick: MenuProps['onClick'] = e => {
+    // Handle navigation for both parent and child menu items
     navigate(e.key);
+  };
+
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys);
+  };
+
+  // Determine selected keys based on current path
+  const getSelectedKeys = () => {
+    const path = location.pathname;
+    // If on dashboard, select dashboard
+    if (path === '/dashboard') {
+      return ['/dashboard'];
+    }
+    // For other paths, return the exact path
+    return [path];
   };
 
   const handleSearch = async (value: string) => {
@@ -149,6 +175,20 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
     setSearchOptions([]);
   };
 
+  const handleSyncGames = async () => {
+    setIsSyncing(true);
+    message.info('Starting Steam library sync. This may take a moment...');
+    try {
+      await userGamesAPI.syncUserGames();
+      message.success('Your Steam library has been synced successfully!');
+    } catch (error) {
+      console.error('Error syncing games:', error);
+      message.error('Failed to sync your Steam library. Please try again later.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const userMenuItems = [
     {
       key: 'profile',
@@ -168,48 +208,164 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', background: 'var(--primary-bg)' }}>
       <Sider
-        width={250}
+        width={280}
         style={{
-          background: '#fff',
-          borderRight: '1px solid #f0f0f0',
+          background: 'var(--sidebar-bg)',
+          borderRight: '1px solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
+          position: 'fixed',
+          height: '100vh',
+          left: 0,
+          top: 0,
+          overflow: 'hidden',
         }}
       >
-        <div style={{ height: '64px' }}>
-          {/* This div is to align the menu with the content part, as header has 64px height */}
+        {/* Logo Section */}
+        <div 
+          style={{ 
+            padding: '24px 20px', 
+            borderBottom: '1px solid var(--border-color)',
+          }}
+        >
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px',
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              background: 'var(--accent-gradient)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <BookOutlined style={{ color: '#ffffff', fontSize: '16px' }} />
+            </div>
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: '20px', 
+              fontWeight: 'bold',
+              color: 'var(--text-primary)',
+            }}>
+              GameBacklog
+            </h1>
+          </div>
         </div>
-        <Menu
-          onClick={handleMenuClick}
-          selectedKeys={[location.pathname]}
-          mode='inline'
-          items={mainMenuItems}
-          style={{ flexGrow: 1, borderRight: 'none' }}
-        />
-        <Menu
-          onClick={handleMenuClick}
-          selectedKeys={[location.pathname]}
-          mode='inline'
-          items={bottomMenuItems}
-          style={{ borderRight: 'none' }}
-        />
+
+        {/* Navigation Menu */}
+        <div style={{ flex: 1, padding: '16px 12px', overflow: 'auto' }}>
+          <Menu
+            onClick={handleMenuClick}
+            selectedKeys={getSelectedKeys()}
+            openKeys={openKeys}
+            onOpenChange={handleOpenChange}
+            mode='inline'
+            items={mainMenuItems}
+            style={{ 
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+
+        {/* Bottom Section */}
+        <div style={{ 
+          padding: '12px',
+          borderTop: '1px solid var(--border-color)',
+        }}>
+          <Menu
+            onClick={handleMenuClick}
+            selectedKeys={getSelectedKeys()}
+            mode='inline'
+            items={bottomMenuItems}
+            style={{ 
+              background: 'transparent',
+              border: 'none',
+              marginBottom: '16px',
+            }}
+          />
+          
+          {/* User Profile Section */}
+          <div style={{
+            padding: '16px',
+            background: 'var(--card-bg)',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              marginBottom: '12px',
+            }}>
+              <Avatar src={user.avatar_url} size={40} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ 
+                  color: 'var(--text-primary)',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  marginBottom: '2px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {user.display_name}
+                </div>
+                <div style={{ 
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                }}>
+                  Account settings
+                </div>
+              </div>
+              <DownOutlined style={{ color: 'var(--text-secondary)', fontSize: '12px' }} />
+            </div>
+            
+            {/* Sync Games Button */}
+            <Button
+              type="primary"
+              block
+              size="middle"
+              icon={<SyncOutlined spin={isSyncing} />}
+              style={{
+                background: 'var(--accent-gradient)',
+                border: 'none',
+                height: '36px',
+                fontWeight: '600',
+                borderRadius: '8px',
+              }}
+              onClick={handleSyncGames}
+              disabled={isSyncing}
+            >
+              {isSyncing ? 'Syncing...' : 'Sync Games'}
+            </Button>
+          </div>
+        </div>
       </Sider>
-      <Layout style={{ backgroundColor: '#F7F8FA' }}>
+      
+      <Layout style={{ 
+        marginLeft: '280px', 
+        background: 'var(--primary-bg)',
+        minHeight: '100vh',
+      }}>
         <Header
           style={{
             display: 'flex',
             alignItems: 'center',
             padding: '0 24px',
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
+            background: 'var(--primary-bg)',
+            borderBottom: '1px solid var(--border-color)',
+            height: '80px',
           }}
         >
           <div style={{ flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>
-              GameBacklog
-            </h1>
+            {/* Page title or breadcrumb could go here */}
           </div>
           <div style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>
             <AutoComplete
@@ -219,10 +375,16 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
               style={{ width: '100%', maxWidth: '600px' }}
               getInputElement={() => (
                 <Input
-                  prefix={<SearchOutlined />}
+                  prefix={<SearchOutlined style={{ color: 'var(--text-secondary)' }} />}
                   placeholder='Search games...'
-                  size='middle'
+                  size='large'
                   allowClear
+                  style={{
+                    background: 'var(--card-bg)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    color: 'var(--text-primary)',
+                  }}
                 />
               )}
             />
@@ -235,17 +397,30 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
             >
               <Button
                 type='text'
-                style={{ height: '40px', padding: '4px 8px' }}
+                style={{ 
+                  height: '44px', 
+                  padding: '4px 12px',
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                }}
               >
                 <Space>
                   <Avatar src={user.avatar_url} size='small' />
-                  <span style={{ color: '#000' }}>{user.display_name}</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{user.display_name}</span>
                 </Space>
               </Button>
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ padding: '48px', margin: 0 }}>{children}</Content>
+        <Content style={{ 
+          padding: '32px 48px', 
+          margin: 0,
+          background: 'var(--primary-bg)',
+          color: 'var(--text-primary)',
+        }}>
+          {children}
+        </Content>
       </Layout>
     </Layout>
   );

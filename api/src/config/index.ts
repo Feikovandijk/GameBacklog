@@ -1,8 +1,27 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { existsSync } from 'fs';
+
+// Resolve path to root .env file (project root, not api folder)
+// From api/src/config -> go up 3 levels to project root
+// From api/dist/config -> go up 3 levels to project root
+const rootEnvPath = path.resolve(__dirname, '../../../.env');
+
+// Verify the .env file exists at the root
+if (!existsSync(rootEnvPath)) {
+  console.warn(`⚠️  Root .env file not found at: ${rootEnvPath}`);
+  console.warn('   Make sure your .env file is in the project root folder (GameBacklog/.env)');
+}
 
 // Load environment variables from the root .env file
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+const envResult = dotenv.config({ path: rootEnvPath });
+
+if (envResult.error) {
+  console.warn(`⚠️  Failed to load .env from root: ${rootEnvPath}`);
+  console.warn(`   Error: ${envResult.error.message}`);
+} else {
+  console.log(`✅ Loaded .env from: ${rootEnvPath}`);
+}
 
 // --- DEBUG: Check if .env variables are loaded ---
 console.log('SUPABASE_URL is defined:', !!process.env.SUPABASE_URL);

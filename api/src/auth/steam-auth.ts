@@ -129,7 +129,7 @@ async function createOrUpdateUser(profile: any): Promise<User> {
         console.log(
           `Auto-import enabled and sync due for ${updatedUser.display_name}. Starting sync in background.`
         );
-        void syncUserWithSteam(updatedUser as unknown as User); // Fire-and-forget
+        // void syncUserWithSteam(updatedUser as unknown as User); // Fire-and-forget
       }
 
       return updatedUser as User;
@@ -162,7 +162,7 @@ async function createOrUpdateUser(profile: any): Promise<User> {
         console.log(
           `Auto-import enabled for ${newUser.display_name}. Starting sync in background.`
         );
-        void syncUserWithSteam(newUser as unknown as User); // Fire-and-forget
+        // void syncUserWithSteam(newUser as unknown as User); // Fire-and-forget
       }
 
       return newUser as User;

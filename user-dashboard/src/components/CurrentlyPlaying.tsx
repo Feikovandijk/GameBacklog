@@ -68,30 +68,119 @@ const CurrentlyPlaying: React.FC = () => {
 
   if (currentlyPlaying.length === 0) {
     return (
-      <Card>
-        <div style={{ marginBottom: '16px' }}>
+      <Card
+        style={{
+          background: 'var(--card-bg)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '16px',
+          overflow: 'hidden',
+        }}
+        bodyStyle={{ padding: '24px' }}
+      >
+        <div style={{ marginBottom: '20px' }}>
           <Title
             level={4}
             style={{
               margin: 0,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '12px',
+              color: 'var(--text-primary)',
+              fontSize: '20px',
+              fontWeight: '600',
             }}
           >
-            <PlayCircleOutlined style={{ color: '#52c41a' }} />
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, #52c41a, #73d13d)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <PlayCircleOutlined style={{ color: '#ffffff', fontSize: '20px' }} />
+            </div>
             Currently Analyzing
           </Title>
-          <Text type='secondary'>Games you're actively researching</Text>
+          <Text 
+            type='secondary' 
+            style={{ 
+              fontSize: '14px',
+              marginLeft: '52px',
+              display: 'block',
+              marginTop: '4px',
+            }}
+          >
+            Games you're actively researching
+          </Text>
         </div>
         <div
-          style={{ textAlign: 'center', padding: '40px 20px', color: '#999' }}
+          style={{ 
+            textAlign: 'center', 
+            padding: '60px 20px',
+            background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+            borderRadius: '12px',
+            border: '1px dashed rgba(96, 165, 250, 0.3)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
         >
+          <div style={{
+            position: 'absolute',
+            top: '-50px',
+            left: '-50px',
+            width: '100px',
+            height: '100px',
+            background: 'rgba(96, 165, 250, 0.05)',
+            borderRadius: '50%',
+          }} />
+          <div style={{
+            position: 'absolute',
+            bottom: '-30px',
+            right: '-30px',
+            width: '80px',
+            height: '80px',
+            background: 'rgba(139, 92, 246, 0.05)',
+            borderRadius: '50%',
+          }} />
           <PlayCircleOutlined
-            style={{ fontSize: '48px', marginBottom: '16px' }}
+            style={{ 
+              fontSize: '64px', 
+              marginBottom: '20px',
+              color: 'var(--accent-blue)',
+              opacity: 0.8,
+            }}
           />
-          <div>No games currently being analyzed</div>
-          <Text type='secondary'>Start analyzing games to see them here</Text>
+          <div style={{ 
+            fontSize: '18px', 
+            fontWeight: '600',
+            color: 'var(--text-primary)',
+            marginBottom: '8px',
+          }}>
+            No games currently being analyzed
+          </div>
+          <Text 
+            type='secondary' 
+            style={{ 
+              fontSize: '14px',
+              display: 'block',
+              marginBottom: '20px',
+            }}
+          >
+            Start analyzing games to see them here
+          </Text>
+          <div style={{
+            padding: '8px 16px',
+            background: 'rgba(96, 165, 250, 0.1)',
+            borderRadius: '20px',
+            display: 'inline-block',
+            fontSize: '12px',
+            color: 'var(--accent-blue)',
+            fontWeight: '500',
+          }}>
+            💡 Tip: Mark games as "Currently Playing" to track your progress
+          </div>
         </div>
       </Card>
     );

@@ -5,8 +5,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
+const fs_1 = require("fs");
+// Resolve path to root .env file (project root, not api folder)
+// From api/src/config -> go up 3 levels to project root
+// From api/dist/config -> go up 3 levels to project root
+const rootEnvPath = path_1.default.resolve(__dirname, '../../../.env');
+// Verify the .env file exists at the root
+if (!(0, fs_1.existsSync)(rootEnvPath)) {
+    console.warn(`⚠️  Root .env file not found at: ${rootEnvPath}`);
+    console.warn('   Make sure your .env file is in the project root folder (GameBacklog/.env)');
+}
 // Load environment variables from the root .env file
-dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
+const envResult = dotenv_1.default.config({ path: rootEnvPath });
+if (envResult.error) {
+    console.warn(`⚠️  Failed to load .env from root: ${rootEnvPath}`);
+    console.warn(`   Error: ${envResult.error.message}`);
+}
+else {
+    console.log(`✅ Loaded .env from: ${rootEnvPath}`);
+}
 // --- DEBUG: Check if .env variables are loaded ---
 console.log('SUPABASE_URL is defined:', !!process.env.SUPABASE_URL);
 console.log('SUPABASE_SERVICE_KEY is defined:', !!process.env.SUPABASE_SERVICE_KEY);

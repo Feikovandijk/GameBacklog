@@ -21,7 +21,6 @@ exports.passport = passport_1.default;
 const passport_steam_1 = require("passport-steam");
 const config_1 = __importDefault(require("../config"));
 const client_1 = require("../supabase/client");
-const user_steam_sync_service_1 = require("../services/user-steam-sync-service");
 // Supabase client is imported from ../supabase/client
 // SteamProfile interface removed as it's not currently used
 // Add a final check right before the strategy is configured
@@ -117,7 +116,7 @@ function createOrUpdateUser(profile) {
                 if (updatedUser.auto_import_steam_games &&
                     (!lastSync || lastSync < twentyFourHoursAgo)) {
                     console.log(`Auto-import enabled and sync due for ${updatedUser.display_name}. Starting sync in background.`);
-                    void (0, user_steam_sync_service_1.syncUserWithSteam)(updatedUser); // Fire-and-forget
+                    // void syncUserWithSteam(updatedUser as unknown as User); // Fire-and-forget
                 }
                 return updatedUser;
             }
@@ -136,7 +135,7 @@ function createOrUpdateUser(profile) {
                 // Optionally import Steam library if auto_import is enabled
                 if (newUserData.auto_import_steam_games) {
                     console.log(`Auto-import enabled for ${newUser.display_name}. Starting sync in background.`);
-                    void (0, user_steam_sync_service_1.syncUserWithSteam)(newUser); // Fire-and-forget
+                    // void syncUserWithSteam(newUser as unknown as User); // Fire-and-forget
                 }
                 return newUser;
             }

@@ -6,6 +6,17 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* GameBacklog Theme Colors */
+  --primary-bg: #1a1f3a;
+  --sidebar-bg: #252b4a;
+  --sidebar-hover: #2d3454;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --accent-blue: #60a5fa;
+  --accent-gradient: linear-gradient(135deg, #60a5fa, #3b82f6);
+  --border-color: #374151;
+  --card-bg: #1f2937;
 }
 
 body {
@@ -16,6 +27,8 @@ body {
     'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
 }
 
 #root {
@@ -36,16 +49,17 @@ h6 {
 }
 
 p {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 a {
   font-weight: 500;
+  color: var(--accent-blue);
   text-decoration: inherit;
   transition: color 0.25s;
 }
 a:hover {
-  color: var(--color-text);
+  color: var(--text-primary);
 }
 
 button {
@@ -56,25 +70,374 @@ button {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.25s;
+  transition: all 0.25s;
+  background: var(--accent-gradient);
+  color: var(--text-primary);
 }
 button:hover {
-  background-color: #4895e0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* Dark theme overrides */
+.ant-layout {
+  background-color: var(--primary-bg) !important;
+}
+
+.ant-menu {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+  border-right: none !important;
+}
+
+.ant-menu-item {
+  color: var(--text-secondary) !important;
+  margin: 4px 0 !important;
+  border-radius: 8px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+.ant-menu-item:hover {
+  background-color: var(--sidebar-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-menu-item-selected {
+  background-color: var(--accent-blue) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-menu-item-selected:hover {
+  background-color: var(--accent-blue) !important;
+}
+
+.ant-menu-item .ant-menu-item-icon {
+  color: inherit !important;
+}
+
+.ant-menu-submenu-title {
+  color: var(--text-secondary) !important;
+  margin: 4px 0 !important;
+  border-radius: 8px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+.ant-menu-submenu-title:hover {
+  background-color: var(--sidebar-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-menu-submenu-title .ant-menu-submenu-arrow {
+  color: inherit !important;
+}
+
+.ant-menu-submenu-selected > .ant-menu-submenu-title {
+  color: var(--text-primary) !important;
+}
+
+.ant-menu-sub {
+  background-color: transparent !important;
+}
+
+.ant-menu-sub .ant-menu-item {
+  padding-left: 48px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 14px !important;
+}
+
+.ant-input {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-input:focus,
+.ant-input:hover {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2) !important;
+}
+
+.ant-input::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+/* Prefix/suffix icons in inputs */
+.ant-input-prefix,
+.ant-input-suffix {
+  color: var(--text-secondary) !important;
+}
+
+/* Input wrappers (search, password, etc.) */
+.ant-input-affix-wrapper {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+.ant-input-affix-wrapper:hover,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2) !important;
+}
+.ant-input-affix-wrapper input.ant-input {
+  color: var(--text-primary) !important;
+  background-color: transparent !important;
+  border: 0 !important;
+}
+.ant-input-affix-wrapper input.ant-input::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+/* AntD Input.Search dark theme fixes */
+.ant-input-search .ant-input {
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.ant-input-search .ant-input:focus,
+.ant-input-search .ant-input:hover {
+  box-shadow: none !important;
+}
+.ant-input-search .ant-input-affix-wrapper {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+.ant-input-search .ant-input-affix-wrapper:hover,
+.ant-input-search .ant-input-affix-wrapper-focused {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2) !important;
+}
+.ant-input-search .ant-input-group-addon {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-left: none !important;
+}
+.ant-input-search .ant-input-group-addon .ant-btn,
+.ant-input-search-button {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: none !important;
+}
+.ant-input-search .ant-input-group-addon .ant-btn:hover,
+.ant-input-search-button:hover {
+  color: var(--text-primary) !important;
+  filter: brightness(1.05);
+}
+
+.ant-select-dropdown {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.ant-select-item {
+  color: var(--text-primary) !important;
+}
+
+.ant-select-item:hover {
+  background-color: var(--sidebar-hover) !important;
+}
+
+/* Select/AutoComplete selections and placeholders */
+.ant-select-single .ant-select-selector {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+.ant-select-selection-placeholder {
+  color: var(--text-secondary) !important;
+}
+.ant-select-selection-item {
+  color: var(--text-primary) !important;
+}
+.ant-select-item-option-active,
+.ant-select-item-option-selected {
+  background-color: var(--sidebar-hover) !important;
+  color: var(--text-primary) !important;
+}
+.ant-auto-complete .ant-select-selection-search-input {
+  color: var(--text-primary) !important;
+}
+.ant-auto-complete .ant-select-selection-placeholder {
+  color: var(--text-secondary) !important;
+}
+
+.ant-dropdown {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+}
+
+.ant-dropdown .ant-dropdown-menu {
+  background-color: var(--card-bg) !important;
+  border: none !important;
+}
+
+.ant-dropdown .ant-dropdown-menu-item {
+  color: var(--text-primary) !important;
+}
+
+.ant-dropdown .ant-dropdown-menu-item:hover {
+  background-color: var(--sidebar-hover) !important;
+}
+
+.ant-card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px !important;
+}
+
+.ant-card .ant-card-body {
+  color: var(--text-primary) !important;
+}
+
+.ant-statistic-title {
+  color: var(--text-secondary) !important;
+}
+
+.ant-statistic-content {
+  color: var(--text-primary) !important;
+}
+
+.ant-table {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.ant-table-thead > tr > th {
+  background-color: var(--sidebar-bg) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.ant-table-tbody > tr > td {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: var(--sidebar-hover) !important;
+}
+
+.ant-modal .ant-modal-content {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.ant-modal .ant-modal-header {
+  background-color: var(--card-bg) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.ant-modal .ant-modal-title {
+  color: var(--text-primary) !important;
+}
+
+.ant-modal .ant-modal-body {
+  color: var(--text-primary) !important;
+}
+
+.ant-modal .ant-modal-close,
+.ant-modal .ant-modal-close-x,
+.ant-modal .ant-modal-close-icon {
+  color: var(--text-primary) !important;
+}
+
+.ant-modal .ant-modal-footer .ant-btn-default {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+.ant-modal .ant-modal-footer .ant-btn-default:hover {
+  border-color: var(--accent-blue) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-form-item-label > label {
+  color: var(--text-primary) !important;
+}
+
+.ant-btn-primary {
+  background: var(--accent-gradient) !important;
+  border: none !important;
+}
+
+.ant-btn-primary:hover {
+  background: var(--accent-gradient) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3) !important;
+}
+
+/* Default buttons (e.g., Cancel) in dark theme */
+.ant-btn-default {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+.ant-btn-default:hover,
+.ant-btn-default:focus {
+  border-color: var(--accent-blue) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-tag {
+  background-color: var(--sidebar-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: 6px !important;
+}
+
+.ant-tag:hover {
+  background-color: var(--sidebar-hover) !important;
+}
+
+.ant-typography {
+  color: var(--text-primary) !important;
+}
+
+.ant-typography-caption {
+  color: var(--text-secondary) !important;
+}
+
+.ant-list-item-meta-title {
+  color: var(--text-primary) !important;
+}
+
+.ant-list-item-meta-description {
+  color: var(--text-secondary) !important;
+}
+
+.ant-spin .ant-spin-dot {
+  color: var(--accent-blue) !important;
+}
+
+.ant-empty-description {
+  color: var(--text-secondary) !important;
+}
+
+.ant-select-single .ant-select-selector {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-select-single .ant-select-selection-search-input {
+  color: var(--text-primary) !important;
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  /* Override light theme since we want dark theme */
 }

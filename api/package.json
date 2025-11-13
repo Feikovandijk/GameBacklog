@@ -28,7 +28,10 @@
 
     "//----- Recalculate Scripts -----    ": "",
     "recalculate:analytics": "node dist/scripts/recalculate-analytics.js",
-    "recalculate:stats": "ts-node src/scripts/recalculate-stats.ts"
+    "recalculate:stats": "ts-node src/scripts/recalculate-stats.ts",
+
+    "//----- Database Setup -----    ": "",
+    "setup:supabase": "ts-node src/scripts/setup-supabase.ts"
   },
   "keywords": [],
   "author": "",

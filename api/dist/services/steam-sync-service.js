@@ -10,22 +10,74 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("../supabase/client");
-// Fetches the full list of all Steam games
+// Helper function to wait for a specified number of milliseconds
+const wait = (ms) => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+};
+// Fetches the full list of all Steam games with retry logic
+// Note: This endpoint is public (no API key required) but is heavily rate-limited
+// and may return 503 errors during high traffic or maintenance periods
 function fetchSteamGames() {
-    return __awaiter(this, void 0, void 0, function* () {
+    return __awaiter(this, arguments, void 0, function* (maxRetries = 3, retryDelay = 5000) {
+        var _a;
         const url = 'https://api.steampowered.com/ISteamApps/GetAppList/v2/';
-        try {
-            const response = yield fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`Attempting to fetch Steam games list (attempt ${attempt}/${maxRetries})...`);
+                console.log('Note: This endpoint is rate-limited and may return 503 during high traffic.');
+                const response = yield fetch(url, {
+                    headers: {
+                        'User-Agent': 'GameBacklog/1.0',
+                    },
+                });
+                if (!response.ok) {
+                    // Retry on 5xx errors (server errors) and 429 (rate limit)
+                    if ((response.status >= 500 && response.status < 600) ||
+                        response.status === 429) {
+                        if (attempt < maxRetries) {
+                            const delay = retryDelay * attempt; // Exponential backoff
+                            console.warn(`Steam API returned ${response.status}. Retrying in ${delay}ms...`);
+                            yield wait(delay);
+                            continue;
+                        }
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = yield response.json();
+                if (!((_a = data === null || data === void 0 ? void 0 : data.applist) === null || _a === void 0 ? void 0 : _a.apps)) {
+                    throw new Error('Invalid response format from Steam API');
+                }
+                console.log(`Successfully fetched ${data.applist.apps.length} games from Steam API.`);
+                return data.applist.apps;
             }
-            const data = yield response.json();
-            return data.applist.apps;
+            catch (error) {
+                if (attempt === maxRetries) {
+                    console.error('Failed to fetch Steam games list after all retries:', error);
+                    console.error('');
+                    console.error('This is likely due to:');
+                    console.error('  - Steam API server overload or maintenance');
+                    console.error('  - Rate limiting on the public GetAppList endpoint');
+                    console.error('  - Temporary network issues');
+                    console.error('');
+                    console.error('Suggestions:');
+                    console.error('  - Wait a few minutes and try again');
+                    console.error('  - Check Steam status: https://steamstat.us/');
+                    console.error('  - Try again during off-peak hours');
+                    return []; // Return empty array on final failure
+                }
+                // For network errors, retry with exponential backoff
+                if (error instanceof Error && error.message.includes('fetch')) {
+                    const delay = retryDelay * attempt;
+                    console.warn(`Network error occurred. Retrying in ${delay}ms... (${error.message})`);
+                    yield wait(delay);
+                    continue;
+                }
+                // For other errors, don't retry
+                console.error('Failed to fetch Steam games list:', error);
+                return [];
+            }
         }
-        catch (error) {
-            console.error('Failed to fetch Steam games list:', error);
-            return []; // Return empty array on failure
-        }
+        return [];
     });
 }
 // Fetches all game IDs currently in the Supabase database
