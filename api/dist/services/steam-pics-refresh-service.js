@@ -36,18 +36,17 @@ const client_1 = require("../supabase/client");
 const steamUser = new steam_user_1.default();
 steamUser.setOptions({
     enablePicsCache: true, // Required for getProductInfo
-    changelistUpdateInterval: 0 // We don't need automatic updates
+    changelistUpdateInterval: 0, // We don't need automatic updates
 });
 const STEAM_API_KEY = config_1.default.steamApiKeys[config_1.default.worker.id] || config_1.default.steamApiKey;
 if (!STEAM_API_KEY) {
     throw new Error(`[Worker ${config_1.default.worker.id}] Steam API key is missing. Ensure STEAM_API_KEY_${config_1.default.worker.id} or a fallback STEAM_API_KEY is defined in your .env file.`);
 }
-const STEAM_API_BASE_URL = "https://store.steampowered.com/api/appdetails";
-const REVIEW_API_BASE_URL = "https://store.steampowered.com/appreviews";
+const STEAM_API_BASE_URL = 'https://store.steampowered.com/api/appdetails';
+const REVIEW_API_BASE_URL = 'https://store.steampowered.com/appreviews';
 const GAMES_PER_MINUTE_LIMIT = 13; // Each game update can be 3-5 API calls. With a 100k/day limit (~69/min), this is a safe throttle.
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 const STATE_DOCUMENT_ID = 'steam_changenumber';
-const STATE_COLLECTION_ID = 'steam_state';
 function fetchWithRetry(url_1) {
     return __awaiter(this, arguments, void 0, function* (url, retries = 3, backoff = 1000) {
         for (let i = 0; i < retries; i++) {
@@ -82,7 +81,8 @@ function getLatestChangenumber() {
                 .eq('id', STATE_DOCUMENT_ID)
                 .single();
             if (error) {
-                if (error.code === 'PGRST116') { // Not found
+                if (error.code === 'PGRST116') {
+                    // Not found
                     console.log('No previous changenumber found in database. Starting fresh from changenumber 0.');
                     return 0;
                 }
@@ -104,7 +104,8 @@ function saveLatestChangenumber(changenumber) {
                 .update({ changenumber })
                 .eq('id', STATE_DOCUMENT_ID);
             if (updateError) {
-                if (updateError.code === 'PGRST116') { // No rows returned
+                if (updateError.code === 'PGRST116') {
+                    // No rows returned
                     console.log('Changenumber document not found, creating a new one.');
                     const { error: insertError } = yield client_1.supabase
                         .from('steam_sync_state')
@@ -132,11 +133,13 @@ function formatPicsDataToGameDocument(appId, picsData) {
     const common = (_b = (_a = picsData.appinfo) === null || _a === void 0 ? void 0 : _a.common) !== null && _b !== void 0 ? _b : {};
     const developers = [], publishers = [];
     if (common.associations) {
-        Object.values(common.associations).forEach((assoc) => {
-            if (assoc.type === 'developer')
-                developers.push(assoc.name);
-            else if (assoc.type === 'publisher')
-                publishers.push(assoc.name);
+        Object.values(common.associations || {}).forEach((assoc) => {
+            if (assoc.type === 'developer') {
+                developers.push(String(assoc.name));
+            }
+            else if (assoc.type === 'publisher') {
+                publishers.push(String(assoc.name));
+            }
         });
     }
     const oslist = ((_c = common.oslist) === null || _c === void 0 ? void 0 : _c.split(',')) || [];
@@ -144,16 +147,18 @@ function formatPicsDataToGameDocument(appId, picsData) {
     const steamReleaseTimestamp = common.steam_release_date;
     if (steamReleaseTimestamp) {
         // The timestamp is in seconds, so we multiply by 1000 for milliseconds
-        const parsedDate = new Date(parseInt(steamReleaseTimestamp, 10) * 1000);
+        const parsedDate = new Date(parseInt(String(steamReleaseTimestamp), 10) * 1000);
         if (!isNaN(parsedDate.getTime())) {
             releaseDateForDb = parsedDate.toISOString();
         }
     }
     // PICS provides tag IDs. The actual names aren't in this response.
-    const tags = common.store_tags ? Object.values(common.store_tags) : [];
+    const tags = common.store_tags
+        ? Object.values(common.store_tags).map(String)
+        : [];
     // PICS provides category IDs in the format "category_X". We'll store them as is.
-    const categories = common.category ? Object.keys(common.category) : [];
-    const hasSteamAchievements = categories.includes("category_22"); // Category 22 is "Steam Achievements"
+    const categories = Object.keys(common.category || {});
+    const hasSteamAchievements = categories.includes('category_22'); // Category 22 is "Steam Achievements"
     let headerImageUrl = null;
     if ((_d = common.header_image) === null || _d === void 0 ? void 0 : _d.english) {
         headerImageUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/${common.header_image.english}`;
@@ -190,7 +195,9 @@ function formatPicsDataToGameDocument(appId, picsData) {
         review_score_desc: null,
         current_players: null,
         // Fields available in PICS but not the old method
-        positive_rating_percentage: common.review_percentage ? parseInt(common.review_percentage, 10) : null,
+        positive_rating_percentage: common.review_percentage
+            ? parseInt(String(common.review_percentage), 10)
+            : null,
     };
 }
 function fetchGameDetailsFromWebAPI(steamAppId) {
@@ -244,7 +251,8 @@ function mergeApiData(picsData, webData) {
     }
     const reviews = webData.review_summary;
     const price = webData.price_overview;
-    mergedData.short_description = (_a = webData.short_description) !== null && _a !== void 0 ? _a : mergedData.short_description;
+    mergedData.short_description =
+        (_a = webData.short_description) !== null && _a !== void 0 ? _a : mergedData.short_description;
     mergedData.total_reviews = (_b = reviews === null || reviews === void 0 ? void 0 : reviews.total_reviews) !== null && _b !== void 0 ? _b : null;
     mergedData.price_final = (_c = price === null || price === void 0 ? void 0 : price.final) !== null && _c !== void 0 ? _c : null;
     mergedData.price_currency = (_d = price === null || price === void 0 ? void 0 : price.currency) !== null && _d !== void 0 ? _d : null;
@@ -255,15 +263,23 @@ function mergeApiData(picsData, webData) {
     mergedData.review_score_desc = (_j = reviews === null || reviews === void 0 ? void 0 : reviews.review_score_desc) !== null && _j !== void 0 ? _j : null;
     mergedData.current_players = (_k = webData.player_count) !== null && _k !== void 0 ? _k : null;
     // Web API sometimes has better metacritic data
-    mergedData.metacritic_score = (_m = (_l = webData.metacritic) === null || _l === void 0 ? void 0 : _l.score) !== null && _m !== void 0 ? _m : mergedData.metacritic_score;
-    mergedData.metacritic_url = (_p = (_o = webData.metacritic) === null || _o === void 0 ? void 0 : _o.url) !== null && _p !== void 0 ? _p : mergedData.metacritic_url;
-    mergedData.genres = webData.genres ? webData.genres.map(g => g.description) : null;
+    mergedData.metacritic_score =
+        (_m = (_l = webData.metacritic) === null || _l === void 0 ? void 0 : _l.score) !== null && _m !== void 0 ? _m : mergedData.metacritic_score;
+    mergedData.metacritic_url =
+        (_p = (_o = webData.metacritic) === null || _o === void 0 ? void 0 : _o.url) !== null && _p !== void 0 ? _p : mergedData.metacritic_url;
+    mergedData.genres = webData.genres
+        ? webData.genres.map(g => g.description)
+        : null;
     // Add all new fields
     mergedData.detailed_description = (_q = webData.detailed_description) !== null && _q !== void 0 ? _q : null;
     mergedData.about_the_game = (_r = webData.about_the_game) !== null && _r !== void 0 ? _r : null;
     mergedData.website = (_s = webData.website) !== null && _s !== void 0 ? _s : null;
-    mergedData.screenshots = webData.screenshots ? webData.screenshots.map(s => s.path_full) : null;
-    mergedData.movies = webData.movies ? webData.movies.map(m => m.mp4.max) : null;
+    mergedData.screenshots = webData.screenshots
+        ? webData.screenshots.map(s => s.path_full)
+        : null;
+    mergedData.movies = webData.movies
+        ? webData.movies.map(m => m.mp4.max)
+        : null;
     mergedData.is_free = (_t = webData.is_free) !== null && _t !== void 0 ? _t : false;
     mergedData.pc_requirements = (_u = webData.pc_requirements) !== null && _u !== void 0 ? _u : null;
     mergedData.mac_requirements = (_v = webData.mac_requirements) !== null && _v !== void 0 ? _v : null;
@@ -279,25 +295,27 @@ function mergeApiData(picsData, webData) {
 }
 function performRefresh() {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Steam PICS refresh service started.");
+        console.log('Steam PICS refresh service started.');
         let totalUpdatedCount = 0;
         let totalCreatedCount = 0;
-        console.log("Logging into Steam anonymously...");
+        console.log('Logging into Steam anonymously...');
         steamUser.logOn({ anonymous: true });
         yield new Promise((resolve, reject) => {
             steamUser.on('loggedOn', () => {
                 console.log(`Logged into Steam successfully.`);
                 resolve();
             });
-            steamUser.on('error', (err) => {
+            steamUser.on('error', err => {
                 console.error(`Steam login error:`, err);
                 reject(err);
             });
         });
-        const { count, error: countError } = yield client_1.supabase.from('games').select('*', { count: 'exact', head: true });
+        const { count, error: countError } = yield client_1.supabase
+            .from('games')
+            .select('*', { count: 'exact', head: true });
         if (countError) {
-            console.error("Error counting games in database:", countError);
-            throw new Error("Could not count games in database.");
+            console.error('Error counting games in database:', countError);
+            throw new Error('Could not count games in database.');
         }
         if (count === 0) {
             console.log("\nThe 'games' table is empty. This script is for finding new and updated games.");
@@ -307,15 +325,15 @@ function performRefresh() {
         const lastChangenumber = yield getLatestChangenumber();
         console.log(`Last known changenumber is ${lastChangenumber}. Fetching changes...`);
         const productChanges = yield new Promise((resolve, reject) => {
-            steamUser.getProductChanges(lastChangenumber, (err, currentChangenumber, appChanges, packageChanges) => {
-                console.log("DEBUG: getProductChanges callback fired.");
+            void steamUser.getProductChanges(lastChangenumber, (err, currentChangenumber, appChanges, packageChanges) => {
+                console.log('DEBUG: getProductChanges callback fired.');
                 if (err) {
-                    console.error("DEBUG: Error from getProductChanges:", err);
+                    console.error('DEBUG: Error from getProductChanges:', err);
                     return reject(err);
                 }
-                console.log("DEBUG: currentChangenumber from Steam:", currentChangenumber);
-                console.log("DEBUG: appChanges received from Steam:", appChanges.length);
-                console.log("DEBUG: packageChanges received from Steam:", packageChanges.length);
+                console.log('DEBUG: currentChangenumber from Steam:', currentChangenumber);
+                console.log('DEBUG: appChanges received from Steam:', appChanges.length);
+                console.log('DEBUG: packageChanges received from Steam:', packageChanges.length);
                 resolve({ currentChangenumber, appChanges, packageChanges });
             });
         });
@@ -330,7 +348,7 @@ function performRefresh() {
         if (appChanges.length === 0) {
             console.log(`No new app changes from Steam, but changenumber has updated from ${lastChangenumber} to ${currentChangenumber}.`);
             yield saveLatestChangenumber(currentChangenumber);
-            console.log("Database changenumber updated. Exiting.");
+            console.log('Database changenumber updated. Exiting.');
             return;
         }
         console.log(`Received ${appChanges.length} app changes. Current changenumber is ${currentChangenumber}.`);
@@ -340,7 +358,7 @@ function performRefresh() {
             // The getProductInfo call can still handle a larger batch.
             const DB_CHUNK_SIZE = 25;
             const gameDocsByAppId = new Map();
-            console.log("Checking which of the changed apps are already in the database...");
+            console.log('Checking which of the changed apps are already in the database...');
             for (let i = 0; i < allAppIdsToProcess.length; i += DB_CHUNK_SIZE) {
                 const chunk = allAppIdsToProcess.slice(i, i + DB_CHUNK_SIZE);
                 try {
@@ -353,7 +371,7 @@ function performRefresh() {
                         console.error(`Error querying database for chunk starting at index ${i}:`, error);
                     }
                     else {
-                        games === null || games === void 0 ? void 0 : games.forEach((doc) => gameDocsByAppId.set(doc.steam_appid, doc));
+                        games === null || games === void 0 ? void 0 : games.forEach((doc) => gameDocsByAppId.set(Number(doc.steam_appid), doc));
                     }
                 }
                 catch (e) {
@@ -362,7 +380,7 @@ function performRefresh() {
             }
             console.log(`Found ${gameDocsByAppId.size} existing games out of ${allAppIdsToProcess.length} changed apps. Fetching latest data for all changes...`);
             const apps = yield new Promise((resolve, reject) => {
-                steamUser.getProductInfo(allAppIdsToProcess, [], false, (err, apps) => {
+                void steamUser.getProductInfo(allAppIdsToProcess, [], false, (err, apps) => {
                     if (err) {
                         return reject(new Error('Failed to get product info from Steam: ' + err.message));
                     }
@@ -399,7 +417,7 @@ function performRefresh() {
                             yield incrementStat('updatedGames');
                             if (finalGameData.has_steam_achievements) {
                                 console.log(`Game ${finalGameData.name} has achievements. Syncing...`);
-                                yield syncGameAchievements(existingDoc.id, appId);
+                                yield syncGameAchievements(String(existingDoc.id), Number(appId));
                             }
                         }
                         else {
@@ -417,7 +435,7 @@ function performRefresh() {
                             yield incrementStat('createdGames');
                             if (finalGameData.has_steam_achievements) {
                                 console.log(`Game ${finalGameData.name} has achievements. Syncing...`);
-                                yield syncGameAchievements(newDoc.id, appId);
+                                yield syncGameAchievements(String(newDoc.id), Number(appId));
                             }
                         }
                     }
@@ -487,17 +505,18 @@ function incrementStat(key_1) {
                 .eq('key', key)
                 .single();
             if (fetchError) {
-                if (fetchError.code === 'PGRST116') { // No rows returned
+                if (fetchError.code === 'PGRST116') {
+                    // No rows returned
                     // Create new stat entry
                     const { error: insertError } = yield client_1.supabase
                         .from('statistics')
                         .insert({ key, count: incrementBy });
                     if (insertError) {
-                        console.error(`Failed to create stat for key: ${key}. Error: ${insertError}`);
+                        console.error(`Failed to create stat for key: ${key}. Error:`, insertError);
                     }
                 }
                 else {
-                    console.error(`Failed to fetch stat for key: ${key}. Error: ${fetchError}`);
+                    console.error(`Failed to fetch stat for key: ${key}. Error:`, fetchError);
                 }
             }
             else if (existing) {
@@ -507,12 +526,12 @@ function incrementStat(key_1) {
                     .update({ count: newCount })
                     .eq('id', existing.id);
                 if (updateError) {
-                    console.error(`Failed to update stat for key: ${key}. Error: ${updateError}`);
+                    console.error(`Failed to update stat for key: ${key}. Error:`, updateError);
                 }
             }
         }
         catch (e) {
-            console.error(`\nFailed to increment stat for key: ${key}. Error: ${e}`);
+            console.error(`\nFailed to increment stat for key: ${key}. Error:`, e);
         }
     });
 }
@@ -524,7 +543,7 @@ function syncGameAchievements(documentId, steamAppId) {
             const url = `http://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${STEAM_API_KEY}&appid=${steamAppId}`;
             const [schemaResponse, percentagesResponse] = yield Promise.all([
                 fetchWithRetry(url),
-                fetchWithRetry(`https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${steamAppId}`)
+                fetchWithRetry(`https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${steamAppId}`),
             ]);
             if (!schemaResponse.ok) {
                 console.warn(`Could not fetch achievement schema for appid ${steamAppId}. Status: ${schemaResponse.status}`);
@@ -541,12 +560,12 @@ function syncGameAchievements(documentId, steamAppId) {
                 const percentagesJson = yield percentagesResponse.json();
                 if ((_d = percentagesJson === null || percentagesJson === void 0 ? void 0 : percentagesJson.achievementpercentages) === null || _d === void 0 ? void 0 : _d.achievements) {
                     percentagesJson.achievementpercentages.achievements.forEach((ach) => {
-                        const percentValue = parseFloat(ach.percent);
+                        const percentValue = parseFloat(String(ach.percent));
                         if (!isNaN(percentValue)) {
                             percentagesData[ach.name] = percentValue;
                         }
                         else {
-                            console.warn(`Could not parse achievement percent for ${ach.name} as a float. Value was: ${ach.percent}`);
+                            console.warn(`Could not parse achievement percent for ${String(ach.name)} as a float. Value was: ${String(ach.percent)}`);
                         }
                     });
                 }
@@ -559,11 +578,11 @@ function syncGameAchievements(documentId, steamAppId) {
                 return ({
                     game_id: documentId,
                     steam_appid: steamAppId,
-                    api_name: ach.name,
-                    display_name: ach.displayName,
-                    description: ach.description || null,
-                    icon: ach.icon || null,
-                    icon_gray: ach.icongray || null,
+                    api_name: String(ach.name),
+                    display_name: String(ach.displayName),
+                    description: ach.description ? String(ach.description) : null,
+                    icon: ach.icon ? String(ach.icon) : null,
+                    icon_gray: ach.icongray ? String(ach.icongray) : null,
                     hidden: !!ach.hidden,
                     global_percentage: (_a = percentagesData[ach.name]) !== null && _a !== void 0 ? _a : null,
                 });
@@ -581,7 +600,7 @@ function syncGameAchievements(documentId, steamAppId) {
                 const DELETE_BATCH_SIZE = 50;
                 for (let i = 0; i < oldAchievements.length; i += DELETE_BATCH_SIZE) {
                     const batch = oldAchievements.slice(i, i + DELETE_BATCH_SIZE);
-                    const batchIds = batch.map(doc => doc.id);
+                    const batchIds = batch.map(doc => String(doc.id));
                     const { error: deleteError } = yield client_1.supabase
                         .from('achievements')
                         .delete()

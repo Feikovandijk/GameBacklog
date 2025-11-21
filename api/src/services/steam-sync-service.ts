@@ -1,21 +1,58 @@
 import { supabase } from '../supabase/client';
 
+import config from '../config';
+
 // Fetches the full list of all Steam games
 async function fetchSteamGames(): Promise<
   Array<{ appid: number; name: string }>
 > {
-  const url = 'https://api.steampowered.com/ISteamApps/GetAppList/v2/';
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data.applist.apps;
-  } catch (error) {
-    console.error('Failed to fetch Steam games list:', error);
-    return []; // Return empty array on failure
+  if (!config.steamApiKey) {
+    console.error('Steam API key is missing. Cannot fetch games list.');
+    return [];
   }
+
+  const allApps: Array<{ appid: number; name: string }> = [];
+  let lastAppId: number | undefined;
+  let hasMore = true;
+
+  console.log('Fetching full game list from Steam (this may take a few requests)...');
+
+  while (hasMore) {
+    let url = `https://api.steampowered.com/IStoreService/GetAppList/v1/?key=${config.steamApiKey}&include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000`;
+
+    if (lastAppId) {
+      url += `&last_appid=${lastAppId}`;
+    }
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      const apps = data.response.apps;
+
+      if (!apps || apps.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allApps.push(...apps);
+
+      if (data.response.last_appid) {
+        lastAppId = data.response.last_appid;
+      } else {
+        hasMore = false;
+      }
+
+    } catch (error) {
+      console.error('Failed to fetch Steam games list:', error);
+      hasMore = false; // Stop on error to avoid infinite loops
+    }
+  }
+
+  console.log(`Total games fetched from Steam: ${allApps.length}`);
+  return allApps;
 }
 
 // Fetches all game IDs currently in the Supabase database

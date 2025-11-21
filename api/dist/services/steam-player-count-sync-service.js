@@ -17,7 +17,7 @@ const config_1 = __importDefault(require("../config"));
 const client_1 = require("../supabase/client");
 const steamUser = new steam_user_1.default();
 steamUser.setOptions({
-    changelistUpdateInterval: 0
+    changelistUpdateInterval: 0,
 });
 const STEAM_API_KEY = config_1.default.steamApiKeys[config_1.default.worker.id] || config_1.default.steamApiKey;
 if (!STEAM_API_KEY) {
@@ -71,8 +71,9 @@ function getPlayerCount(steamAppId) {
 }
 function recordPlayerCountHistory(gameId, playerCount) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (typeof playerCount !== 'number')
+        if (typeof playerCount !== 'number') {
             return;
+        }
         const historyData = {
             game_id: gameId,
             date: new Date().toISOString(),
@@ -93,7 +94,7 @@ function recordPlayerCountHistory(gameId, playerCount) {
 }
 function runPlayerCountSync() {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Steam player count sync service started.");
+        console.log('Steam player count sync service started.');
         let totalUpdatedCount = 0;
         const BATCH_SIZE = 100;
         let offset = 0;
@@ -113,14 +114,15 @@ function runPlayerCountSync() {
                 break;
             }
             if (games.length === 0) {
-                console.log("No more games to update player count for.");
+                console.log('No more games to update player count for.');
                 break;
             }
             console.log(`Found ${games.length} games to update player count.`);
             for (const game of games) {
-                if (!game.steam_appid)
+                if (!game.steam_appid) {
                     continue;
-                const playerCount = yield getPlayerCount(game.steam_appid);
+                }
+                const playerCount = yield getPlayerCount(Number(game.steam_appid));
                 if (playerCount !== null) {
                     const currentStreak = game.player_count_zero_sync_streak || 0;
                     const newStreak = playerCount === 0 ? currentStreak + 1 : 0;
@@ -138,7 +140,7 @@ function runPlayerCountSync() {
                     else {
                         console.log(`Updated player count for ${game.name} to ${playerCount}`);
                         totalUpdatedCount++;
-                        yield recordPlayerCountHistory(game.id, playerCount);
+                        yield recordPlayerCountHistory(String(game.id), playerCount);
                     }
                 }
                 yield new Promise(resolve => setTimeout(resolve, DELAY_MS));

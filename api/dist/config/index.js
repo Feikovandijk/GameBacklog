@@ -13,10 +13,7 @@ console.log('SUPABASE_SERVICE_KEY is defined:', !!process.env.SUPABASE_SERVICE_K
 const config = {
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : 6543,
     steamApiKey: process.env.STEAM_API_KEY || process.env.STEAM_API_KEY_0,
-    steamApiKeys: [
-        process.env.STEAM_API_KEY_0,
-        process.env.STEAM_API_KEY_1,
-    ],
+    steamApiKeys: [process.env.STEAM_API_KEY_0, process.env.STEAM_API_KEY_1],
     appwrite: {
         endpoint: process.env.APPWRITE_ENDPOINT,
         projectId: process.env.APPWRITE_PROJECT_ID,
@@ -26,7 +23,9 @@ const config = {
     },
     worker: {
         id: process.env.WORKER_ID ? parseInt(process.env.WORKER_ID, 10) : 0,
-        total: process.env.TOTAL_WORKERS ? parseInt(process.env.TOTAL_WORKERS, 10) : 1,
+        total: process.env.TOTAL_WORKERS
+            ? parseInt(process.env.TOTAL_WORKERS, 10)
+            : 1,
     },
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,

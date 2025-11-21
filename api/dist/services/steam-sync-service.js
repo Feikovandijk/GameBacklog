@@ -8,22 +8,33 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("../supabase/client");
+const config_1 = __importDefault(require("../config"));
 // Fetches the full list of all Steam games
 function fetchSteamGames() {
     return __awaiter(this, void 0, void 0, function* () {
-        const url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/";
+        if (!config_1.default.steamApiKey) {
+            console.error('Steam API key is missing. Cannot fetch games list.');
+            return [];
+        }
+        // New endpoint: IStoreService/GetAppList/v1 (Requires API Key)
+        // Old endpoint: ISteamApps/GetAppList/v2 (Deprecated/Removed)
+        const url = `https://api.steampowered.com/IStoreService/GetAppList/v1/?key=${config_1.default.steamApiKey}&include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false`;
         try {
             const response = yield fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = yield response.json();
-            return data.applist.apps;
+            // New response structure: { response: { apps: [...] } }
+            return data.response.apps;
         }
         catch (error) {
-            console.error("Failed to fetch Steam games list:", error);
+            console.error('Failed to fetch Steam games list:', error);
             return []; // Return empty array on failure
         }
     });
@@ -35,7 +46,7 @@ function getExistingGameIds() {
         let hasMore = true;
         let page = 0;
         const pageSize = 5000;
-        console.log("Fetching existing game IDs page by page...");
+        console.log('Fetching existing game IDs page by page...');
         while (hasMore) {
             const { data, error } = yield client_1.supabase
                 .from('games')
@@ -49,7 +60,7 @@ function getExistingGameIds() {
             if (data.length > 0) {
                 data.forEach(doc => {
                     if (doc.steam_appid) {
-                        existingIds.add(doc.steam_appid);
+                        existingIds.add(Number(doc.steam_appid));
                     }
                 });
                 console.log(`Page ${page + 1}: Fetched ${data.length} documents. Total unique so far: ${existingIds.size}`);
@@ -75,7 +86,9 @@ function addNewGames(newGames) {
                 steam_appid: game.appid,
                 name: game.name,
             }));
-            const { error } = yield client_1.supabase.from('games').upsert(gamesToInsert, { onConflict: 'steam_appid' });
+            const { error } = yield client_1.supabase
+                .from('games')
+                .upsert(gamesToInsert, { onConflict: 'steam_appid' });
             if (error) {
                 console.error(`Error adding new games to Supabase:`, error);
             }
@@ -96,31 +109,31 @@ function updateTotalGamesStat(totalCount) {
                 .update({ count: totalCount })
                 .eq('key', KEY);
             if (error) {
-                console.error("Failed to update total games stat:", error);
+                console.error('Failed to update total games stat:', error);
             }
             else {
-                console.log("Successfully updated total games stat.");
+                console.log('Successfully updated total games stat.');
             }
         }
         catch (error) {
-            console.error("Failed to update total games stat:", error);
+            console.error('Failed to update total games stat:', error);
         }
     });
 }
 function runSyncService() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log("Starting Steam AppID sync service...");
+            console.log('Starting Steam AppID sync service...');
             // 1. Fetch all games from Steam API
-            console.log("Fetching all games from Steam...");
+            console.log('Fetching all games from Steam...');
             const allSteamGames = yield fetchSteamGames();
             if (allSteamGames.length === 0) {
-                console.error("Steam games list is empty. Aborting sync.");
+                console.error('Steam games list is empty. Aborting sync.');
                 return;
             }
             console.log(`Found ${allSteamGames.length} total games on Steam.`);
             // 2. Fetch all existing game IDs from Supabase
-            console.log("Fetching existing game IDs from database...");
+            console.log('Fetching existing game IDs from database...');
             const existingGameIds = yield getExistingGameIds();
             console.log(`Found ${existingGameIds.size} existing games in the database.`);
             // 3. Determine which games are new
@@ -133,16 +146,16 @@ function runSyncService() {
                 const newTotalCount = existingGameIds.size + newGames.length;
                 yield updateTotalGamesStat(newTotalCount);
             }
-            console.log("Steam sync completed successfully.");
+            console.log('Steam sync completed successfully.');
         }
         catch (error) {
             const message = error instanceof Error ? error.message : 'An unknown error occurred';
-            console.error("A critical error occurred in the sync service:", message);
+            console.error('A critical error occurred in the sync service:', message);
             process.exit(1);
         }
     });
 }
 // Autorun the service when the script is executed
 if (require.main === module) {
-    runSyncService();
+    void runSyncService();
 }

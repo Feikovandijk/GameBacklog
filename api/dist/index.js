@@ -26,7 +26,7 @@ const port = config_1.default.port;
 // SECURITY NOTE: The CORS configuration allows requests from http://localhost:5173 and http://localhost:5174.
 // Ensure that process.env.FRONTEND_URL is properly validated and sanitized to prevent potential CORS vulnerabilities in production.
 // Using a wildcard (*) is not recommended for origin as it can expose the application to security risks.
-// 
+//
 // Best practices for production:
 // 1. Always validate and sanitize FRONTEND_URL environment variable
 // 2. Use HTTPS URLs in production (never HTTP)
@@ -60,7 +60,7 @@ app.use((0, cors_1.default)({
             return callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
 }));
 app.use(express_1.default.json());
 // Session configuration
@@ -71,8 +71,8 @@ app.use((0, express_session_1.default)({
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
 }));
 // Passport middleware
 app.use(steam_auth_1.passport.initialize());
@@ -93,7 +93,7 @@ app.get('/auth/steam/return', steam_auth_1.passport.authenticate('steam', { fail
     res.redirect(`${frontendUrl}/dashboard`);
 });
 app.post('/auth/logout', (req, res) => {
-    req.logout((err) => {
+    req.logout(err => {
         if (err) {
             return res.status(500).json({ error: 'Logout failed' });
         }
@@ -112,7 +112,9 @@ app.post('/api/user/sync', requireAuth, (req, res) => __awaiter(void 0, void 0, 
     try {
         // Trigger the sync in the background and return immediately
         (0, user_steam_sync_service_1.syncUserWithSteam)(req.user);
-        res.status(202).json({ message: 'Sync process started in the background.' });
+        res
+            .status(202)
+            .json({ message: 'Sync process started in the background.' });
     }
     catch (error) {
         console.error('Failed to start user sync:', error);
@@ -140,22 +142,24 @@ app.get('/api/stats', (_req, res) => __awaiter(void 0, void 0, void 0, function*
     catch (error) {
         console.error('Error fetching stats:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch stats', details: errorMessage });
+        res
+            .status(500)
+            .json({ error: 'Failed to fetch stats', details: errorMessage });
     }
 }));
 let analyticsCache = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 app.get('/api/analytics', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    if (analyticsCache && (Date.now() - cacheTimestamp < CACHE_DURATION_MS)) {
-        console.log("Serving analytics from cache.");
+    if (analyticsCache && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
+        console.log('Serving analytics from cache.');
         return res.json(analyticsCache);
     }
-    console.log("Fetching pre-calculated analytics data...");
+    console.log('Fetching pre-calculated analytics data...');
     try {
         const keysToFetch = [
             'analytics_releaseYearDistribution',
-            'analytics_genreDistribution'
+            'analytics_genreDistribution',
         ];
         const { data: statsResponse, error } = yield client_1.supabase
             .from('statistics')
@@ -191,7 +195,9 @@ app.get('/api/analytics', (_req, res) => __awaiter(void 0, void 0, void 0, funct
     catch (error) {
         console.error('Error fetching analytics:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch analytics', details: errorMessage });
+        res
+            .status(500)
+            .json({ error: 'Failed to fetch analytics', details: errorMessage });
     }
 }));
 app.get('/api/games/most-reviewed', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -209,7 +215,10 @@ app.get('/api/games/most-reviewed', (_req, res) => __awaiter(void 0, void 0, voi
     catch (error) {
         console.error('Error fetching most reviewed games:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch most reviewed games', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch most reviewed games',
+            details: errorMessage,
+        });
     }
 }));
 app.get('/api/games/search', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -233,7 +242,9 @@ app.get('/api/games/search', (req, res) => __awaiter(void 0, void 0, void 0, fun
     catch (error) {
         console.error('Error searching games:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to search games', details: errorMessage });
+        res
+            .status(500)
+            .json({ error: 'Failed to search games', details: errorMessage });
     }
 }));
 app.get('/api/latest-games-with-achievements', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -265,7 +276,10 @@ app.get('/api/latest-games-with-achievements', (_req, res) => __awaiter(void 0, 
     catch (error) {
         console.error('Error fetching latest games with achievements:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch latest games with achievements', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch latest games with achievements',
+            details: errorMessage,
+        });
     }
 }));
 app.get('/api/latest-synced-games', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -303,7 +317,10 @@ app.get('/api/latest-synced-games', (_req, res) => __awaiter(void 0, void 0, voi
     catch (error) {
         console.error('Error fetching latest synced games:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch latest synced games', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch latest synced games',
+            details: errorMessage,
+        });
     }
 }));
 app.get('/api/latest-steam-games', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -321,7 +338,10 @@ app.get('/api/latest-steam-games', (_req, res) => __awaiter(void 0, void 0, void
     catch (error) {
         console.error('Error fetching latest steam games:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch latest steam games', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch latest steam games',
+            details: errorMessage,
+        });
     }
 }));
 // User-specific game backlog endpoints
@@ -352,13 +372,15 @@ app.get('/api/user/games', requireAuth, (req, res) => __awaiter(void 0, void 0, 
         }
         res.json({
             documents: userGames || [],
-            total: count || 0
+            total: count || 0,
         });
     }
     catch (error) {
         console.error('Error fetching user games:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch user games', details: errorMessage });
+        res
+            .status(500)
+            .json({ error: 'Failed to fetch user games', details: errorMessage });
     }
 }));
 app.get('/api/user/games/recently-played', requireAuth, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -386,7 +408,10 @@ app.get('/api/user/games/recently-played', requireAuth, (req, res) => __awaiter(
     catch (error) {
         console.error('Error fetching recently played games:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch recently played games', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch recently played games',
+            details: errorMessage,
+        });
     }
 }));
 // POST /api/user/games - Add game to user's backlog
@@ -426,7 +451,7 @@ app.post('/api/user/games', requireAuth, (req, res) => __awaiter(void 0, void 0,
             hours_played: 0,
             completion_percentage: 0,
             is_favorite: false,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
         };
         let result;
         if (existingUserGame && !existingError) {
@@ -463,7 +488,10 @@ app.post('/api/user/games', requireAuth, (req, res) => __awaiter(void 0, void 0,
     catch (error) {
         console.error('Error adding game to backlog:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to add game to backlog', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to add game to backlog',
+            details: errorMessage,
+        });
     }
 }));
 // PUT /api/user/games/:id - Update game status in user's backlog
@@ -471,7 +499,7 @@ app.put('/api/user/games/:id', requireAuth, (req, res) => __awaiter(void 0, void
     try {
         const userId = req.user.id;
         const gameId = req.params.id;
-        const { status, priority, user_rating, user_notes, user_tags, hours_played, completion_percentage, is_favorite } = req.body;
+        const { status, priority, user_rating, user_notes, user_tags, hours_played, completion_percentage, is_favorite, } = req.body;
         // Verify ownership
         const { data: userGame, error: userGameError } = yield client_1.supabase
             .from('user_games')
@@ -487,7 +515,7 @@ app.put('/api/user/games/:id', requireAuth, (req, res) => __awaiter(void 0, void
             return;
         }
         const updateData = {
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
         };
         // Only update provided fields
         if (status !== undefined) {
@@ -504,7 +532,8 @@ app.put('/api/user/games/:id', requireAuth, (req, res) => __awaiter(void 0, void
                 logUserActivity(userId, 'game.completed', { gameName });
                 updateData.completed_at = new Date().toISOString();
             }
-            else if (status === 'currently_playing' && userGame.status !== 'currently_playing') {
+            else if (status === 'currently_playing' &&
+                userGame.status !== 'currently_playing') {
                 // Fetch game name for activity logging
                 const { data: gameData } = yield client_1.supabase
                     .from('games')
@@ -530,7 +559,8 @@ app.put('/api/user/games/:id', requireAuth, (req, res) => __awaiter(void 0, void
         if (is_favorite !== undefined)
             updateData.is_favorite = is_favorite;
         // Set completion date if marking as completed
-        if ((status === 'completed' || status === 'completed_100') && !updateData.completed_at) {
+        if ((status === 'completed' || status === 'completed_100') &&
+            !updateData.completed_at) {
             updateData.completed_at = new Date().toISOString();
         }
         const { data: result, error: updateError } = yield client_1.supabase
@@ -547,7 +577,9 @@ app.put('/api/user/games/:id', requireAuth, (req, res) => __awaiter(void 0, void
     catch (error) {
         console.error('Error updating user game:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to update game', details: errorMessage });
+        res
+            .status(500)
+            .json({ error: 'Failed to update game', details: errorMessage });
     }
 }));
 // DELETE /api/user/games/:id - Remove game from user's backlog
@@ -581,7 +613,10 @@ app.delete('/api/user/games/:id', requireAuth, (req, res) => __awaiter(void 0, v
     catch (error) {
         console.error('Error removing game from backlog:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to remove game from backlog', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to remove game from backlog',
+            details: errorMessage,
+        });
     }
 }));
 // GET /api/user/stats - Get user's gaming statistics
@@ -589,7 +624,7 @@ app.get('/api/user/stats', requireAuth, (req, res) => __awaiter(void 0, void 0, 
     try {
         const userId = req.user.id;
         // Get various stats in parallel
-        const [{ count: totalGames }, { count: completedGames }, { count: currentlyPlaying }, { count: wantToPlay }, { count: onHold }, { count: dropped }] = yield Promise.all([
+        const [{ count: totalGames }, { count: completedGames }, { count: currentlyPlaying }, { count: wantToPlay }, { count: onHold }, { count: dropped },] = yield Promise.all([
             client_1.supabase
                 .from('user_games')
                 .select('id', { count: 'exact' })
@@ -618,7 +653,7 @@ app.get('/api/user/stats', requireAuth, (req, res) => __awaiter(void 0, void 0, 
                 .from('user_games')
                 .select('id', { count: 'exact' })
                 .eq('user_id', userId)
-                .eq('status', 'dropped')
+                .eq('status', 'dropped'),
         ]);
         const stats = {
             totalGames: totalGames || 0,
@@ -629,27 +664,27 @@ app.get('/api/user/stats', requireAuth, (req, res) => __awaiter(void 0, void 0, 
             dropped: dropped || 0,
             completionPercentage: (totalGames || 0) > 0
                 ? Math.round(((completedGames || 0) / (totalGames || 0)) * 100)
-                : 0
+                : 0,
         };
         res.json(stats);
     }
     catch (error) {
         console.error('Error fetching user stats:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch user stats', details: errorMessage });
+        res
+            .status(500)
+            .json({ error: 'Failed to fetch user stats', details: errorMessage });
     }
 }));
 // Helper function to log user activity
 function logUserActivity(userId, type, metadata) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield client_1.supabase
-                .from('user_activity')
-                .insert({
+            yield client_1.supabase.from('user_activity').insert({
                 user_id: userId,
                 type: type,
                 timestamp: new Date().toISOString(),
-                metadata_json: JSON.stringify(metadata)
+                metadata_json: JSON.stringify(metadata),
             });
         }
         catch (error) {
@@ -677,7 +712,10 @@ app.get('/api/user/stats/extended', requireAuth, (req, res) => __awaiter(void 0,
     catch (error) {
         console.error('Error fetching user extended stats:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch user extended stats', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch user extended stats',
+            details: errorMessage,
+        });
     }
 }));
 // GET /api/user/achievements/recent - Get user's most recent achievements
@@ -704,7 +742,10 @@ app.get('/api/user/achievements/recent', requireAuth, (req, res) => __awaiter(vo
     catch (error) {
         console.error('Error fetching recent achievements:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch recent achievements', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch recent achievements',
+            details: errorMessage,
+        });
     }
 }));
 // GET /api/user/activity - Get user's most recent activities
@@ -725,9 +766,12 @@ app.get('/api/user/activity', requireAuth, (req, res) => __awaiter(void 0, void 
     catch (error) {
         console.error('Error fetching user activity:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch user activity', details: errorMessage });
+        res.status(500).json({
+            error: 'Failed to fetch user activity',
+            details: errorMessage,
+        });
     }
 }));
-app.listen(port, "0.0.0.0", () => {
+app.listen(port, '0.0.0.0', () => {
     console.log(`API server listening on port ${port}`);
 });

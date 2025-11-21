@@ -106,31 +106,14 @@ async function getLatestChangenumber(): Promise<number> {
 
 async function saveLatestChangenumber(changenumber: number) {
   try {
-    const { error: updateError } = await supabase
+    const { error } = await supabase
       .from('steam_sync_state')
-      .update({ changenumber })
-      .eq('id', STATE_DOCUMENT_ID);
+      .upsert({ id: STATE_DOCUMENT_ID, changenumber });
 
-    if (updateError) {
-      if (updateError.code === 'PGRST116') {
-        // No rows returned
-        console.log('Changenumber document not found, creating a new one.');
-        const { error: insertError } = await supabase
-          .from('steam_sync_state')
-          .insert({ id: STATE_DOCUMENT_ID, changenumber });
-
-        if (insertError) {
-          throw insertError;
-        }
-        console.log(
-          `Successfully created and saved new changenumber: ${changenumber}`
-        );
-      } else {
-        throw updateError;
-      }
-    } else {
-      console.log(`Successfully saved new changenumber: ${changenumber}`);
+    if (error) {
+      throw error;
     }
+    console.log(`Successfully saved new changenumber: ${changenumber}`);
   } catch (error: unknown) {
     console.error(`Error saving new changenumber ${changenumber}:`, error);
   }
