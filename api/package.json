@@ -16,16 +16,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-
     "//----- Sync Scripts -----    ": "",
-    "sync:games": "node dist/services/steam-sync-service.js",
+    "sync:games": "ts-node src/services/steam-sync-service.ts",
     "sync:games:pics": "ts-node src/services/steam-pics-refresh-service.ts",
     "sync:players": "ts-node src/services/steam-player-count-sync-service.ts",
     "sync:enrich": "ts-node src/scripts/enrich-all-games.ts",
-
     "//----- Refresh Scripts -----    ": "",
     "refresh:games": "node dist/services/steam-refresh-service.js",
-
     "//----- Recalculate Scripts -----    ": "",
     "recalculate:analytics": "node dist/scripts/recalculate-analytics.js",
     "recalculate:stats": "ts-node src/scripts/recalculate-stats.ts"
