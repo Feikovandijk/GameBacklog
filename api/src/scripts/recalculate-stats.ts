@@ -23,7 +23,7 @@ async function recalculateStats() {
     const { count: updatedGames, error: updatedGamesError } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
-      .not('last_updated', 'is', null);
+      .not('detailed_description', 'is', null);
 
     if (updatedGamesError) {
       throw updatedGamesError;

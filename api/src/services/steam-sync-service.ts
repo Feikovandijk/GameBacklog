@@ -60,7 +60,7 @@ async function getExistingGameIds(): Promise<Set<number>> {
   const existingIds = new Set<number>();
   let hasMore = true;
   let page = 0;
-  const pageSize = 5000;
+  const pageSize = 1000;
 
   console.log('Fetching existing game IDs page by page...');
   while (hasMore) {
@@ -104,6 +104,7 @@ async function addNewGames(newGames: Array<{ appid: number; name: string }>) {
     const gamesToInsert = batch.map(game => ({
       steam_appid: game.appid,
       name: game.name,
+      created_at: new Date().toISOString(),
     }));
 
     const { error } = await supabase

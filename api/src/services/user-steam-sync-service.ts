@@ -267,10 +267,10 @@ export async function syncUserWithSteam(user: any): Promise<void> {
           .from('games')
           .select('id')
           .eq('steam_appid', game.appid)
-          .single();
+          .maybeSingle();
         if (masterGameResponse) {
           const masterGameId = masterGameResponse.id;
-          await supabase.from('user_games').insert({
+          const { error: insertError } = await supabase.from('user_games').insert({
             user_id: user.id,
             game_id: masterGameId,
             steam_appid: game.appid,
@@ -284,7 +284,14 @@ export async function syncUserWithSteam(user: any): Promise<void> {
             img_icon_url: game.img_icon_url,
             img_logo_url: game.img_logo_url,
           });
-          console.log(`Added new game to backlog: ${game.name}`);
+
+          if (insertError) {
+            console.error(`Error inserting new game ${game.name}:`, insertError);
+          } else {
+            console.log(`Added new game to backlog: ${game.name}`);
+          }
+        } else {
+          // console.log(`Master game not found for ${game.name} (AppID: ${game.appid})`);
         }
         if (error) {
           console.error(`Error finding master game for ${game.name}:`, error);
@@ -300,7 +307,7 @@ export async function syncUserWithSteam(user: any): Promise<void> {
       .select('id')
       .eq('user_id', user.id)
       .eq('steam_appid', game.appid)
-      .single();
+      .maybeSingle();
     if (gameDocument) {
       await Promise.all([
         syncGameAchievements(

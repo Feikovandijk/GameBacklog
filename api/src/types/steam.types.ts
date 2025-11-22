@@ -29,6 +29,7 @@ export interface GameDocument {
   movies?: string[] | null;
   release_date?: string | null;
   last_updated: string;
+  created_at?: string;
   developers?: string[] | null;
   publishers?: string[] | null;
   is_early_access?: boolean | null;

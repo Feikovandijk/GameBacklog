@@ -255,19 +255,26 @@ async function enrichAllGames() {
     });
 
     const BATCH_SIZE = 100;
-    let page = 0;
+    let lastId: any = null;
     let hasMore = true;
 
     while (hasMore) {
-      const offset = page * BATCH_SIZE;
       console.log(
-        `\nFetching batch of games from offset ${offset} (processed: ${totalProcessedCount})...`
+        `\nFetching batch of games... (processed: ${totalProcessedCount})`
       );
 
-      const { data: gameBatch, error: batchError } = await supabase
+      let query = supabase
         .from('games')
         .select('*')
-        .range(offset, offset + BATCH_SIZE - 1);
+        .is('about_the_game', null)
+        .order('id', { ascending: true })
+        .limit(BATCH_SIZE);
+
+      if (lastId) {
+        query = query.gt('id', lastId);
+      }
+
+      const { data: gameBatch, error: batchError } = await query;
 
       if (batchError) {
         console.error('Error fetching games batch:', batchError);
@@ -278,6 +285,9 @@ async function enrichAllGames() {
         hasMore = false;
         continue;
       }
+
+      // Update cursor for next batch
+      lastId = gameBatch[gameBatch.length - 1].id;
 
       for (let index = 0; index < gameBatch.length; index++) {
         const game = gameBatch[index];
@@ -338,7 +348,6 @@ async function enrichAllGames() {
           await new Promise(resolve => setTimeout(resolve, DELAY_MS));
         }
       }
-      page++;
     }
 
     console.log(

@@ -101,7 +101,7 @@ async function recordPlayerCountHistory(gameId: string, playerCount: number) {
   }
 }
 
-async function runPlayerCountSync() {
+export async function runPlayerCountSync() {
   console.log('Steam player count sync service started.');
   let totalUpdatedCount = 0;
 
@@ -123,7 +123,7 @@ async function runPlayerCountSync() {
       .lt('player_count_zero_sync_streak', 2)
       .eq('steam_app_type', 'game')
       .order('steam_appid', { ascending: true })
-      .range(offset, offset + BATCH_SIZE - 1);
+      .range(0, BATCH_SIZE - 1);
 
     if (error) {
       console.error('Error fetching games:', error);
@@ -174,7 +174,12 @@ async function runPlayerCountSync() {
       await new Promise(resolve => setTimeout(resolve, DELAY_MS));
     }
 
-    offset += BATCH_SIZE;
+    // Since we are updating the records, they will no longer match the query criteria in the next iteration.
+    // Therefore, we should NOT increment the offset. We always want the "next batch" of pending items.
+    // offset += BATCH_SIZE; 
+
+    // Wait a bit before fetching the next batch to be safe
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
   console.log(
@@ -196,4 +201,6 @@ async function runService() {
   }
 }
 
-void runService();
+if (require.main === module) {
+  void runService();
+}
