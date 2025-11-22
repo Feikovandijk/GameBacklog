@@ -1,14 +1,7 @@
-version: '3.8'
-
-# This Docker Compose file is a blueprint for deploying the application to a production environment.
-# Platforms like Render, Railway, or Komodo will not use this file directly, but you will
-# configure your services on their dashboards using the same concepts defined here:
-# services, build contexts, start commands, and environment variables.
 
 services:
   #----------------------------------------------------------------------------------
   # API Service
-  # Corresponds to your backend worker/service on a PaaS.
   #----------------------------------------------------------------------------------
   api:
     build:
@@ -20,7 +13,7 @@ services:
     env_file:
       - ./.env
     ports:
-      - "8080:8080"
+      - "6543:6543"
     # In production, the code is baked into the image. This volume is for development.
     # We mount the source code to see changes without rebuilding the image.
     volumes:
@@ -28,8 +21,41 @@ services:
       - /app/node_modules
 
   #----------------------------------------------------------------------------------
-  # Dashboard Service
-  # Corresponds to your frontend "Static Site" or "Web Service" on a PaaS.
+  # Worker Service
+  # Runs background jobs like syncing player counts.
+  #----------------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    # Override the default CMD ("npm start") to run the worker script
+    command: ["node", "dist/scripts/worker.js"]
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+  #----------------------------------------------------------------------------------
+  # User Dashboard Service
+  # The main user-facing dashboard.
+  #----------------------------------------------------------------------------------
+  user-dashboard:
+    build:
+      context: ./user-dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+  #----------------------------------------------------------------------------------
+  # Dev Dashboard Service
+  # The developer dashboard.
   #----------------------------------------------------------------------------------
   dashboard:
     build:
@@ -37,23 +63,10 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      # Maps the container's port 80 (Nginx) to the host's port 80
-      - "80:80"
+      # Maps the container's port 80 (Nginx) to the host's port 81
+      - "81:80"
     depends_on:
       - api # Ensures the API starts before the dashboard.
-
-  #----------------------------------------------------------------------------------
-  # Watchtower Service (Optional but Recommended for self-hosting)
-  # Automatically updates your running containers to the latest image from a registry.
-  # PaaS platforms have this auto-deploy functionality built-in.
-  #----------------------------------------------------------------------------------
-  watchtower:
-    image: containrrr/watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    # This command tells Watchtower to check for new images every 5 minutes (300 seconds).
-    command: --interval 300
 
 volumes:
   appwrite_data:
