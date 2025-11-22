@@ -44,22 +44,6 @@ If you are running the service on a single machine, you can run it directly:
 npm run refresh-games
 ```
 
-**Running Multiple Workers (for faster processing):**
-
-This service is designed to be run in parallel across multiple machines. To do this, you must set the `WORKER_ID` and `TOTAL_WORKERS` environment variables for each instance.
-
-For example, to run **2 workers** on two different machines:
-
-*   **On Machine 1:**
-    ```bash
-    WORKER_ID=0 TOTAL_WORKERS=2 npm run refresh-games --prefix api
-    ```
-
-*   **On Machine 2:**
-    ```bash
-    WORKER_ID=1 TOTAL_WORKERS=2 npm run refresh-games --prefix api
-    ```
-    
 ### `npm run setup-db`
 
 Executes a script to set up the necessary collections and indexes in your Appwrite database. This is a one-time setup command.
