@@ -49,7 +49,7 @@ async function checkSchema() {
   ];
 
   // Try to select these columns
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('games')
     .select(columnsToCheck.join(','))
     .limit(1);
@@ -63,4 +63,4 @@ async function checkSchema() {
   }
 }
 
-checkSchema();
+void checkSchema();

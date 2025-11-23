@@ -106,7 +106,6 @@ export async function runPlayerCountSync() {
   let totalUpdatedCount = 0;
 
   const BATCH_SIZE = 100;
-  let offset = 0;
 
   while (true) {
     const thresholdDate = new Date();

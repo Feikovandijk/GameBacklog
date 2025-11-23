@@ -25,7 +25,9 @@ async function checkTables() {
 
   // Check specific columns in games
   console.log('\nChecking columns in games table...');
-  const { data, error } = await supabase
+  // Check specific columns in games
+  console.log('\nChecking columns in games table...');
+  const { error } = await supabase
     .from('games')
     .select(
       'player_count_last_updated, player_count_zero_sync_streak, current_players'
@@ -42,7 +44,7 @@ async function checkTables() {
 
   // Check specific columns in statistics
   console.log('\nChecking columns in statistics table...');
-  const { data: statData, error: statError } = await supabase
+  const { error: statError } = await supabase
     .from('statistics')
     .select('value')
     .limit(1);
@@ -56,4 +58,4 @@ async function checkTables() {
   }
 }
 
-checkTables();
+void checkTables();

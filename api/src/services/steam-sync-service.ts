@@ -39,7 +39,7 @@ async function fetchSteamGames(): Promise<
         break;
       }
 
-      allApps.push(...apps);
+      allApps.push(...(apps as Array<{ appid: number; name: string }>));
 
       if (data.response.last_appid) {
         lastAppId = data.response.last_appid;

@@ -1,7 +1,7 @@
 import { supabase } from '../supabase/client';
 
 async function checkColumn() {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('games')
     .select('created_at')
     .limit(1);
@@ -13,4 +13,4 @@ async function checkColumn() {
   }
 }
 
-checkColumn();
+void checkColumn();

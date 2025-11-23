@@ -32,4 +32,4 @@ async function checkSteamListSize() {
   }
 }
 
-checkSteamListSize();
+void checkSteamListSize();
