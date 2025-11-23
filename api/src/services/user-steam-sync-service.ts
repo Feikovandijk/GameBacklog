@@ -322,7 +322,9 @@ export async function syncUserWithSteam(user: any): Promise<void> {
       }
     }
   }
-  console.log(`Phase 1 completed. ${gamesToSyncDetails.length} games need detail sync.`);
+  console.log(
+    `Phase 1 completed. ${gamesToSyncDetails.length} games need detail sync.`
+  );
 
   // 4. Sync Achievements & Stats for the game (can be done in parallel)
   console.log('Phase 2: Syncing details...');
@@ -330,21 +332,25 @@ export async function syncUserWithSteam(user: any): Promise<void> {
   const CHUNK_SIZE = 5;
   for (let i = 0; i < gamesToSyncDetails.length; i += CHUNK_SIZE) {
     const chunk = gamesToSyncDetails.slice(i, i + CHUNK_SIZE);
-    await Promise.all(chunk.map(item => Promise.all([
-      syncGameAchievements(
-        String(user.steam_id),
-        String(user.id),
-        item.appId,
-        config.steamApiKey!
-      ),
-      syncGameStats(
-        String(user.steam_id),
-        String(user.id),
-        item.gameId,
-        item.appId,
-        config.steamApiKey!
-      ),
-    ])));
+    await Promise.all(
+      chunk.map(item =>
+        Promise.all([
+          syncGameAchievements(
+            String(user.steam_id),
+            String(user.id),
+            item.appId,
+            config.steamApiKey!
+          ),
+          syncGameStats(
+            String(user.steam_id),
+            String(user.id),
+            item.gameId,
+            item.appId,
+            config.steamApiKey!
+          ),
+        ])
+      )
+    );
   }
 
   // 5. Update the user's `last_steam_sync` timestamp

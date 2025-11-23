@@ -176,7 +176,7 @@ export async function runPlayerCountSync() {
 
     // Since we are updating the records, they will no longer match the query criteria in the next iteration.
     // Therefore, we should NOT increment the offset. We always want the "next batch" of pending items.
-    // offset += BATCH_SIZE; 
+    // offset += BATCH_SIZE;
 
     // Wait a bit before fetching the next batch to be safe
     await new Promise(resolve => setTimeout(resolve, 1000));

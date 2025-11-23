@@ -1,41 +1,59 @@
-
 import { supabase } from '../supabase/client';
 
 async function checkTables() {
-    console.log('Checking database schema...');
+  console.log('Checking database schema...');
 
-    const tablesToCheck = ['steam_sync_state', 'player_count_history', 'statistics', 'games'];
+  const tablesToCheck = [
+    'steam_sync_state',
+    'player_count_history',
+    'statistics',
+    'games',
+  ];
 
-    for (const table of tablesToCheck) {
-        const { error } = await supabase.from(table).select('*').limit(1);
-        if (error) {
-            if (error.code === 'PGRST205') {
-                console.error(`[MISSING] Table '${table}' does not exist.`);
-            } else {
-                console.error(`[ERROR] checking table '${table}':`, error.message);
-            }
-        } else {
-            console.log(`[OK] Table '${table}' exists.`);
-        }
-    }
-
-    // Check specific columns in games
-    console.log('\nChecking columns in games table...');
-    const { data, error } = await supabase.from('games').select('player_count_last_updated, player_count_zero_sync_streak, current_players').limit(1);
+  for (const table of tablesToCheck) {
+    const { error } = await supabase.from(table).select('*').limit(1);
     if (error) {
-        console.error(`[MISSING] One or more columns in 'games' table are missing:`, error.message);
+      if (error.code === 'PGRST205') {
+        console.error(`[MISSING] Table '${table}' does not exist.`);
+      } else {
+        console.error(`[ERROR] checking table '${table}':`, error.message);
+      }
     } else {
-        console.log(`[OK] New columns in 'games' table exist.`);
+      console.log(`[OK] Table '${table}' exists.`);
     }
+  }
 
-    // Check specific columns in statistics
-    console.log('\nChecking columns in statistics table...');
-    const { data: statData, error: statError } = await supabase.from('statistics').select('value').limit(1);
-    if (statError) {
-        console.error(`[MISSING] 'value' column in 'statistics' table is missing:`, statError.message);
-    } else {
-        console.log(`[OK] 'value' column in 'statistics' table exists.`);
-    }
+  // Check specific columns in games
+  console.log('\nChecking columns in games table...');
+  const { data, error } = await supabase
+    .from('games')
+    .select(
+      'player_count_last_updated, player_count_zero_sync_streak, current_players'
+    )
+    .limit(1);
+  if (error) {
+    console.error(
+      `[MISSING] One or more columns in 'games' table are missing:`,
+      error.message
+    );
+  } else {
+    console.log(`[OK] New columns in 'games' table exist.`);
+  }
+
+  // Check specific columns in statistics
+  console.log('\nChecking columns in statistics table...');
+  const { data: statData, error: statError } = await supabase
+    .from('statistics')
+    .select('value')
+    .limit(1);
+  if (statError) {
+    console.error(
+      `[MISSING] 'value' column in 'statistics' table is missing:`,
+      statError.message
+    );
+  } else {
+    console.log(`[OK] 'value' column in 'statistics' table exists.`);
+  }
 }
 
 checkTables();

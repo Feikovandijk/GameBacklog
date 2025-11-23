@@ -15,7 +15,9 @@ async function fetchSteamGames(): Promise<
   let lastAppId: number | undefined;
   let hasMore = true;
 
-  console.log('Fetching full game list from Steam (this may take a few requests)...');
+  console.log(
+    'Fetching full game list from Steam (this may take a few requests)...'
+  );
 
   while (hasMore) {
     let url = `https://api.steampowered.com/IStoreService/GetAppList/v1/?key=${config.steamApiKey}&include_games=true&include_dlc=false&include_software=false&include_videos=false&include_hardware=false&max_results=50000`;
@@ -44,7 +46,6 @@ async function fetchSteamGames(): Promise<
       } else {
         hasMore = false;
       }
-
     } catch (error) {
       console.error('Failed to fetch Steam games list:', error);
       hasMore = false; // Stop on error to avoid infinite loops
