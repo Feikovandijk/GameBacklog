@@ -1,10 +1,10 @@
 import { runPlayerCountSync } from '../services/steam-player-count-sync-service';
 import { runSyncService } from '../services/steam-sync-service';
-import { enrichAllGames } from './enrich-all-games';
+import { runPicsRefreshService } from '../services/steam-pics-refresh-service';
 
 const PLAYER_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const GAME_LIST_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
-const ENRICHMENT_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const PICS_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 async function runPlayerCountLoop() {
   console.log('Starting Player Count Sync Loop...');
@@ -42,20 +42,20 @@ async function runGameListSyncLoop() {
   }
 }
 
-async function runEnrichmentLoop() {
-  console.log('Starting Enrichment Loop...');
+async function runPicsRefreshLoop() {
+  console.log('Starting PICS Refresh Loop...');
   while (true) {
     try {
-      console.log(`\n[Enrichment] Starting at ${new Date().toISOString()}`);
-      await enrichAllGames();
-      console.log(`[Enrichment] Finished at ${new Date().toISOString()}`);
+      console.log(`\n[PICS Refresh] Starting at ${new Date().toISOString()}`);
+      await runPicsRefreshService();
+      console.log(`[PICS Refresh] Finished at ${new Date().toISOString()}`);
     } catch (error) {
-      console.error('[Enrichment] Error:', error);
+      console.error('[PICS Refresh] Error:', error);
     }
     console.log(
-      `[Enrichment] Sleeping for ${ENRICHMENT_INTERVAL_MS / 60000} minutes...`
+      `[PICS Refresh] Sleeping for ${PICS_REFRESH_INTERVAL_MS / 60000} minutes...`
     );
-    await new Promise(resolve => setTimeout(resolve, ENRICHMENT_INTERVAL_MS));
+    await new Promise(resolve => setTimeout(resolve, PICS_REFRESH_INTERVAL_MS));
   }
 }
 
@@ -66,7 +66,7 @@ async function runWorker() {
   await Promise.all([
     runPlayerCountLoop(),
     runGameListSyncLoop(),
-    runEnrichmentLoop(),
+    runPicsRefreshLoop(),
   ]);
 }
 

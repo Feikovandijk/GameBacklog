@@ -615,7 +615,7 @@ async function performRefresh() {
   console.log(`\nSteam PICS refresh completed.`);
 }
 
-async function runPicsRefreshService() {
+export async function runPicsRefreshService() {
   let exitCode = 0;
   try {
     await performRefresh();
@@ -626,7 +626,10 @@ async function runPicsRefreshService() {
     exitCode = 1;
   } finally {
     steamUser.logOff();
-    process.exit(exitCode);
+    // Only exit process if running standalone
+    if (require.main === module) {
+      process.exit(exitCode);
+    }
   }
 }
 
@@ -690,7 +693,9 @@ interface Achievement {
 interface AchievementDocument {
   game_id: string; // FK to games collection document $id
   steam_appid: number;
-  api_name: string;
+  name: string; // API name (required by DB)
+  achievement_id: string; // This is the API name (required by DB)
+  api_name: string; // We added this, keeping it for consistency or future use
   display_name: string;
   description?: string | null;
   icon?: string | null;
@@ -757,6 +762,8 @@ async function syncGameAchievements(documentId: string, steamAppId: number) {
       ach => ({
         game_id: documentId,
         steam_appid: steamAppId,
+        name: String(ach.name), // Map API name to name
+        achievement_id: String(ach.name), // Map API name to achievement_id
         api_name: String(ach.name),
         display_name: String(ach.displayName),
         description: ach.description ? String(ach.description) : null,
