@@ -234,7 +234,7 @@ function mergeApiData(
 
 // --- Main Backfill Logic ---
 
-async function enrichAllGames() {
+export async function enrichAllGames() {
   console.log(`Starting one-time enrichment...`);
   let totalUpdatedCount = 0;
   let totalProcessedCount = 0;
@@ -359,9 +359,14 @@ async function enrichAllGames() {
     console.error(`\nError during enrichment service:`, error.message);
     console.error(error.stack);
     steamUser.logOff();
-    process.exit(1);
+    // Only exit if running standalone
+    if (require.main === module) {
+      process.exit(1);
+    }
   }
 }
 
-// Execute the enrichment process
-void enrichAllGames();
+// Execute the enrichment process if running directly
+if (require.main === module) {
+  void enrichAllGames();
+}

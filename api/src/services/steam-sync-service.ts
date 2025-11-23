@@ -140,7 +140,7 @@ async function updateTotalGamesStat(totalCount: number) {
   }
 }
 
-async function runSyncService() {
+export async function runSyncService() {
   try {
     console.log('Starting Steam AppID sync service...');
 
@@ -180,11 +180,14 @@ async function runSyncService() {
     const message =
       error instanceof Error ? error.message : 'An unknown error occurred';
     console.error('A critical error occurred in the sync service:', message);
-    process.exit(1);
+    // Only exit process if running standalone
+    if (require.main === module) {
+      process.exit(1);
+    }
   }
 }
 
-// Autorun the service when the script is executed
+// Autorun the service when the script is executed directly
 if (require.main === module) {
   void runSyncService();
 }
