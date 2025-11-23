@@ -14,11 +14,6 @@ services:
       - ./.env
     ports:
       - "6543:6543"
-    # In production, the code is baked into the image. This volume is for development.
-    # We mount the source code to see changes without rebuilding the image.
-    volumes:
-      - ./api:/app
-      - /app/node_modules
 
   #----------------------------------------------------------------------------------
   # Worker Service
@@ -33,9 +28,6 @@ services:
       - ./.env
     # Override the default CMD ("npm start") to run the worker script
     command: ["node", "dist/scripts/worker.js"]
-    volumes:
-      - ./api:/app
-      - /app/node_modules
     depends_on:
       - api
 

@@ -39,10 +39,16 @@ The API uses a **multi-stage build** in its `Dockerfile` to ensure a small and s
 
 ## Quick Start
 
-To start the entire application stack:
+To start the entire application stack in **production mode** (using built images):
 
 ```bash
 docker-compose up --build
+```
+
+To start in **development mode** (with live code reloading):
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
 This command will:
@@ -97,17 +103,16 @@ Access the services at:
 
 ## Development vs. Production
 
-### Development
-The `docker-compose.yml` is configured for development convenience:
--   **Volumes**: The source code (`./api`) is mounted into the container (`/app`).
-    -   *Benefit*: Changes you make to the code on your host machine are immediately reflected in the container (if using `nodemon` or similar).
--   **Environment**: Uses `.env` file for configuration.
+### Production (Default)
+The default `docker-compose.yml` is configured for production. It does **not** mount local source code, meaning the container runs the code that was built into the image during the build process (`/app/dist`). This ensures consistency and avoids "module not found" errors on clean hosts.
 
-### Production
-For a production deployment (e.g., on a VPS or PaaS):
-1.  **Remove Volumes**: Do not mount the source code. Rely on the built image.
-2.  **Environment Variables**: Set environment variables directly in the deployment platform, not via a `.env` file committed to the repo.
-3.  **Restart Policy**: `restart: always` is recommended.
+### Development
+To develop locally, use the `docker-compose.dev.yml` override file. This file mounts your local source code (`./api`) into the container (`/app`), allowing changes to be reflected immediately (if using `nodemon` or similar).
+
+**Command:**
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+```
 
 ## Troubleshooting
 
