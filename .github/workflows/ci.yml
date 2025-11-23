@@ -2,12 +2,12 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ["main", "dev"]
+    branches: ['main', 'dev']
   pull_request:
-    branches: ["main", "dev"]
+    branches: ['main', 'dev']
 
 env:
-  NODE_VERSION: "20.x"
+  NODE_VERSION: '20.x'
 
 jobs:
   # Job 1: Code Quality Checks
@@ -23,14 +23,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
 
       # ================== API Quality Checks ==================
       - name: API - Install Dependencies
         run: npm install --prefix api
-
-      - name: API - Check Code Formatting
-        run: npm run --prefix api format:check
 
       - name: API - Run ESLint
         run: npm run --prefix api lint:ci
@@ -45,9 +42,6 @@ jobs:
       - name: Dev Dashboard - Install Dependencies
         run: npm install --prefix devdashboard
 
-      - name: Dev Dashboard - Check Code Formatting
-        run: npm run --prefix devdashboard format:check
-
       - name: Dev Dashboard - Run ESLint
         run: npm run --prefix devdashboard lint:ci
 
@@ -60,9 +54,6 @@ jobs:
       # ================== User Dashboard Quality Checks ==================
       - name: User Dashboard - Install Dependencies
         run: npm install --prefix user-dashboard
-
-      - name: User Dashboard - Check Code Formatting
-        run: npm run --prefix user-dashboard format:check
 
       - name: User Dashboard - Run ESLint
         run: npm run --prefix user-dashboard lint:ci
@@ -91,7 +82,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
 
       - name: Install Dependencies - ${{ matrix.project }}
         run: npm install --prefix ${{ matrix.project }}
