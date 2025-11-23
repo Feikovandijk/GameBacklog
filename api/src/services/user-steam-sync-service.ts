@@ -221,13 +221,21 @@ export async function syncUserWithSteam(user: any): Promise<void> {
   console.log(`User has ${userBacklog.size} games in their backlog.`);
 
   // 3. Process each game
+  // 3. Process each game
+  const gamesToSyncDetails: { gameId: string; appId: number }[] = [];
+
+  console.log('Phase 1: Syncing basic game info...');
   for (const game of ownedGames) {
     const existingGame = userBacklog.get(game.appid);
     const hoursPlayed = Math.round((game.playtime_forever / 60) * 100) / 100;
     const playtime2Weeks = game.playtime_2weeks || 0;
 
+    let gameId: string | undefined;
+
     if (existingGame) {
-      // Game is already in backlog, update playtime
+      gameId = existingGame.id;
+      // Game is already in backlog
+
       const updatePayload: {
         hours_played: number;
         playtime_2weeks: number;
@@ -255,9 +263,11 @@ export async function syncUserWithSteam(user: any): Promise<void> {
           .from('user_games')
           .update(updatePayload)
           .eq('id', existingGame.id);
-        console.log(
-          `Updated playtime for ${game.name} to ${hoursPlayed} hours (${playtime2Weeks} mins in last 2 weeks).`
-        );
+
+        // If playtime changed, we should sync details
+        if (existingGame.hours_played !== hoursPlayed && gameId) {
+          gamesToSyncDetails.push({ gameId, appId: game.appid });
+        }
       }
     } else {
       // Game is not in backlog, add it
@@ -270,25 +280,36 @@ export async function syncUserWithSteam(user: any): Promise<void> {
           .maybeSingle();
         if (masterGameResponse) {
           const masterGameId = masterGameResponse.id;
-          const { error: insertError } = await supabase.from('user_games').insert({
-            user_id: user.id,
-            game_id: masterGameId,
-            steam_appid: game.appid,
-            status: 'want_to_play', // Assuming a default status
-            hours_played: hoursPlayed,
-            playtime_2weeks: playtime2Weeks,
-            added_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_played:
-              playtime2Weeks > 0 ? new Date().toISOString() : undefined,
-            img_icon_url: game.img_icon_url,
-            img_logo_url: game.img_logo_url,
-          });
+          const { data: newGame, error: insertError } = await supabase
+            .from('user_games')
+            .insert({
+              user_id: user.id,
+              game_id: masterGameId,
+              steam_appid: game.appid,
+              status: 'want_to_play', // Assuming a default status
+              hours_played: hoursPlayed,
+              playtime_2weeks: playtime2Weeks,
+              added_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              last_played:
+                playtime2Weeks > 0 ? new Date().toISOString() : undefined,
+              img_icon_url: game.img_icon_url,
+              img_logo_url: game.img_logo_url,
+            })
+            .select('id')
+            .single();
 
           if (insertError) {
-            console.error(`Error inserting new game ${game.name}:`, insertError);
-          } else {
+            console.error(
+              `Error inserting new game ${game.name}:`,
+              insertError
+            );
+          } else if (newGame) {
             console.log(`Added new game to backlog: ${game.name}`);
+            gameId = newGame.id;
+            if (gameId) {
+              gamesToSyncDetails.push({ gameId, appId: game.appid });
+            }
           }
         } else {
           // console.log(`Master game not found for ${game.name} (AppID: ${game.appid})`);
@@ -300,34 +321,30 @@ export async function syncUserWithSteam(user: any): Promise<void> {
         console.error(`Error adding new game ${game.name} to backlog:`, error);
       }
     }
+  }
+  console.log(`Phase 1 completed. ${gamesToSyncDetails.length} games need detail sync.`);
 
-    // 4. Sync Achievements & Stats for the game (can be done in parallel)
-    const { data: gameDocument, error } = await supabase
-      .from('user_games')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('steam_appid', game.appid)
-      .maybeSingle();
-    if (gameDocument) {
-      await Promise.all([
-        syncGameAchievements(
-          String(user.steam_id),
-          String(user.id),
-          game.appid,
-          config.steamApiKey
-        ),
-        syncGameStats(
-          String(user.steam_id),
-          String(user.id),
-          String(gameDocument.id),
-          game.appid,
-          config.steamApiKey
-        ),
-      ]);
-    }
-    if (error) {
-      console.error(`Error finding game document for ${game.name}:`, error);
-    }
+  // 4. Sync Achievements & Stats for the game (can be done in parallel)
+  console.log('Phase 2: Syncing details...');
+  // Process in chunks to avoid overwhelming the API or database
+  const CHUNK_SIZE = 5;
+  for (let i = 0; i < gamesToSyncDetails.length; i += CHUNK_SIZE) {
+    const chunk = gamesToSyncDetails.slice(i, i + CHUNK_SIZE);
+    await Promise.all(chunk.map(item => Promise.all([
+      syncGameAchievements(
+        String(user.steam_id),
+        String(user.id),
+        item.appId,
+        config.steamApiKey!
+      ),
+      syncGameStats(
+        String(user.steam_id),
+        String(user.id),
+        item.gameId,
+        item.appId,
+        config.steamApiKey!
+      ),
+    ])));
   }
 
   // 5. Update the user's `last_steam_sync` timestamp
