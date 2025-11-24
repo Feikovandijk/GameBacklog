@@ -643,45 +643,13 @@ export async function runPicsRefreshService() {
 
 async function incrementStat(key: string, incrementBy: number = 1) {
   try {
-    const { data: existing, error: fetchError } = await supabase
-      .from('statistics')
-      .select('id, count')
-      .eq('key', key)
-      .single();
+    const { error } = await supabase.rpc('increment_stat', {
+      stat_key: key,
+      amount: incrementBy,
+    });
 
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
-        // No rows returned
-        // Create new stat entry
-        const { error: insertError } = await supabase
-          .from('statistics')
-          .insert({ key, count: incrementBy });
-
-        if (insertError) {
-          console.error(
-            `Failed to create stat for key: ${key}. Error:`,
-            insertError
-          );
-        }
-      } else {
-        console.error(
-          `Failed to fetch stat for key: ${key}. Error:`,
-          fetchError
-        );
-      }
-    } else if (existing) {
-      const newCount = existing.count + incrementBy;
-      const { error: updateError } = await supabase
-        .from('statistics')
-        .update({ count: newCount })
-        .eq('id', existing.id);
-
-      if (updateError) {
-        console.error(
-          `Failed to update stat for key: ${key}. Error:`,
-          updateError
-        );
-      }
+    if (error) {
+      console.error(`Failed to increment stat for key: ${key}. Error:`, error);
     }
   } catch (e) {
     console.error(`\nFailed to increment stat for key: ${key}. Error:`, e);

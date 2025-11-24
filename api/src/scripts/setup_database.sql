@@ -71,11 +71,28 @@ CREATE TABLE IF NOT EXISTS "public"."games" (
     "pc_requirements" JSONB,
     "mac_requirements" JSONB,
     "linux_requirements" JSONB,
-    "created_at" TIMESTAMPTZ DEFAULT NOW()
+    "created_at" TIMESTAMPTZ DEFAULT NOW(),
+    "player_count_last_updated" TIMESTAMPTZ,
+    "player_count_zero_sync_streak" INTEGER DEFAULT 0
 );
 
 -- Ensure created_at exists if table was already created
 ALTER TABLE "public"."games" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE "public"."games" ADD COLUMN IF NOT EXISTS "player_count_last_updated" TIMESTAMPTZ;
+ALTER TABLE "public"."games" ADD COLUMN IF NOT EXISTS "player_count_zero_sync_streak" INTEGER DEFAULT 0;
+
+-- Player Count History Table
+CREATE TABLE IF NOT EXISTS "public"."player_count_history" (
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "game_id" UUID REFERENCES "public"."games"("id") ON DELETE CASCADE,
+    "player_count" INTEGER,
+    "date" TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for player_count_history
+ALTER TABLE "public"."player_count_history" ENABLE ROW LEVEL SECURITY;
+-- Allow public read for player count history (optional, adjust as needed)
+CREATE POLICY "player_count_history_read_public" ON "public"."player_count_history" AS PERMISSIVE FOR SELECT TO public USING (true);
 
 -- User Games Table (Backlog)
 CREATE TABLE IF NOT EXISTS "public"."user_games" (
@@ -133,6 +150,19 @@ CREATE TABLE IF NOT EXISTS "public"."statistics" (
     "key" TEXT UNIQUE,
     "count" INTEGER DEFAULT 0
 );
+
+-- RPC for atomic increments
+CREATE OR REPLACE FUNCTION increment_stat(stat_key TEXT, amount INTEGER)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  INSERT INTO "public"."statistics" ("key", "count")
+  VALUES (stat_key, amount)
+  ON CONFLICT ("key")
+  DO UPDATE SET "count" = "statistics"."count" + amount;
+END;
+$$;
 
 -- Game Notes Table
 CREATE TABLE IF NOT EXISTS "public"."game_notes" (
