@@ -542,11 +542,11 @@ async function performRefresh(steamUser: SteamUser) {
               );
               await syncGameAchievements(String(existingDoc.id), Number(appId));
             }
-          } else {
             // --- CREATE NEW GAME ---
+            // Use upsert to handle race conditions where another worker might have created it
             const { data: newDoc, error: createError } = await supabase
               .from('games')
-              .insert(finalGameData)
+              .upsert(finalGameData, { onConflict: 'steam_appid' })
               .select()
               .single();
 
