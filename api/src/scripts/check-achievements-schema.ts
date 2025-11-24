@@ -21,7 +21,10 @@ async function checkAchievementsSchema() {
   if (allColError) {
     console.error('Error selecting *:', allColError);
   } else if (data && data.length > 0) {
-    console.log('Existing columns:', Object.keys(data[0]));
+    console.log(
+      'Existing columns:',
+      Object.keys(data[0] as Record<string, unknown>)
+    );
   } else {
     console.log('Table exists but is empty, cannot infer columns from data.');
     // Try to insert a dummy row to see what fails or use a different method if possible,

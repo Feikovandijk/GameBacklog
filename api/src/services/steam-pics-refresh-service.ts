@@ -21,11 +21,7 @@ import config from '../config';
 import { supabase } from '../supabase/client';
 import { GameDocument, WebApiData } from '../types/steam.types';
 
-const steamUser = new SteamUser();
-steamUser.setOptions({
-  enablePicsCache: true, // Required for getProductInfo
-  changelistUpdateInterval: 0, // We don't need automatic updates
-});
+// SteamUser is now instantiated inside runPicsRefreshService
 
 const STEAM_API_KEY =
   config.steamApiKeys[config.worker.id] || config.steamApiKey;
@@ -336,7 +332,7 @@ function mergeApiData(
   return mergedData;
 }
 
-async function performRefresh() {
+async function performRefresh(steamUser: SteamUser) {
   console.log('Steam PICS refresh service started.');
   let totalUpdatedCount = 0;
   let totalCreatedCount = 0;
@@ -345,14 +341,20 @@ async function performRefresh() {
   steamUser.logOn({ anonymous: true });
 
   await new Promise<void>((resolve, reject) => {
-    steamUser.on('loggedOn', () => {
+    const onLoggedOn = () => {
       console.log(`Logged into Steam successfully.`);
+      steamUser.removeListener('loggedOn', onLoggedOn);
+      steamUser.removeListener('error', onError);
       resolve();
-    });
-    steamUser.on('error', err => {
+    };
+    const onError = (err: Error) => {
       console.error(`Steam login error:`, err);
+      steamUser.removeListener('loggedOn', onLoggedOn);
+      steamUser.removeListener('error', onError);
       reject(err);
-    });
+    };
+    steamUser.on('loggedOn', onLoggedOn);
+    steamUser.on('error', onError);
   });
 
   const { count, error: countError } = await supabase
@@ -616,9 +618,15 @@ async function performRefresh() {
 }
 
 export async function runPicsRefreshService() {
+  const steamUser = new SteamUser();
+  steamUser.setOptions({
+    enablePicsCache: true, // Required for getProductInfo
+    changelistUpdateInterval: 0, // We don't need automatic updates
+  });
+
   let exitCode = 0;
   try {
-    await performRefresh();
+    await performRefresh(steamUser);
   } catch (e) {
     const error = e as Error;
     console.error(`Error in Steam PICS refresh service:`, error.message);
