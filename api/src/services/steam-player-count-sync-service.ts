@@ -168,6 +168,26 @@ export async function runPlayerCountSync() {
           totalUpdatedCount++;
           await recordPlayerCountHistory(String(game.id), playerCount);
         }
+      } else {
+        // Handle 404 or other errors by updating the timestamp so we don't get stuck
+        console.warn(
+          `Failed to fetch player count for ${game.name} (AppID: ${game.steam_appid}). Marking as updated to avoid loop.`
+        );
+        const currentStreak = game.player_count_zero_sync_streak || 0;
+        const { error: updateError } = await supabase
+          .from('games')
+          .update({
+            player_count_last_updated: new Date().toISOString(),
+            player_count_zero_sync_streak: currentStreak + 1,
+          })
+          .eq('id', game.id);
+
+        if (updateError) {
+          console.error(
+            `Error updating failure status for game ${game.name}:`,
+            updateError
+          );
+        }
       }
 
       await new Promise(resolve => setTimeout(resolve, DELAY_MS));
