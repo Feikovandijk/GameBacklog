@@ -31,6 +31,12 @@ async function fetchWithRetry(
       if (response.ok) {
         return response;
       }
+      if (response.status === 404) {
+        console.info(
+          `Request to ${url} returned 404 (Not Found). This is expected for some AppIDs.`
+        );
+        return response;
+      }
       if (response.status >= 400 && response.status < 500) {
         console.warn(
           `Request to ${url} failed with status ${response.status}. Not retrying.`
@@ -170,7 +176,7 @@ export async function runPlayerCountSync() {
         }
       } else {
         // Handle 404 or other errors by updating the timestamp so we don't get stuck
-        console.warn(
+        console.info(
           `Failed to fetch player count for ${game.name} (AppID: ${game.steam_appid}). Marking as updated to avoid loop.`
         );
         const currentStreak = game.player_count_zero_sync_streak || 0;
