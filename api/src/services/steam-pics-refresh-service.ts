@@ -312,7 +312,7 @@ function mergeApiData(
     ? webData.screenshots.map(s => s.path_full)
     : null;
   mergedData.movies = webData.movies
-    ? webData.movies.map(m => m.mp4.max)
+    ? webData.movies.filter(m => m.mp4 && m.mp4.max).map(m => m.mp4.max)
     : null;
   mergedData.is_free = webData.is_free ?? false;
   mergedData.pc_requirements = webData.pc_requirements ?? null;

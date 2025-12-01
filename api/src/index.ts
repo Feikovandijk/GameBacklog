@@ -893,8 +893,8 @@ async function logUserActivity(userId: string, type: string, metadata: object) {
     await supabase.from('user_activity').insert({
       user_id: userId,
       type: type,
-      timestamp: new Date().toISOString(),
-      metadata_json: JSON.stringify(metadata),
+      data: metadata,
+      created_at: new Date().toISOString(),
     });
   } catch (error: unknown) {
     console.error(
@@ -994,7 +994,7 @@ app.get(
         .from('user_activity')
         .select('*')
         .eq('user_id', userId)
-        .order('timestamp', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) {

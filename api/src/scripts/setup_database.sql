@@ -17,14 +17,56 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 --------------------------------------------------------------------------------
 
 -- Users Table (Public Profile)
+-- Note: We do NOT reference auth.users because we are using custom Steam auth
 CREATE TABLE IF NOT EXISTS "public"."users" (
-    "id" UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "display_name" TEXT,
     "steam_id" TEXT,
     "last_steam_sync" TIMESTAMPTZ,
     "created_at" TIMESTAMPTZ DEFAULT NOW(),
-    "updated_at" TIMESTAMPTZ DEFAULT NOW()
+    "updated_at" TIMESTAMPTZ DEFAULT NOW(),
+    "avatar_url" TEXT,
+    "profile_url" TEXT,
+    "real_name" TEXT,
+    "country_code" TEXT,
+    "is_public_profile" BOOLEAN DEFAULT FALSE,
+    "last_active" TIMESTAMPTZ,
+    "auto_import_steam_games" BOOLEAN DEFAULT TRUE,
+    "sync_steam_playtime" BOOLEAN DEFAULT TRUE,
+    "default_game_status" TEXT DEFAULT 'want_to_play',
+    "theme" TEXT DEFAULT 'dark',
+    "default_view" TEXT DEFAULT 'grid'
 );
+
+-- Ensure user columns exist if table was already created
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "avatar_url" TEXT;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "profile_url" TEXT;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "real_name" TEXT;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "country_code" TEXT;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "is_public_profile" BOOLEAN DEFAULT FALSE;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "last_active" TIMESTAMPTZ;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "auto_import_steam_games" BOOLEAN DEFAULT TRUE;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "sync_steam_playtime" BOOLEAN DEFAULT TRUE;
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "default_game_status" TEXT DEFAULT 'want_to_play';
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "theme" TEXT DEFAULT 'dark';
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "default_view" TEXT DEFAULT 'grid';
+
+-- Fix ID column to auto-generate UUIDs and remove FK to auth.users if it exists
+DO $$
+BEGIN
+    -- Try to drop the foreign key constraint if it exists
+    IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'users_id_fkey' AND table_name = 'users') THEN
+        ALTER TABLE "public"."users" DROP CONSTRAINT "users_id_fkey";
+    END IF;
+    
+    -- Also check for generic foreign key name just in case
+    IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'users_id_fkey1' AND table_name = 'users') THEN
+        ALTER TABLE "public"."users" DROP CONSTRAINT "users_id_fkey1";
+    END IF;
+END $$;
+
+-- Ensure ID has default value
+ALTER TABLE "public"."users" ALTER COLUMN "id" SET DEFAULT uuid_generate_v4();
 
 -- Games Table (Master Game List)
 CREATE TABLE IF NOT EXISTS "public"."games" (
@@ -92,6 +134,7 @@ CREATE TABLE IF NOT EXISTS "public"."player_count_history" (
 -- Enable RLS for player_count_history
 ALTER TABLE "public"."player_count_history" ENABLE ROW LEVEL SECURITY;
 -- Allow public read for player count history (optional, adjust as needed)
+DROP POLICY IF EXISTS "player_count_history_read_public" ON "public"."player_count_history";
 CREATE POLICY "player_count_history_read_public" ON "public"."player_count_history" AS PERMISSIVE FOR SELECT TO public USING (true);
 
 -- User Games Table (Backlog)
@@ -209,6 +252,8 @@ COMMENT ON COLUMN "public"."games"."has_steam_achievements" IS 'Whether the game
 COMMENT ON COLUMN "public"."user_games"."img_icon_url" IS 'URL for the game icon from Steam';
 COMMENT ON COLUMN "public"."user_games"."img_logo_url" IS 'URL for the game logo from Steam';
 COMMENT ON COLUMN "public"."user_achievements"."achievement_api_name" IS 'The API name of the achievement from Steam';
+COMMENT ON COLUMN "public"."users"."auto_import_steam_games" IS 'Whether to automatically import games from Steam on login/sync';
+COMMENT ON COLUMN "public"."users"."sync_steam_playtime" IS 'Whether to sync playtime from Steam';
 
 --------------------------------------------------------------------------------
 -- 4. RLS Policies

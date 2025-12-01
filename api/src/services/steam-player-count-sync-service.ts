@@ -16,7 +16,7 @@ if (!STEAM_API_KEY) {
   );
 }
 
-const GAMES_PER_MINUTE_LIMIT = 20; // Reduced to avoid 404s and rate limits
+const GAMES_PER_MINUTE_LIMIT = 60; // Reduced to avoid 404s and rate limits
 const DELAY_MS = 60000 / GAMES_PER_MINUTE_LIMIT;
 const UPDATE_INTERVAL_HOURS = 24; // For development
 
