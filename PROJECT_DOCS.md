@@ -64,14 +64,14 @@ The core value of GameBacklog is its automated data pipeline which keeps Steam d
 
 #### 2. Game Refresh Worker (`refresh:games`)
 
-- **Source**: `api/src/services/steam-pics-refresh-service.ts`
+- **Source**: `api/src/services/steam-refresh-service.ts`
 - **Purpose**: The "heavy lifter". Fetches detailed metadata (images, description, tags, price, release date).
 - **Logic**:
-  - **PICS System**: Uses Steam's "changenumber" system to get a list of all apps that have been added or updated since the last run.
-  - **Login**: Logs into Steam anonymously using `steam-user`.
-  - **Efficiency**: Only processes games that have actually changed on Steam, rather than iterating through the entire database.
-  - **Batching**: Processes games in batches to efficiently query the database and fetch data.
-  - **Rate Limiting**: Strictly limited to stay under Steam's rate limits.
+  - **Login**: Logs into Steam anonymously using `steam-user` (bypassing some HTTP rate limits).
+  - **Selection**: Selects "stale" games (updated > 7 days ago) or "new" games (never updated).
+  - **Batching**: Processes games in batches of 250.
+  - **Rate Limiting**: strictly limited to ~30 games/minute to stay under Steam's 100k/day limit.
+  - **Scaling**: Supports sharding via `WORKER_ID` and `TOTAL_WORKERS`. e.g., Worker 0 takes batch 0, Worker 1 takes batch 1.
 
 #### 3. Player Count Sync (`sync:players`)
 
