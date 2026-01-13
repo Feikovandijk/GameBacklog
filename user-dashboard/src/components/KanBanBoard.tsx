@@ -111,7 +111,7 @@ const KanBanBoard: React.FC = () => {
             await api.userGamesAPI.updateGame(editingGame.$id, values);
             setIsModalVisible(false);
             fetchGames();
-        } catch (e) {
+        } catch {
             message.error('Failed to save');
         }
     };
@@ -123,7 +123,7 @@ const KanBanBoard: React.FC = () => {
             setGames(games.filter(g => g.$id !== editingGame.$id));
             setIsModalVisible(false);
             message.success('Game removed');
-        } catch (e) {
+        } catch {
             message.error('Failed to remove');
         }
     };

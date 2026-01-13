@@ -22,7 +22,7 @@
     "sync:players": "ts-node src/services/steam-player-count-sync-service.ts",
     "sync:enrich": "ts-node src/scripts/enrich-all-games.ts",
     "//----- Refresh Scripts -----    ": "",
-    "refresh:games": "node dist/services/steam-refresh-service.js",
+    "refresh:games": "node dist/services/steam-pics-refresh-service.js",
     "//----- Recalculate Scripts -----    ": "",
     "recalculate:analytics": "node dist/scripts/recalculate-analytics.js",
     "recalculate:stats": "ts-node src/scripts/recalculate-stats.ts"

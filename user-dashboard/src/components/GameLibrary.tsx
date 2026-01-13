@@ -96,7 +96,7 @@ const GameLibrary: React.FC = () => {
             message.success('Game updated');
             setIsModalVisible(false);
             fetchGames(); // Refresh
-        } catch (error) {
+        } catch {
             message.error('Failed to update game');
         }
     };
@@ -108,7 +108,7 @@ const GameLibrary: React.FC = () => {
             message.success('Game removed');
             setIsModalVisible(false);
             fetchGames();
-        } catch (error) {
+        } catch {
             message.error('Failed to delete game');
         }
     };
@@ -174,7 +174,7 @@ const GameLibrary: React.FC = () => {
         {
             title: 'Actions',
             key: 'actions',
-            render: (_: any, record: UserGame) => (
+            render: (_: unknown, record: UserGame) => (
                 <Space>
                     <Tooltip title="Edit">
                         <Button
