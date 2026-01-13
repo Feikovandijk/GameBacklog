@@ -30,6 +30,7 @@ interface Config {
   supabaseUrl: string | undefined;
   supabaseAnonKey: string | undefined;
   supabaseServiceRoleKey: string | undefined;
+  frontendUrl: string;
 }
 
 const config: Config = {
@@ -52,6 +53,7 @@ const config: Config = {
   supabaseUrl: process.env.SUPABASE_URL,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_KEY,
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 };
 
 export default config;
