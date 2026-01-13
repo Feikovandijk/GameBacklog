@@ -16,11 +16,10 @@ services:
       - api
 
   user-dashboard:
-    build:
-      context: ./user-dashboard
-      args:
-        VITE_API_URL: ${VITE_API_URL}
+    image: feikovd/gamebacklog-userdash:latest
     restart: unless-stopped
+    environment:
+      - BACKEND_URL=http://api:6543
     ports:
       - '80:80'
     depends_on:
@@ -33,4 +32,3 @@ services:
       - '81:80'
     depends_on:
       - api
-# Note: Volume configuration for database is skipped as this setup uses external Supabase.

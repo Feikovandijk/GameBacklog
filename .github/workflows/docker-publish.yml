@@ -60,6 +60,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ matrix.image }}:latest
+          build-args: |
+            VITE_API_URL=/api
 
           cache-from: type=gha
           cache-to: type=gha,mode=max
