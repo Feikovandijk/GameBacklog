@@ -9,9 +9,9 @@ import { authAPI } from './services/api';
 import type { User } from './services/api';
 import { Button, Spin, ConfigProvider } from 'antd';
 import AppLayout from './components/AppLayout';
-import BoardView from './components/BoardView';
+import KanBanBoard from './components/KanBanBoard';
 import DashboardOverview from './components/DashboardOverview';
-import GameListPage from './components/GameListPage';
+import GameLibrary from './components/GameLibrary';
 import AddGamePage from './components/AddGamePage';
 
 const App = () => {
@@ -63,8 +63,8 @@ const App = () => {
           <AppLayout user={user} onLogout={handleLogout}>
             <Routes>
               <Route path='/dashboard' element={<DashboardOverview />} />
-              <Route path='/board' element={<BoardView />} />
-              <Route path='/games' element={<GameListPage />} />
+              <Route path='/board' element={<KanBanBoard />} />
+              <Route path='/games' element={<GameLibrary />} />
               <Route path='/add-game' element={<AddGamePage />} />
               <Route path='/profile' element={<div>Profile Page</div>} />
               <Route path='*' element={<Navigate to='/dashboard' />} />

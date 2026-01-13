@@ -10,6 +10,8 @@ import {
   Space,
   Input,
   Dropdown,
+  ConfigProvider,
+  theme,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -56,6 +58,41 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+// Custom dark theme tokens
+const darkTheme = {
+  algorithm: theme.darkAlgorithm,
+  token: {
+    colorPrimary: '#7B61FF',
+    colorBgContainer: 'rgba(255, 255, 255, 0.03)',
+    colorBgElevated: 'rgba(30, 30, 50, 0.95)',
+    colorBorder: 'rgba(255, 255, 255, 0.08)',
+    colorText: 'rgba(255, 255, 255, 0.95)',
+    colorTextSecondary: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 12,
+  },
+  components: {
+    Layout: {
+      siderBg: 'rgba(15, 15, 35, 0.98)',
+      headerBg: 'rgba(15, 15, 35, 0.98)',
+      bodyBg: 'transparent',
+    },
+    Menu: {
+      darkItemBg: 'transparent',
+      darkItemSelectedBg: 'rgba(123, 97, 255, 0.2)',
+      darkItemHoverBg: 'rgba(255, 255, 255, 0.05)',
+      darkItemColor: 'rgba(255, 255, 255, 0.7)',
+      darkItemSelectedColor: '#7B61FF',
+    },
+    Input: {
+      colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+      colorBorder: 'rgba(255, 255, 255, 0.1)',
+    },
+    Button: {
+      colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+    },
+  },
+};
+
 const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -97,7 +134,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
               <Space>
                 <Avatar src={game.header_image} shape='square' size='small' />
                 <div>
-                  <div style={{ fontWeight: 'bold' }}>{game.name}</div>
+                  <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>{game.name}</div>
                   <Text type='secondary' style={{ fontSize: '12px' }}>
                     {game.developers?.join(', ')}
                   </Text>
@@ -167,86 +204,127 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        width={250}
-        style={{
-          background: '#fff',
-          borderRight: '1px solid #f0f0f0',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <div style={{ height: '64px' }}>
-          {/* This div is to align the menu with the content part, as header has 64px height */}
-        </div>
-        <Menu
-          onClick={handleMenuClick}
-          selectedKeys={[location.pathname]}
-          mode='inline'
-          items={mainMenuItems}
-          style={{ flexGrow: 1, borderRight: 'none' }}
-        />
-        <Menu
-          onClick={handleMenuClick}
-          selectedKeys={[location.pathname]}
-          mode='inline'
-          items={bottomMenuItems}
-          style={{ borderRight: 'none' }}
-        />
-      </Sider>
-      <Layout style={{ backgroundColor: '#F7F8FA' }}>
-        <Header
+    <ConfigProvider theme={darkTheme}>
+      <Layout style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)' }}>
+        <Sider
+          width={220}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 24px',
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
+            background: 'rgba(15, 15, 35, 0.95)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+            backdropFilter: 'blur(20px)',
           }}
         >
-          <div style={{ flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>
+          <div
+            style={{
+              height: '64px',
+              display: 'flex',
+              alignItems: 'center',
+              paddingLeft: '24px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '20px',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #fff 0%, #7B61FF 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
               GameBacklog
-            </h1>
+            </h2>
           </div>
-          <div style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>
-            <AutoComplete
-              options={searchOptions}
-              onSearch={handleSearch}
-              onSelect={handleSelect}
-              style={{ width: '100%', maxWidth: '600px' }}
-              getInputElement={() => (
+          <Menu
+            onClick={handleMenuClick}
+            selectedKeys={[location.pathname]}
+            mode='inline'
+            items={mainMenuItems}
+            theme='dark'
+            style={{
+              background: 'transparent',
+              borderRight: 'none',
+              marginTop: '16px',
+            }}
+          />
+          <div style={{ flex: 1 }} />
+          <Menu
+            onClick={handleMenuClick}
+            selectedKeys={[location.pathname]}
+            mode='inline'
+            items={bottomMenuItems}
+            theme='dark'
+            style={{
+              background: 'transparent',
+              borderRight: 'none',
+              marginTop: 'auto',
+            }}
+          />
+        </Sider>
+        <Layout style={{ background: 'transparent' }}>
+          <Header
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 24px',
+              background: 'rgba(15, 15, 35, 0.6)',
+              backdropFilter: 'blur(20px)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+            }}
+          >
+            <div style={{ flex: 1 }} />
+            <div style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>
+              <AutoComplete
+                options={searchOptions}
+                onSearch={handleSearch}
+                onSelect={handleSelect}
+                style={{ width: '100%', maxWidth: '500px' }}
+              >
                 <Input
-                  prefix={<SearchOutlined />}
+                  prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.4)' }} />}
                   placeholder='Search games...'
                   size='middle'
                   allowClear
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                  }}
                 />
-              )}
-            />
-          </div>
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-            <Dropdown
-              menu={{ items: userMenuItems }}
-              placement='bottomRight'
-              trigger={['click']}
-            >
-              <Button
-                type='text'
-                style={{ height: '40px', padding: '4px 8px' }}
+              </AutoComplete>
+            </div>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <Dropdown
+                menu={{ items: userMenuItems }}
+                placement='bottomRight'
+                trigger={['click']}
               >
-                <Space>
-                  <Avatar src={user.avatar_url} size='small' />
-                  <span style={{ color: '#000' }}>{user.display_name}</span>
-                </Space>
-              </Button>
-            </Dropdown>
-          </div>
-        </Header>
-        <Content style={{ padding: '48px', margin: 0 }}>{children}</Content>
+                <Button
+                  type='text'
+                  style={{
+                    height: '40px',
+                    padding: '4px 12px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  <Space>
+                    <Avatar src={user.avatar_url} size='small' />
+                    <span style={{ color: 'rgba(255,255,255,0.9)' }}>
+                      {user.display_name}
+                    </span>
+                  </Space>
+                </Button>
+              </Dropdown>
+            </div>
+          </Header>
+          <Content style={{ margin: 0, overflow: 'auto' }}>{children}</Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </ConfigProvider>
   );
 };
 

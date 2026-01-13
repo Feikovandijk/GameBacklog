@@ -84,6 +84,25 @@ export interface ExtendedUserStats {
   totalHoursPlayed: number;
 }
 
+export interface DashboardStats {
+  totalGames: number;
+  completedGames: number;
+  completed100: number;
+  currentlyPlaying: number;
+  wantToPlay: number;
+  onHold: number;
+  dropped: number;
+  completedThisWeek: number;
+  completedThisMonth: number;
+  completedThisYear: number;
+  totalHoursPlayed: number;
+  avgHoursPerCompletion: number;
+  topGenres: { name: string; count: number }[];
+  recentAchievementCount: number;
+  collectionValueEstimate: number;
+  completionPercentage: number;
+}
+
 export interface Achievement {
   $id: string;
   api_name: string;
@@ -153,6 +172,8 @@ export const userGamesAPI = {
 
   getExtendedStats: () =>
     api.get<ExtendedUserStats>('/api/user/stats/extended'),
+
+  getDashboardStats: () => api.get<DashboardStats>('/api/user/stats/dashboard'),
 
   getRecentAchievements: () =>
     api.get<RecentAchievement[]>('/api/user/achievements/recent'),

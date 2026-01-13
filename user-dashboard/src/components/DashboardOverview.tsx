@@ -1,127 +1,214 @@
-import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Spin, Typography } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Spin } from 'antd';
+import { userGamesAPI, authAPI } from '../services/api';
+import type { DashboardStats, User } from '../services/api';
 import {
-  AreaChartOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
-import { userGamesAPI } from '../services/api';
-import type { UserStats } from '../services/api';
-import GameCompletionChart from './GameCompletionChart';
-import RecentActivity from './RecentActivity';
-import RecentlyPlayed from './RecentlyPlayed';
-import SteamTopSellers from './SteamTopSellers';
-import CurrentlyPlaying from './CurrentlyPlaying';
+  StatsGrid,
+  WelcomeHeader,
+  GenreBreakdown,
+  QuickActions,
+  CurrentlyPlayingGrid,
+  RecentActivityFeed,
+} from './dashboard';
 
-const { Title } = Typography;
-
-const iconStyle = {
-  fontSize: '24px',
-  color: '#7B61FF',
-  backgroundColor: 'rgba(123, 97, 255, 0.1)',
-  padding: '8px',
-  borderRadius: '8px',
-};
-
-const DashboardStats: React.FC<{ stats: UserStats | null }> = ({ stats }) => (
-  <Row gutter={[24, 24]}>
-    <Col xs={24} sm={8}>
-      <Card>
-        <Statistic
-          title='Total Games'
-          value={stats?.totalGames || 0}
-          prefix={<AreaChartOutlined style={iconStyle} />}
-        />
-      </Card>
-    </Col>
-    <Col xs={24} sm={8}>
-      <Card>
-        <Statistic
-          title='Games In Progress'
-          value={stats?.currentlyPlaying || 0}
-          prefix={<ClockCircleOutlined style={iconStyle} />}
-        />
-      </Card>
-    </Col>
-    <Col xs={24} sm={8}>
-      <Card>
-        <Statistic
-          title='Games Completed'
-          value={stats?.completedGames || 0}
-          prefix={<CheckCircleOutlined style={iconStyle} />}
-        />
-      </Card>
-    </Col>
-  </Row>
-);
-
-const DashboardOverview = () => {
-  const [stats, setStats] = useState<UserStats | null>(null);
+const DashboardOverview: React.FC = () => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await userGamesAPI.getStats();
-        setStats(response.data);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
+  const fetchDashboardData = useCallback(async () => {
+    // Fetch user data first (this should always work if logged in)
+    try {
+      const userResponse = await authAPI.getCurrentUser();
+      setUser(userResponse.data);
+    } catch (userError) {
+      console.error('Error fetching user:', userError);
+    }
+
+    // Fetch stats separately so user data shows even if stats fail
+    try {
+      const statsResponse = await userGamesAPI.getDashboardStats();
+      setStats(statsResponse.data);
+    } catch (statsError) {
+      console.error('Error fetching dashboard stats:', statsError);
+      // Set empty stats so dashboard still renders
+      setStats({
+        totalGames: 0,
+        completedGames: 0,
+        completed100: 0,
+        currentlyPlaying: 0,
+        wantToPlay: 0,
+        onHold: 0,
+        dropped: 0,
+        completedThisWeek: 0,
+        completedThisMonth: 0,
+        completedThisYear: 0,
+        totalHoursPlayed: 0,
+        avgHoursPerCompletion: 0,
+        topGenres: [],
+        recentAchievementCount: 0,
+        collectionValueEstimate: 0,
+        completionPercentage: 0,
+      });
+    }
+
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const handleSyncComplete = () => {
+    // Refresh dashboard after sync
+    setTimeout(() => {
+      fetchDashboardData();
+    }, 2000);
+  };
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100%',
-        }}
-      >
-        <Spin size='large' />
+      <div className="dashboard-container">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '60vh',
+          }}
+        >
+          <Spin size="large" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2} style={{ marginBottom: '24px' }}>
-        Dashboard Overview
-      </Title>
-      <Row gutter={[24, 24]}>
-        <Col xs={24}>
-          <DashboardStats stats={stats} />
-        </Col>
+    <div className="dashboard-container">
+      {/* Welcome Header */}
+      <WelcomeHeader
+        user={user}
+        inProgressCount={stats?.currentlyPlaying || 0}
+        completedThisMonth={stats?.completedThisMonth || 0}
+      />
 
-        {/* Currently Playing Section - Prominent placement */}
-        <Col xs={24}>
-          <CurrentlyPlaying />
-        </Col>
+      {/* Quick Actions */}
+      <QuickActions onSyncComplete={handleSyncComplete} />
 
-        {/* Steam Top Sellers - Prominent placement */}
-        <Col xs={24}>
-          <SteamTopSellers />
-        </Col>
+      {/* Stats Grid - 8 cards */}
+      <StatsGrid stats={stats} loading={loading} />
 
-        <Col xs={24} lg={16}>
-          <RecentActivity />
-        </Col>
-        <Col xs={24} lg={8}>
-          <Row gutter={[24, 24]}>
-            <Col xs={24}>
-              <GameCompletionChart stats={stats} />
-            </Col>
-            <Col xs={24}>
-              <RecentlyPlayed />
-            </Col>
-          </Row>
-        </Col>
-      </Row>
+      {/* Main Content Grid */}
+      <div className="dashboard-grid">
+        {/* Currently Playing - Left Column */}
+        <CurrentlyPlayingGrid />
+
+        {/* Genre Breakdown - Right Column */}
+        <GenreBreakdown genres={stats?.topGenres || []} loading={loading} />
+
+        {/* Recent Activity - Left Column */}
+        <RecentActivityFeed />
+
+        {/* Completion Stats Card - Right Column */}
+        <div className="dashboard-card">
+          <div className="dashboard-card-header">
+            <h3 className="dashboard-card-title">
+              <span className="icon">📊</span>
+              Completion Insights
+            </h3>
+          </div>
+          <div style={{ padding: '16px 0' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '24px',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <div
+                  style={{
+                    fontSize: '32px',
+                    fontWeight: 700,
+                    color: 'var(--accent-green)',
+                  }}
+                >
+                  {stats?.completedThisYear || 0}
+                </div>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '4px',
+                  }}
+                >
+                  Completed this year
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div
+                  style={{
+                    fontSize: '32px',
+                    fontWeight: 700,
+                    color: 'var(--accent-blue)',
+                  }}
+                >
+                  {stats?.avgHoursPerCompletion || 0}h
+                </div>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '4px',
+                  }}
+                >
+                  Avg. hours to complete
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div
+                  style={{
+                    fontSize: '32px',
+                    fontWeight: 700,
+                    color: 'var(--accent-purple)',
+                  }}
+                >
+                  {stats?.completionPercentage || 0}%
+                </div>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '4px',
+                  }}
+                >
+                  Completion rate
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div
+                  style={{
+                    fontSize: '32px',
+                    fontWeight: 700,
+                    color: 'var(--accent-orange)',
+                  }}
+                >
+                  {stats?.onHold || 0}
+                </div>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '4px',
+                  }}
+                >
+                  Games on hold
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

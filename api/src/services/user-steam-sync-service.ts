@@ -2,6 +2,10 @@ import axios from 'axios';
 import config from '../config';
 import { supabase } from '../supabase/client';
 
+import {
+  fetchGameDetailsFromSteam,
+  updateGameInSupabase,
+} from './steam-refresh-service';
 import { GameStats, OwnedGame, PlayerAchievement } from '../types/steam.types';
 
 const STEAM_API_BASE = 'https://api.steampowered.com';
@@ -118,7 +122,7 @@ async function getUserBacklog(userId: string): Promise<Map<number, any>> {
   while (hasMore) {
     const { data, error } = await supabase
       .from('user_games')
-      .select('*')
+      .select('*, game:games(*)') // Fetch linked game data to check enrichment status
       .eq('user_id', userId)
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -222,7 +226,9 @@ export async function syncUserWithSteam(user: any): Promise<void> {
 
   // 3. Process each game
   // 3. Process each game
+  // 3. Process each game
   const gamesToSyncDetails: { gameId: string; appId: number }[] = [];
+  const gamesToEnrich: { gameId: string; appId: number; name: string }[] = [];
 
   console.log('Phase 1: Syncing basic game info...');
   for (const game of ownedGames) {
@@ -264,7 +270,20 @@ export async function syncUserWithSteam(user: any): Promise<void> {
           .update(updatePayload)
           .eq('id', existingGame.id);
 
+        // Check if master game needs enrichment (no header image or last_updated is null)
+        if (
+          existingGame.game &&
+          (!existingGame.game.header_image || !existingGame.game.last_updated)
+        ) {
+          gamesToEnrich.push({
+            gameId: existingGame.game.id,
+            appId: game.appid,
+            name: game.name,
+          });
+        }
+
         // If playtime changed, we should sync details
+
         if (existingGame.hours_played !== hoursPlayed && gameId) {
           gamesToSyncDetails.push({ gameId, appId: game.appid });
         }
@@ -309,9 +328,16 @@ export async function syncUserWithSteam(user: any): Promise<void> {
             gameId = newGame.id;
             if (gameId) {
               gamesToSyncDetails.push({ gameId, appId: game.appid });
+              // NEW: Also mark for enrichment if newly added
+              gamesToEnrich.push({
+                gameId: masterGameId,
+                appId: game.appid,
+                name: game.name,
+              });
             }
           }
         } else {
+          // Master game not found logic (unchanged)
           // console.log(`Master game not found for ${game.name} (AppID: ${game.appid})`);
         }
         if (error) {
@@ -351,6 +377,46 @@ export async function syncUserWithSteam(user: any): Promise<void> {
         ])
       )
     );
+  }
+
+  // 4a. NEW Phase 3: Enrich Game Data
+  if (gamesToEnrich.length > 0) {
+    console.log(
+      `Phase 3: Enriching metadata for ${gamesToEnrich.length} games...`
+    );
+    const ENRICH_CHUNK_SIZE = 5; // Conservative limit to avoid rate limits
+    const DELAY_MS = 1000;
+
+    for (let i = 0; i < gamesToEnrich.length; i += ENRICH_CHUNK_SIZE) {
+      const chunk = gamesToEnrich.slice(i, i + ENRICH_CHUNK_SIZE);
+      console.log(
+        `Processing enrichment chunk ${i / ENRICH_CHUNK_SIZE + 1}/${Math.ceil(
+          gamesToEnrich.length / ENRICH_CHUNK_SIZE
+        )}`
+      );
+
+      await Promise.all(
+        chunk.map(async item => {
+          try {
+            console.log(`Enriching game: ${item.name} (${item.appId})...`);
+            const steamData = await fetchGameDetailsFromSteam(item.appId);
+            if (steamData) {
+              await updateGameInSupabase(item.gameId, steamData);
+            }
+          } catch (e) {
+            console.error(
+              `Failed to enrich game ${item.name} (${item.appId}):`,
+              e
+            );
+          }
+        })
+      );
+
+      if (i + ENRICH_CHUNK_SIZE < gamesToEnrich.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+      }
+    }
+    console.log('Phase 3 completed.');
   }
 
   // 5. Update the user's `last_steam_sync` timestamp

@@ -56,7 +56,7 @@ async function fetchWithRetry(
   throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
 }
 
-async function fetchGameDetailsFromSteam(
+export async function fetchGameDetailsFromSteam(
   steamAppId: number
 ): Promise<WebApiData | null> {
   const appDetailsUrl = `${STEAM_API_BASE_URL}?appids=${steamAppId}&key=${STEAM_API_KEY}`;
@@ -140,7 +140,7 @@ async function recordReviewHistory(gameId: string, totalReviews: number) {
   }
 }
 
-async function updateGameInSupabase(
+export async function updateGameInSupabase(
   gameId: string,
   steamData: WebApiData | null
 ) {
@@ -190,7 +190,11 @@ async function updateGameInSupabase(
       screenshots: steamData.screenshots
         ? steamData.screenshots.map(s => s.path_full)
         : null,
-      movies: steamData.movies ? steamData.movies.map(m => m.mp4.max) : null,
+      movies: steamData.movies
+        ? steamData.movies
+            .map(m => m.mp4?.max)
+            .filter((url): url is string => !!url)
+        : null,
       release_date: releaseDateForDb ?? null,
       last_updated: new Date().toISOString(),
       developers: steamData.developers,

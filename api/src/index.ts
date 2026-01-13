@@ -482,7 +482,8 @@ app.get(
           `
         *,
         game:games(*)
-      `
+      `,
+          { count: 'exact' }
         )
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
@@ -936,6 +937,178 @@ app.get(
         error instanceof Error ? error.message : 'An unknown error occurred.';
       res.status(500).json({
         error: 'Failed to fetch user extended stats',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+// GET /api/user/stats/dashboard - Get comprehensive dashboard statistics
+app.get(
+  '/api/user/stats/dashboard',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const now = new Date();
+
+      // Calculate time boundaries
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+      // Get all user games with game details for comprehensive stats
+      const { data: allUserGames, error: gamesError } = await supabase
+        .from('user_games')
+        .select(
+          `
+          id,
+          status,
+          hours_played,
+          updated_at,
+          added_at,
+          game:games(
+            id,
+            genres,
+            price_final
+          )
+        `
+        )
+        .eq('user_id', userId);
+
+      if (gamesError) {
+        throw gamesError;
+      }
+
+      const userGames = allUserGames || [];
+
+      // Calculate status counts
+      const statusCounts = userGames.reduce(
+        (acc, game) => {
+          acc[game.status] = (acc[game.status] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      // Calculate time-based completions
+      // Note: We use updated_at as proxy for completion time since completed_at doesn't exist
+      const completedGames = userGames.filter(
+        g => g.status === 'completed' || g.status === 'completed_100'
+      );
+
+      const completedThisWeek = completedGames.filter(g => {
+        if (!g.updated_at) return false;
+        return new Date(g.updated_at) >= startOfWeek;
+      }).length;
+
+      const completedThisMonth = completedGames.filter(g => {
+        if (!g.updated_at) return false;
+        return new Date(g.updated_at) >= startOfMonth;
+      }).length;
+
+      const completedThisYear = completedGames.filter(g => {
+        if (!g.updated_at) return false;
+        return new Date(g.updated_at) >= startOfYear;
+      }).length;
+
+      // Calculate playtime stats
+      const totalHoursPlayed = userGames.reduce(
+        (sum, g) => sum + (g.hours_played || 0),
+        0
+      );
+
+      // Calculate genre distribution
+      const genreCounts: Record<string, number> = {};
+      userGames.forEach(ug => {
+        const game = ug.game as any;
+        if (game?.genres && Array.isArray(game.genres)) {
+          game.genres.forEach((genre: string) => {
+            genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+          });
+        }
+      });
+
+      const topGenres = Object.entries(genreCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+
+      // Calculate collection value estimate (sum of game prices in cents, then convert to dollars)
+      const collectionValueCents = userGames.reduce((sum, ug) => {
+        const game = ug.game as any;
+        return sum + (game?.price_final || 0);
+      }, 0);
+      const collectionValueEstimate = Math.round(collectionValueCents) / 100;
+
+      // Get recent achievement count
+      const { count: recentAchievementCount } = await supabase
+        .from('user_achievements')
+        .select('id', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('is_unlocked', true)
+        .gte('unlock_time', startOfMonth.toISOString());
+
+      // Calculate average hours per completed game
+      const avgHoursPerCompletion =
+        completedGames.length > 0
+          ? Math.round(
+              (completedGames.reduce(
+                (sum, g) => sum + (g.hours_played || 0),
+                0
+              ) /
+                completedGames.length) *
+                10
+            ) / 10
+          : 0;
+
+      // Build response
+      const dashboardStats = {
+        // Status counts
+        totalGames: userGames.length,
+        completedGames: statusCounts['completed'] || 0,
+        completed100: statusCounts['completed_100'] || 0,
+        currentlyPlaying: statusCounts['currently_playing'] || 0,
+        wantToPlay: statusCounts['want_to_play'] || 0,
+        onHold: statusCounts['on_hold'] || 0,
+        dropped: statusCounts['dropped'] || 0,
+
+        // Time-based completions
+        completedThisWeek,
+        completedThisMonth,
+        completedThisYear,
+
+        // Playtime stats
+        totalHoursPlayed: Math.round(totalHoursPlayed * 10) / 10,
+        avgHoursPerCompletion,
+
+        // Insights
+        topGenres,
+        recentAchievementCount: recentAchievementCount || 0,
+        collectionValueEstimate,
+
+        // Computed
+        completionPercentage:
+          userGames.length > 0
+            ? Math.round(
+                (((statusCounts['completed'] || 0) +
+                  (statusCounts['completed_100'] || 0)) /
+                  userGames.length) *
+                  100
+              )
+            : 0,
+      };
+
+      res.json(dashboardStats);
+    } catch (error: unknown) {
+      console.error('Error fetching dashboard stats:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch dashboard stats',
         details: errorMessage,
       });
     }
