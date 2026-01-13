@@ -36,36 +36,46 @@ const GameLibrary: React.FC = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [pagination, setPagination] = useState({
         current: 1,
-        pageSize: 12, // multiples of 2,3,4 for grid
+        pageSize: 50,
         total: 0,
     });
 
     // Filters
     const [searchText, setSearchText] = useState('');
     const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+    const [appending, setAppending] = useState(false);
 
     // Modal state
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedGame, setSelectedGame] = useState<UserGame | null>(null);
 
     const fetchGames = async (
-        page = pagination.current,
-        pageSize = pagination.pageSize,
-        search = searchText,
-        status = statusFilter
+        page = 1,
+        append = false
     ) => {
-        setLoading(true);
+        if (append) {
+            setAppending(true);
+        } else {
+            setLoading(true);
+        }
+
         try {
+            const pageSize = 50;
             const offset = (page - 1) * pageSize;
 
             const response = await api.getUserGames({
                 offset,
                 limit: pageSize,
-                search,
-                status,
+                search: searchText,
+                status: statusFilter,
             });
 
-            setGames(response.data.documents);
+            if (append) {
+                setGames(prev => [...prev, ...response.data.documents]);
+            } else {
+                setGames(response.data.documents);
+            }
+
             setPagination(prev => ({
                 ...prev,
                 total: response.data.total,
@@ -77,12 +87,18 @@ const GameLibrary: React.FC = () => {
             message.error('Failed to load library');
         } finally {
             setLoading(false);
+            setAppending(false);
         }
     };
 
     useEffect(() => {
-        fetchGames();
+        // Reset to page 1 when filters change
+        fetchGames(1, false);
     }, [searchText, statusFilter]);
+
+    const handleLoadMore = () => {
+        fetchGames(pagination.current + 1, true);
+    };
 
     const handleEdit = (game: UserGame) => {
         setSelectedGame(game);
@@ -317,6 +333,25 @@ const GameLibrary: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Load More Button */}
+            {games.length < pagination.total && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 32, marginBottom: 32 }}>
+                    <Button
+                        size="large"
+                        onClick={handleLoadMore}
+                        loading={appending}
+                        style={{
+                            minWidth: 200,
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            color: 'white'
+                        }}
+                    >
+                        Load next 50
+                    </Button>
+                </div>
+            )}
 
             <EditGameModal
                 game={selectedGame}
