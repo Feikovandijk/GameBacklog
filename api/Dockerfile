@@ -1,6 +1,6 @@
 # Stage 1: Builder
 # This stage installs all dependencies, including devDependencies, to build the project.
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ RUN npm prune --production
 
 # Stage 2: Production
 # This stage creates the final, lean image with only the built code and production dependencies.
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 

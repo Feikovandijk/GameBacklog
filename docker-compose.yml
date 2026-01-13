@@ -1,65 +1,36 @@
-
 services:
-  #----------------------------------------------------------------------------------
-  # API Service
-  #----------------------------------------------------------------------------------
   api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    # On a PaaS, you would have one service with the "Start Command": npm run start
-    # and a separate "Cron Job" service with the command: npm run sync-games
+    image: feikovd/gamebacklog-api:latest
     restart: unless-stopped
     env_file:
-      - ./.env
+      - .env
     ports:
-      - "6543:6543"
-
-  #----------------------------------------------------------------------------------
-  # Worker Service
-  # Runs background jobs like syncing player counts.
-  #----------------------------------------------------------------------------------
+      - '6543:6543'
   worker:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
+    image: feikovd/gamebacklog-api:latest
     restart: unless-stopped
     env_file:
-      - ./.env
-    # Override the default CMD ("npm start") to run the worker script
-    command: ["node", "dist/scripts/worker.js"]
+      - .env
+    command: ['node', 'dist/scripts/worker.js']
     depends_on:
       - api
 
-  #----------------------------------------------------------------------------------
-  # User Dashboard Service
-  # The main user-facing dashboard.
-  #----------------------------------------------------------------------------------
   user-dashboard:
     build:
       context: ./user-dashboard
-      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
     restart: unless-stopped
     ports:
-      - "80:80"
+      - '80:80'
     depends_on:
       - api
 
-  #----------------------------------------------------------------------------------
-  # Dev Dashboard Service
-  # The developer dashboard.
-  #----------------------------------------------------------------------------------
-  dashboard:
-    build:
-      context: ./devdashboard
-      dockerfile: Dockerfile
+  dev-dashboard:
+    image: feikovd/gamebacklog-devdash:latest
     restart: unless-stopped
     ports:
-      # Maps the container's port 80 (Nginx) to the host's port 81
-      - "81:80"
+      - '81:80'
     depends_on:
-      - api # Ensures the API starts before the dashboard.
-
-volumes:
-  appwrite_data:
-  appwrite_cache: 
+      - api
+# Note: Volume configuration for database is skipped as this setup uses external Supabase.
