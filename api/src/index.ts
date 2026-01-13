@@ -115,8 +115,7 @@ app.get(
   passport.authenticate('steam', { failureRedirect: '/' }),
   (req: Request, res: Response) => {
     // Successful authentication, redirect to dashboard
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
-    res.redirect(`${frontendUrl}/dashboard`);
+    res.redirect(`${config.frontendUrl}/dashboard`);
   }
 );
 

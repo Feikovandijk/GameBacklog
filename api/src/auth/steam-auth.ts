@@ -20,8 +20,8 @@ console.log(`------------------------`);
 passport.use(
   new SteamStrategy(
     {
-      returnURL: 'http://localhost:6543/auth/steam/return',
-      realm: 'http://localhost:6543/',
+      returnURL: `${config.frontendUrl}/api/auth/steam/return`,
+      realm: `${config.frontendUrl}/`,
       apiKey: config.steamApiKey!,
       passReqToCallback: true,
     },
