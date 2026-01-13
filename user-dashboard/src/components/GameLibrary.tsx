@@ -60,7 +60,7 @@ const GameLibrary: React.FC = () => {
         }
 
         try {
-            const pageSize = 50;
+            const pageSize = pagination.pageSize; // Source from state as single source of truth
             const offset = (page - 1) * pageSize;
 
             const response = await api.getUserGames({
@@ -111,7 +111,7 @@ const GameLibrary: React.FC = () => {
             await api.userGamesAPI.updateGame(selectedGame.$id, values);
             message.success('Game updated');
             setIsModalVisible(false);
-            fetchGames(); // Refresh
+            fetchGames(pagination.current, false); // Refresh current view
         } catch {
             message.error('Failed to update game');
         }
@@ -123,7 +123,7 @@ const GameLibrary: React.FC = () => {
             await api.userGamesAPI.removeGame(selectedGame.$id);
             message.success('Game removed');
             setIsModalVisible(false);
-            fetchGames();
+            fetchGames(1, false); // Refresh
         } catch {
             message.error('Failed to delete game');
         }
@@ -336,19 +336,14 @@ const GameLibrary: React.FC = () => {
 
             {/* Load More Button */}
             {games.length < pagination.total && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 32, marginBottom: 32 }}>
+                <div className="load-more-container">
                     <Button
                         size="large"
                         onClick={handleLoadMore}
                         loading={appending}
-                        style={{
-                            minWidth: 200,
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: 'white'
-                        }}
+                        className="load-more-button"
                     >
-                        Load next 50
+                        Load next {pagination.pageSize}
                     </Button>
                 </div>
             )}
@@ -382,6 +377,18 @@ const GameLibrary: React.FC = () => {
         }
         .glass-table .ant-table-tbody > tr:hover > td {
            background: rgba(255,255,255,0.05) !important;
+        }
+        .load-more-container {
+           display: flex;
+           justify-content: center;
+           margin-top: 32px;
+           margin-bottom: 32px;
+        }
+        .load-more-button {
+           min-width: 200px;
+           background: rgba(255,255,255,0.05) !important;
+           border: 1px solid rgba(255,255,255,0.1) !important;
+           color: white !important;
         }
       `}</style>
         </div>
