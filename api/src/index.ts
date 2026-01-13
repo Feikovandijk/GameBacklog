@@ -1,10 +1,10 @@
 import express, { Request, Response } from 'express';
 import session from 'express-session';
 import cors from 'cors';
-import { Client, Databases, Query, ID, AppwriteException } from 'node-appwrite';
 import config from './config';
 import { passport, User } from './auth/steam-auth';
 import { syncUserWithSteam } from './services/user-steam-sync-service';
+import { supabase } from './supabase/client';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -14,7 +14,7 @@ const port = config.port;
 // SECURITY NOTE: The CORS configuration allows requests from http://localhost:5173 and http://localhost:5174.
 // Ensure that process.env.FRONTEND_URL is properly validated and sanitized to prevent potential CORS vulnerabilities in production.
 // Using a wildcard (*) is not recommended for origin as it can expose the application to security risks.
-// 
+//
 // Best practices for production:
 // 1. Always validate and sanitize FRONTEND_URL environment variable
 // 2. Use HTTPS URLs in production (never HTTP)
@@ -34,35 +34,39 @@ const port = config.port;
 
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
 if (process.env.FRONTEND_URL) {
-    // TODO: Add proper URL validation and sanitization for production
-    allowedOrigins.push(process.env.FRONTEND_URL);
+  // TODO: Add proper URL validation and sanitization for production
+  allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
-app.use(cors({
+app.use(
+  cors({
     origin: (origin, callback) => {
-        // allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        } else {
-            return callback(new Error('Not allowed by CORS'));
-        }
+      // allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error('Not allowed by CORS'));
+      }
     },
-    credentials: true
-}));
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Session configuration
-app.use(session({
+app.use(
+  session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
 
 // Passport middleware
 app.use(passport.initialize());
@@ -70,105 +74,117 @@ app.use(passport.session());
 
 // Extend Express Request interface to include user
 declare global {
-    // eslint-disable-next-line @typescript-eslint/no-namespace
-    namespace Express {
-        interface User {
-            $id: string;
-            steam_id: string;
-            display_name: string;
-            avatar_url: string;
-            profile_url: string;
-            real_name?: string;
-            country_code?: string;
-            is_public_profile: boolean;
-            auto_import_steam_games: boolean;
-            sync_steam_playtime: boolean;
-            default_game_status: string;
-            theme: string;
-            default_view: string;
-            created_at: string;
-            last_steam_sync?: string;
-            last_active?: string;
-        }
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface User {
+      id: string;
+      steam_id: string;
+      display_name: string;
+      avatar_url: string;
+      profile_url: string;
+      real_name?: string;
+      country_code?: string;
+      is_public_profile: boolean;
+      auto_import_steam_games: boolean;
+      sync_steam_playtime: boolean;
+      default_game_status: string;
+      theme: string;
+      default_view: string;
+      created_at: string;
+      last_steam_sync?: string;
+      last_active?: string;
     }
+  }
 }
 
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: any) {
-    if (req.isAuthenticated()) {
-        return next();
-    }
-    res.status(401).json({ error: 'Authentication required' });
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Authentication required' });
 }
 
-// Appwrite Client Setup
-const appwriteClient = new Client()
-    .setEndpoint(config.appwrite.endpoint!)
-    .setProject(config.appwrite.projectId!)
-    .setKey(config.appwrite.apiKey!);
-const appwriteDatabases = new Databases(appwriteClient);
+// Supabase client is imported from ./supabase/client
 
 // Authentication routes
 app.get('/auth/steam', passport.authenticate('steam'));
 
-app.get('/auth/steam/return',
-    passport.authenticate('steam', { failureRedirect: '/' }),
-    (req: Request, res: Response) => {
-        // Successful authentication, redirect to dashboard
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        res.redirect(`${frontendUrl}/dashboard`);
-    }
+app.get(
+  '/auth/steam/return',
+  passport.authenticate('steam', { failureRedirect: '/' }),
+  (req: Request, res: Response) => {
+    // Successful authentication, redirect to dashboard
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+    res.redirect(`${frontendUrl}/dashboard`);
+  }
 );
 
 app.post('/auth/logout', (req: Request, res: Response) => {
-    req.logout((err) => {
-        if (err) {
-            return res.status(500).json({ error: 'Logout failed' });
-        }
-        res.json({ success: true });
-    });
+  req.logout(err => {
+    if (err) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
+    res.json({ success: true });
+  });
 });
 
 app.get('/auth/me', (req: Request, res: Response) => {
-    if (req.isAuthenticated() && req.user) {
-        res.json(req.user);
-    } else {
-        res.status(401).json({ error: 'Not authenticated' });
-    }
+  if (req.isAuthenticated() && req.user) {
+    res.json(req.user);
+  } else {
+    res.status(401).json({ error: 'Not authenticated' });
+  }
 });
 
-app.post('/api/user/sync', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.post(
+  '/api/user/sync',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
     try {
-        // Trigger the sync in the background and return immediately
-        syncUserWithSteam(req.user as User);
-        res.status(202).json({ message: 'Sync process started in the background.' });
-    } catch (error) {
-        console.error('Failed to start user sync:', error);
-        res.status(500).json({ error: 'Failed to start sync process.' });
+      // Trigger the sync in the background and return immediately
+      syncUserWithSteam(req.user as User);
+      res
+        .status(202)
+        .json({ message: 'Sync process started in the background.' });
+    } catch (error: unknown) {
+      console.error('Failed to start user sync:', error);
+      res.status(500).json({ error: 'Failed to start sync process.' });
     }
-});
+  }
+);
 
 // NEW: GET /api/stats - Retrieves stats about the games database
 app.get('/api/stats', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const databaseId = config.appwrite.databaseId!;
-    const statsCollectionId = 'statistics';
+    const { data: statsDocs, error } = await supabase
+      .from('statistics')
+      .select('key, count');
 
-    const statsDocs = await appwriteDatabases.listDocuments(databaseId, statsCollectionId);
-    
-    const stats = statsDocs.documents.reduce((acc: Record<string, number>, doc: any) => {
-      acc[doc.key] = doc.count;
-      return acc;
-    }, {} as Record<string, number>);
+    if (error) {
+      throw error;
+    }
+
+    const stats =
+      statsDocs?.reduce(
+        (acc: Record<string, number>, doc: any) => {
+          acc[doc.key] = doc.count;
+          return acc;
+        },
+        {} as Record<string, number>
+      ) || {};
 
     res.json({
       totalGames: stats.totalGames || 0,
       updatedGames: stats.updatedGames || 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching stats:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to fetch stats', details: errorMessage });
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({ error: 'Failed to fetch stats', details: errorMessage });
   }
 });
 
@@ -176,726 +192,1001 @@ let analyticsCache: any = null;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
-app.get('/api/analytics', async (_req: Request, res: Response): Promise<Response | void> => {
-    if (analyticsCache && (Date.now() - cacheTimestamp < CACHE_DURATION_MS)) {
-        console.log("Serving analytics from cache.");
-        return res.json(analyticsCache);
+app.get(
+  '/api/analytics',
+  async (_req: Request, res: Response): Promise<Response | void> => {
+    if (analyticsCache && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
+      console.log('Serving analytics from cache.');
+      return res.json(analyticsCache);
     }
 
-    console.log("Fetching pre-calculated analytics data...");
+    console.log('Fetching pre-calculated analytics data...');
     try {
-        const databaseId = config.appwrite.databaseId!;
-        const statsCollectionId = 'statistics';
+      const keysToFetch = [
+        'analytics_releaseYearDistribution',
+        'analytics_genreDistribution',
+      ];
 
-        const keysToFetch = [
-            'analytics_releaseYearDistribution',
-            'analytics_genreDistribution'
-        ];
-        
-        const statsResponse = await appwriteDatabases.listDocuments(
-            databaseId,
-            statsCollectionId,
-            [Query.equal('key', keysToFetch)]
-        );
+      const { data: statsResponse, error } = await supabase
+        .from('statistics')
+        .select('key, value')
+        .in('key', keysToFetch);
 
-        const stats = statsResponse.documents.reduce((acc: Record<string, any>, doc: any) => {
+      if (error) {
+        throw error;
+      }
+
+      const stats =
+        statsResponse?.reduce(
+          (acc: Record<string, any>, doc: any) => {
             try {
-                acc[doc.key] = JSON.parse(doc.value);
+              acc[doc.key] = JSON.parse(doc.value);
             } catch (e) {
-                console.error(`Failed to parse stat value for key: ${doc.key}`, e);
-                acc[doc.key] = {};
+              console.error(
+                `Failed to parse stat value for key: ${doc.key}`,
+                e
+              );
+              acc[doc.key] = {};
             }
             return acc;
-        }, {} as Record<string, any>);
+          },
+          {} as Record<string, any>
+        ) || {};
 
-        const getTopN = (dist: Record<string, number>, n: number) => {
-            return Object.entries(dist)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, n)
-                .map(([name, count]) => ({ name, count }));
-        };
-        
-        const analyticsData = {
-            releaseYearDistribution: stats['analytics_releaseYearDistribution'] || {},
-            genreDistribution: getTopN(stats['analytics_genreDistribution'] || {}, 10),
-        };
-        
-        analyticsCache = analyticsData;
-        cacheTimestamp = Date.now();
+      const getTopN = (dist: Record<string, number>, n: number) => {
+        return Object.entries(dist)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, n)
+          .map(([name, count]) => ({ name, count }));
+      };
 
-        res.json(analyticsData);
+      const analyticsData = {
+        releaseYearDistribution:
+          stats['analytics_releaseYearDistribution'] || {},
+        genreDistribution: getTopN(
+          stats['analytics_genreDistribution'] || {},
+          10
+        ),
+      };
 
-    } catch (error) {
-        console.error('Error fetching analytics:', error);
-        const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch analytics', details: errorMessage });
+      analyticsCache = analyticsData;
+      cacheTimestamp = Date.now();
+
+      res.json(analyticsData);
+    } catch (error: unknown) {
+      console.error('Error fetching analytics:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res
+        .status(500)
+        .json({ error: 'Failed to fetch analytics', details: errorMessage });
     }
-});
-
-app.get('/api/games/most-reviewed', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const databaseId = config.appwrite.databaseId!;
-    const gamesCollectionId = config.appwrite.gamesCollectionId!;
-
-    const response = await appwriteDatabases.listDocuments(
-      databaseId,
-      gamesCollectionId,
-      [
-        Query.orderDesc('total_reviews'),
-        Query.limit(10),
-        Query.select(['$id', 'name', 'header_image', 'total_reviews', 'steam_appid'])
-      ]
-    );
-
-    res.json(response.documents);
-  } catch (error) {
-    console.error('Error fetching most reviewed games:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to fetch most reviewed games', details: errorMessage });
   }
-});
+);
 
-app.get('/api/games/search', async (req: Request, res: Response): Promise<void> => {
-  const searchQuery = req.query.q as string;
+app.get(
+  '/api/games/most-reviewed',
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const { data: games, error } = await supabase
+        .from('games')
+        .select('id, name, header_image, total_reviews, steam_appid')
+        .order('total_reviews', { ascending: false })
+        .limit(10);
 
-  if (!searchQuery) {
-    res.status(400).json({ error: 'Search query (q) is required' });
-    return;
+      if (error) {
+        throw error;
+      }
+
+      res.json(games || []);
+    } catch (error: unknown) {
+      console.error('Error fetching most reviewed games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch most reviewed games',
+        details: errorMessage,
+      });
+    }
   }
+);
 
-  try {
-    const databaseId = config.appwrite.databaseId!;
-    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+app.get(
+  '/api/games/search',
+  async (req: Request, res: Response): Promise<void> => {
+    const searchQuery = req.query.q as string;
 
-    const response = await appwriteDatabases.listDocuments(
-      databaseId,
-      gamesCollectionId,
-      [
-        Query.search('name', searchQuery),
-        Query.equal('steam_app_type', 'game'), // Only search for actual games
-        Query.limit(5)
-      ]
-    );
+    if (!searchQuery) {
+      res.status(400).json({ error: 'Search query (q) is required' });
+      return;
+    }
 
-    res.json(response.documents);
-  } catch (error: any) {
-    console.error('Error searching games:', error);
-    res.status(500).json({ error: 'Failed to search games', details: error.message });
+    try {
+      const { data: games, error } = await supabase
+        .from('games')
+        .select('*')
+        .ilike('name', `%${searchQuery}%`)
+        .eq('steam_app_type', 'game') // Only search for actual games
+        .limit(5);
+
+      if (error) {
+        throw error;
+      }
+
+      res.json(games || []);
+    } catch (error: unknown) {
+      console.error('Error searching games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res
+        .status(500)
+        .json({ error: 'Failed to search games', details: errorMessage });
+    }
   }
-});
+);
 
-app.get('/api/latest-games-with-achievements', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const databaseId = config.appwrite.databaseId!;
-    const gamesCollectionId = config.appwrite.gamesCollectionId!;
-    const achievementsCollectionId = 'achievements'; // As seen in steam-refresh-service
+app.get(
+  '/api/latest-games-with-achievements',
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      // 1. Fetch the 5 most recently updated games that have achievements
+      const { data: latestGames, error: gamesError } = await supabase
+        .from('games')
+        .select('id, name, steam_appid, last_updated')
+        .eq('has_steam_achievements', true)
+        .order('last_updated', { ascending: false })
+        .limit(5);
 
-    // 1. Fetch the 5 most recently updated games that have achievements
-    const latestGamesResponse = await appwriteDatabases.listDocuments(
-      databaseId,
-      gamesCollectionId,
-      [
-        Query.orderDesc('last_updated'),
-        Query.equal('has_steam_achievements', true),
-        Query.limit(5),
-        Query.select(['$id', 'name', 'steam_appid', 'last_updated'])
-      ]
-    );
+      if (gamesError) {
+        throw gamesError;
+      }
 
-    const latestGames = latestGamesResponse.documents;
+      // 2. For each game, fetch its achievements
+      const gamesWithAchievements = await Promise.all(
+        (latestGames || []).map(async game => {
+          const { data: achievements, error: achievementsError } =
+            await supabase
+              .from('achievements')
+              .select('*')
+              .eq('steam_appid', game.steam_appid)
+              .limit(500); // Assuming a game won't have more than 500 achievements
 
-    // 2. For each game, fetch its achievements
-    const gamesWithAchievements = await Promise.all(
-      latestGames.map(async (game) => {
-        const achievementsResponse = await appwriteDatabases.listDocuments(
-          databaseId,
-          achievementsCollectionId,
-          [
-            Query.equal('steam_appid', game.steam_appid),
-            Query.limit(500) // Assuming a game won't have more than 500 achievements
-          ]
-        );
+          if (achievementsError) {
+            console.error(
+              `Error fetching achievements for game ${game.steam_appid}:`,
+              achievementsError
+            );
+          }
 
-        return {
-          ...game,
-          achievements: achievementsResponse.documents,
-        };
-      })
-    );
+          return {
+            ...game,
+            achievements: achievements || [],
+          };
+        })
+      );
 
-    res.json(gamesWithAchievements);
-
-  } catch (error) {
-    console.error('Error fetching latest games with achievements:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to fetch latest games with achievements', details: errorMessage });
+      res.json(gamesWithAchievements);
+    } catch (error: unknown) {
+      console.error('Error fetching latest games with achievements:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch latest games with achievements',
+        details: errorMessage,
+      });
+    }
   }
-});
+);
 
-app.get('/api/latest-synced-games', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const databaseId = config.appwrite.databaseId!;
-    const gamesCollectionId = config.appwrite.gamesCollectionId!;
-    const achievementsCollectionId = 'achievements';
+app.get(
+  '/api/latest-synced-games',
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      // 1. Fetch the 10 most recently updated games
+      const { data: latestGames, error: gamesError } = await supabase
+        .from('games')
+        .select('*')
+        .not('last_updated', 'is', null) // Ensure the game has been synced at least once
+        .order('last_updated', { ascending: false })
+        .limit(10);
 
-    // 1. Fetch the 10 most recently updated games
-    const latestGamesResponse = await appwriteDatabases.listDocuments(
-      databaseId,
-      gamesCollectionId,
-      [
-        Query.isNotNull('last_updated'), // Ensure the game has been synced at least once
-        Query.orderDesc('last_updated'),
-        Query.limit(10),
-      ]
-    );
+      if (gamesError) {
+        throw gamesError;
+      }
 
-    const latestGames = latestGamesResponse.documents;
+      // 2. For each game, fetch its achievements if it has any
+      const gamesWithDetails = await Promise.all(
+        (latestGames || []).map(async game => {
+          let achievements: any[] = [];
+          if (game.has_steam_achievements) {
+            const { data: achievementsData, error: achievementsError } =
+              await supabase
+                .from('achievements')
+                .select('*')
+                .eq('steam_appid', game.steam_appid)
+                .limit(1000); // Generous limit for achievements
 
-    // 2. For each game, fetch its achievements if it has any
-    const gamesWithDetails = await Promise.all(
-      latestGames.map(async (game) => {
-        let achievements: any[] = [];
-        if (game.has_steam_achievements) {
-          const achievementsResponse = await appwriteDatabases.listDocuments(
-            databaseId,
-            achievementsCollectionId,
-            [
-              Query.equal('steam_appid', game.steam_appid),
-              Query.limit(1000) // Generous limit for achievements
-            ]
-          );
-          achievements = achievementsResponse.documents;
-        }
+            if (achievementsError) {
+              console.error(
+                `Error fetching achievements for game ${game.steam_appid}:`,
+                achievementsError
+              );
+            } else {
+              achievements = achievementsData || [];
+            }
+          }
 
-        return {
-          ...game,
-          achievements,
-        };
-      })
-    );
+          return {
+            ...game,
+            achievements,
+          };
+        })
+      );
 
-    res.json(gamesWithDetails);
-
-  } catch (error) {
-    console.error('Error fetching latest synced games:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to fetch latest synced games', details: errorMessage });
+      res.json(gamesWithDetails);
+    } catch (error: unknown) {
+      console.error('Error fetching latest synced games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch latest synced games',
+        details: errorMessage,
+      });
+    }
   }
-});
+);
 
-app.get('/api/latest-steam-games', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const databaseId = config.appwrite.databaseId!;
-    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+app.get(
+  '/api/latest-steam-games',
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const { data: games, error } = await supabase
+        .from('games')
+        .select('name, steam_appid, header_image, total_reviews, release_date')
+        .order('release_date', { ascending: false })
+        .limit(10);
 
-    const response = await appwriteDatabases.listDocuments(
-      databaseId,
-      gamesCollectionId,
-      [
-        Query.orderDesc('release_date'),
-        Query.limit(10),
-        Query.select([
-            'name', 
-            'steam_appid',
-            'header_image',
-            'total_reviews',
-            'release_date'
-        ])
-      ]
-    );
+      if (error) {
+        throw error;
+      }
 
-    res.json(response.documents);
-  } catch (error) {
-    console.error('Error fetching latest steam games:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to fetch latest steam games', details: errorMessage });
+      res.json(games || []);
+    } catch (error: unknown) {
+      console.error('Error fetching latest steam games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch latest steam games',
+        details: errorMessage,
+      });
+    }
   }
-});
+);
 
 // User-specific game backlog endpoints
 
 // GET /api/user/games - Get user's game backlog
-app.get('/api/user/games', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.$id;
-    const databaseId = config.appwrite.databaseId!;
-    const userGamesCollectionId = 'user_games';
-    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+app.get(
+  '/api/user/games',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
 
-    // Get query parameters for filtering
-    const { status, priority, limit = 20, offset = 0 } = req.query;
+      // Get query parameters for filtering
+      const { status, priority, limit = 20, offset = 0 } = req.query;
 
-    const queries = [
-      Query.equal('user_id', userId),
-      ...(status ? [Query.equal('status', status as string)] : []),
-      ...(priority ? [Query.equal('priority', parseInt(priority as string))] : []),
-      Query.limit(parseInt(limit as string)),
-      Query.offset(parseInt(offset as string)),
-      Query.orderDesc('updated_at')
-    ];
-
-    const userGamesResponse = await appwriteDatabases.listDocuments(
-      databaseId,
-      userGamesCollectionId,
-      queries
-    );
-
-    // Fetch full game details for each user game
-    const gamesWithDetails = await Promise.all(
-      userGamesResponse.documents.map(async (userGame) => {
-        const gameResponse = await appwriteDatabases.listDocuments(
-          databaseId,
-          gamesCollectionId,
-          [Query.equal('steam_appid', userGame.steam_appid)]
+      let query = supabase
+        .from('user_games')
+        .select(
+          `
+        *,
+        game:games(*)
+      `,
+          { count: 'exact' }
+        )
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .range(
+          parseInt(offset as string),
+          parseInt(offset as string) + parseInt(limit as string) - 1
         );
 
-        const gameDetails = gameResponse.documents[0] || null;
-        
-        return {
-          ...userGame,
-          game: gameDetails
-        };
-      })
-    );
+      if (status) {
+        query = query.eq('status', status as string);
+      }
+      if (priority) {
+        query = query.eq('priority', parseInt(priority as string));
+      }
 
-    res.json({
-      documents: gamesWithDetails,
-      total: userGamesResponse.total
-    });
-  } catch (error) {
-    console.error('Error fetching user games:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to fetch user games', details: errorMessage });
+      const { data: userGames, error, count } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      res.json({
+        documents: userGames || [],
+        total: count || 0,
+      });
+    } catch (error: unknown) {
+      console.error('Error fetching user games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res
+        .status(500)
+        .json({ error: 'Failed to fetch user games', details: errorMessage });
+    }
   }
-});
+);
 
-app.get('/api/user/games/recently-played', requireAuth, async (req: Request, res: Response) => {
+app.get(
+  '/api/user/games/recently-played',
+  requireAuth,
+  async (req: Request, res: Response) => {
     const user = req.user as User;
     const { limit = 5 } = req.query;
 
     try {
-        const response = await appwriteDatabases.listDocuments(
-            config.appwrite.databaseId!,
-            'user_games',
-            [
-                Query.equal('user_id', user.$id),
-                Query.greaterThan('playtime_2weeks', 0),
-                Query.orderDesc('playtime_2weeks'),
-                Query.limit(parseInt(limit as string, 10)),
-                Query.select(['$id', 'steam_appid', 'playtime_2weeks', 'game_id'])
-            ]
-        );
-        
-        // As the response does not automatically resolve the 'game' relation, we may need to fetch it.
-        // Assuming the 'game' attribute is a related document ID.
-        const gamesWithDetails = await Promise.all(response.documents.map(async (userGame) => {
-            if (userGame.game_id) {
-                try {
-                    const gameDoc = await appwriteDatabases.getDocument(config.appwrite.databaseId!, config.appwrite.gamesCollectionId!, userGame.game_id);
-                    return { ...userGame, game: gameDoc };
-                } catch {
-                     return { ...userGame, game: null }; // Game details not found
-                }
-            }
-            return userGame;
-        }));
+      const { data: userGames, error } = await supabase
+        .from('user_games')
+        .select(
+          `
+                id,
+                steam_appid,
+                playtime_2weeks,
+                game_id,
+                game:games(*)
+            `
+        )
+        .eq('user_id', user.id)
+        .gt('playtime_2weeks', 0)
+        .order('playtime_2weeks', { ascending: false })
+        .limit(parseInt(limit as string, 10));
 
-        res.json(gamesWithDetails);
-    } catch (error) {
-        console.error('Error fetching recently played games:', error);
-        res.status(500).json({ message: 'Failed to fetch recently played games' });
+      if (error) {
+        throw error;
+      }
+
+      res.json(userGames || []);
+    } catch (error: unknown) {
+      console.error('Error fetching recently played games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch recently played games',
+        details: errorMessage,
+      });
     }
-});
+  }
+);
 
 // POST /api/user/games - Add game to user's backlog
-app.post('/api/user/games', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.$id;
-    const { steam_appid, status, priority, user_notes, user_tags } = req.body;
+app.post(
+  '/api/user/games',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { steam_appid, status, priority, user_notes, user_tags } = req.body;
 
-    if (!steam_appid || !status) {
-      res.status(400).json({ error: 'steam_appid and status are required' });
-      return;
-    }
+      if (!steam_appid || !status) {
+        res.status(400).json({ error: 'steam_appid and status are required' });
+        return;
+      }
 
-    const databaseId = config.appwrite.databaseId!;
-    const userGamesCollectionId = 'user_games';
-    const gamesCollectionId = config.appwrite.gamesCollectionId!;
+      // Verify the game exists
+      const { data: gameExists, error: gameError } = await supabase
+        .from('games')
+        .select('id, name')
+        .eq('steam_appid', steam_appid)
+        .single();
 
-    // Verify the game exists
-    const gameExists = await appwriteDatabases.listDocuments(
-      databaseId,
-      gamesCollectionId,
-      [Query.equal('steam_appid', steam_appid)]
-    );
+      if (gameError || !gameExists) {
+        res.status(404).json({ error: 'Game not found' });
+        return;
+      }
 
-    if (gameExists.documents.length === 0) {
-      res.status(404).json({ error: 'Game not found' });
-      return;
-    }
+      // Check if user already has this game
+      const { data: existingUserGame, error: existingError } = await supabase
+        .from('user_games')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('steam_appid', steam_appid)
+        .single();
 
-    const gameId = gameExists.documents[0].$id;
+      const gameData = {
+        user_id: userId,
+        game_id: gameExists.id,
+        steam_appid: steam_appid,
+        status: status,
+        priority: priority || 3,
+        user_notes: user_notes || '',
+        user_tags: user_tags || [],
+        hours_played: 0,
+        completion_percentage: 0,
+        is_favorite: false,
+        updated_at: new Date().toISOString(),
+      };
 
-    // Check if user already has this game
-    const existingUserGame = await appwriteDatabases.listDocuments(
-      databaseId,
-      userGamesCollectionId,
-      [
-        Query.equal('user_id', userId),
-        Query.equal('steam_appid', steam_appid)
-      ]
-    );
+      let result;
+      if (existingUserGame && !existingError) {
+        // Update existing
+        const { data: updateResult, error: updateError } = await supabase
+          .from('user_games')
+          .update(gameData)
+          .eq('id', existingUserGame.id)
+          .select()
+          .single();
 
-    const gameData = {
-      user_id: userId,
-      game_id: gameId,
-      steam_appid: steam_appid,
-      status: status,
-      priority: priority || 3,
-      user_notes: user_notes || '',
-      user_tags: user_tags || [],
-      hours_played: 0,
-      completion_percentage: 0,
-      is_favorite: false,
-      updated_at: new Date().toISOString()
-    };
-
-    let result;
-    if (existingUserGame.documents.length > 0) {
-      // Update existing
-      result = await appwriteDatabases.updateDocument(
-        databaseId,
-        userGamesCollectionId,
-        existingUserGame.documents[0].$id,
-        gameData
-      );
-      // Log activity
-      logUserActivity(userId, 'game.updated', { gameName: gameExists.documents[0].name });
-    } else {
-      // Create new
-      result = await appwriteDatabases.createDocument(
-        databaseId,
-        userGamesCollectionId,
-        ID.unique(),
-        {
-          ...gameData,
-          added_at: new Date().toISOString()
+        if (updateError) {
+          throw updateError;
         }
-      );
-      // Log activity
-      logUserActivity(userId, 'game.added', { gameName: gameExists.documents[0].name });
-    }
 
-    res.json(result);
-  } catch (error) {
-    console.error('Error adding game to backlog:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to add game to backlog', details: errorMessage });
+        result = updateResult;
+        // Log activity
+        logUserActivity(userId, 'game.updated', { gameName: gameExists.name });
+      } else {
+        // Create new
+        const { data: createResult, error: createError } = await supabase
+          .from('user_games')
+          .insert({
+            ...gameData,
+            added_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          throw createError;
+        }
+
+        result = createResult;
+        // Log activity
+        logUserActivity(userId, 'game.added', { gameName: gameExists.name });
+      }
+
+      res.json(result);
+    } catch (error: unknown) {
+      console.error('Error adding game to backlog:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to add game to backlog',
+        details: errorMessage,
+      });
+    }
   }
-});
+);
 
 // PUT /api/user/games/:id - Update game status in user's backlog
-app.put('/api/user/games/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.$id;
-    const gameId = req.params.id;
-    const { status, priority, user_rating, user_notes, user_tags, hours_played, completion_percentage, is_favorite } = req.body;
+app.put(
+  '/api/user/games/:id',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const gameId = req.params.id;
+      const {
+        status,
+        priority,
+        user_rating,
+        user_notes,
+        user_tags,
+        hours_played,
+        completion_percentage,
+        is_favorite,
+      } = req.body;
 
-    const databaseId = config.appwrite.databaseId!;
-    const userGamesCollectionId = 'user_games';
+      // Verify ownership
+      const { data: userGame, error: userGameError } = await supabase
+        .from('user_games')
+        .select('*')
+        .eq('id', gameId)
+        .single();
 
-    // Verify ownership
-    const userGame = await appwriteDatabases.getDocument(
-      databaseId,
-      userGamesCollectionId,
-      gameId
-    );
+      if (userGameError || !userGame) {
+        res.status(404).json({ error: 'Game not found' });
+        return;
+      }
 
-    if (userGame.user_id !== userId) {
-      res.status(403).json({ error: 'Forbidden: Not your game' });
-      return;
-    }
+      if (userGame.user_id !== userId) {
+        res.status(403).json({ error: 'Forbidden: Not your game' });
+        return;
+      }
 
-    const updateData: any = {
-      updated_at: new Date().toISOString()
-    };
+      const updateData: any = {
+        updated_at: new Date().toISOString(),
+      };
 
-    // Only update provided fields
-    if (status !== undefined) {
+      // Only update provided fields
+      if (status !== undefined) {
         updateData.status = status;
         // Log activity based on status change
         if (status === 'completed' || status === 'completed_100') {
-            // Fetch game name for activity logging
-            const gameResponse = await appwriteDatabases.listDocuments(
-              databaseId,
-              config.appwrite.gamesCollectionId!,
-              [Query.equal('steam_appid', userGame.steam_appid)]
-            );
-            const gameName = gameResponse.documents[0]?.name || 'Unknown Game';
-            logUserActivity(userId, 'game.completed', { gameName });
-            updateData.completed_at = new Date().toISOString();
-        } else if (status === 'currently_playing' && userGame.status !== 'currently_playing') {
-            // Fetch game name for activity logging
-            const gameResponse = await appwriteDatabases.listDocuments(
-              databaseId,
-              config.appwrite.gamesCollectionId!,
-              [Query.equal('steam_appid', userGame.steam_appid)]
-            );
-            const gameName = gameResponse.documents[0]?.name || 'Unknown Game';
-            logUserActivity(userId, 'game.started', { gameName });
+          // Fetch game name for activity logging
+          const { data: gameData } = await supabase
+            .from('games')
+            .select('name')
+            .eq('steam_appid', userGame.steam_appid)
+            .single();
+          const gameName = gameData?.name || 'Unknown Game';
+          logUserActivity(userId, 'game.completed', { gameName });
+          updateData.completed_at = new Date().toISOString();
+        } else if (
+          status === 'currently_playing' &&
+          userGame.status !== 'currently_playing'
+        ) {
+          // Fetch game name for activity logging
+          const { data: gameData } = await supabase
+            .from('games')
+            .select('name')
+            .eq('steam_appid', userGame.steam_appid)
+            .single();
+          const gameName = gameData?.name || 'Unknown Game';
+          logUserActivity(userId, 'game.started', { gameName });
         }
+      }
+      if (priority !== undefined) updateData.priority = priority;
+      if (user_rating !== undefined) updateData.user_rating = user_rating;
+      if (user_notes !== undefined) updateData.user_notes = user_notes;
+      if (user_tags !== undefined) updateData.user_tags = user_tags;
+      if (hours_played !== undefined) updateData.hours_played = hours_played;
+      if (completion_percentage !== undefined)
+        updateData.completion_percentage = completion_percentage;
+      if (is_favorite !== undefined) updateData.is_favorite = is_favorite;
+
+      // Set completion date if marking as completed
+      if (
+        (status === 'completed' || status === 'completed_100') &&
+        !updateData.completed_at
+      ) {
+        updateData.completed_at = new Date().toISOString();
+      }
+
+      const { data: result, error: updateError } = await supabase
+        .from('user_games')
+        .update(updateData)
+        .eq('id', gameId)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      res.json(result);
+    } catch (error: unknown) {
+      console.error('Error updating user game:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res
+        .status(500)
+        .json({ error: 'Failed to update game', details: errorMessage });
     }
-    if (priority !== undefined) updateData.priority = priority;
-    if (user_rating !== undefined) updateData.user_rating = user_rating;
-    if (user_notes !== undefined) updateData.user_notes = user_notes;
-    if (user_tags !== undefined) updateData.user_tags = user_tags;
-    if (hours_played !== undefined) updateData.hours_played = hours_played;
-    if (completion_percentage !== undefined) updateData.completion_percentage = completion_percentage;
-    if (is_favorite !== undefined) updateData.is_favorite = is_favorite;
-
-    // Set completion date if marking as completed
-    if ((status === 'completed' || status === 'completed_100') && !updateData.completed_at) {
-      updateData.completed_at = new Date().toISOString();
-    }
-
-    const result = await appwriteDatabases.updateDocument(
-      databaseId,
-      userGamesCollectionId,
-      gameId,
-      updateData
-    );
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error updating user game:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to update game', details: errorMessage });
   }
-});
+);
 
 // DELETE /api/user/games/:id - Remove game from user's backlog
-app.delete('/api/user/games/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.$id;
-    const gameId = req.params.id;
+app.delete(
+  '/api/user/games/:id',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const gameId = req.params.id;
 
-    const databaseId = config.appwrite.databaseId!;
-    const userGamesCollectionId = 'user_games';
+      // Verify ownership
+      const { data: userGame, error: userGameError } = await supabase
+        .from('user_games')
+        .select('user_id')
+        .eq('id', gameId)
+        .single();
 
-    // Verify ownership
-    const userGame = await appwriteDatabases.getDocument(
-      databaseId,
-      userGamesCollectionId,
-      gameId
-    );
+      if (userGameError || !userGame) {
+        res.status(404).json({ error: 'Game not found' });
+        return;
+      }
 
-    if (userGame.user_id !== userId) {
-      res.status(403).json({ error: 'Forbidden: Not your game' });
-      return;
+      if (userGame.user_id !== userId) {
+        res.status(403).json({ error: 'Forbidden: Not your game' });
+        return;
+      }
+
+      const { error: deleteError } = await supabase
+        .from('user_games')
+        .delete()
+        .eq('id', gameId);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      res.json({ success: true });
+    } catch (error: unknown) {
+      console.error('Error removing game from backlog:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to remove game from backlog',
+        details: errorMessage,
+      });
     }
-
-    await appwriteDatabases.deleteDocument(
-      databaseId,
-      userGamesCollectionId,
-      gameId
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error removing game from backlog:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to remove game from backlog', details: errorMessage });
   }
-});
+);
 
 // GET /api/user/stats - Get user's gaming statistics
-app.get('/api/user/stats', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.$id;
-    const databaseId = config.appwrite.databaseId!;
-    const userGamesCollectionId = 'user_games';
+app.get(
+  '/api/user/stats',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
 
-    // Get various stats in parallel
-    const [
-      totalGames,
-      completedGames,
-      currentlyPlaying,
-      wantToPlay,
-      onHold,
-      dropped
-    ] = await Promise.all([
-      appwriteDatabases.listDocuments(databaseId, userGamesCollectionId, [
-        Query.equal('user_id', userId),
-        Query.select(['$id'])
-      ]),
-      appwriteDatabases.listDocuments(databaseId, userGamesCollectionId, [
-        Query.equal('user_id', userId),
-        Query.equal('status', 'completed'),
-        Query.select(['$id'])
-      ]),
-      appwriteDatabases.listDocuments(databaseId, userGamesCollectionId, [
-        Query.equal('user_id', userId),
-        Query.equal('status', 'currently_playing'),
-        Query.select(['$id'])
-      ]),
-      appwriteDatabases.listDocuments(databaseId, userGamesCollectionId, [
-        Query.equal('user_id', userId),
-        Query.equal('status', 'want_to_play'),
-        Query.select(['$id'])
-      ]),
-      appwriteDatabases.listDocuments(databaseId, userGamesCollectionId, [
-        Query.equal('user_id', userId),
-        Query.equal('status', 'on_hold'),
-        Query.select(['$id'])
-      ]),
-      appwriteDatabases.listDocuments(databaseId, userGamesCollectionId, [
-        Query.equal('user_id', userId),
-        Query.equal('status', 'dropped'),
-        Query.select(['$id'])
-      ])
-    ]);
+      // Get various stats in parallel
+      const [
+        { count: totalGames },
+        { count: completedGames },
+        { count: currentlyPlaying },
+        { count: wantToPlay },
+        { count: onHold },
+        { count: dropped },
+      ] = await Promise.all([
+        supabase
+          .from('user_games')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId),
+        supabase
+          .from('user_games')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId)
+          .eq('status', 'completed'),
+        supabase
+          .from('user_games')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId)
+          .eq('status', 'currently_playing'),
+        supabase
+          .from('user_games')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId)
+          .eq('status', 'want_to_play'),
+        supabase
+          .from('user_games')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId)
+          .eq('status', 'on_hold'),
+        supabase
+          .from('user_games')
+          .select('id', { count: 'exact' })
+          .eq('user_id', userId)
+          .eq('status', 'dropped'),
+      ]);
 
-    const stats = {
-      totalGames: totalGames.total,
-      completedGames: completedGames.total,
-      currentlyPlaying: currentlyPlaying.total,
-      wantToPlay: wantToPlay.total,
-      onHold: onHold.total,
-      dropped: dropped.total,
-      completionPercentage: totalGames.total > 0 
-        ? Math.round((completedGames.total / totalGames.total) * 100) 
-        : 0
-    };
+      const stats = {
+        totalGames: totalGames || 0,
+        completedGames: completedGames || 0,
+        currentlyPlaying: currentlyPlaying || 0,
+        wantToPlay: wantToPlay || 0,
+        onHold: onHold || 0,
+        dropped: dropped || 0,
+        completionPercentage:
+          (totalGames || 0) > 0
+            ? Math.round(((completedGames || 0) / (totalGames || 0)) * 100)
+            : 0,
+      };
 
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching user stats:', error);
-    const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-    res.status(500).json({ error: 'Failed to fetch user stats', details: errorMessage });
+      res.json(stats);
+    } catch (error: unknown) {
+      console.error('Error fetching user stats:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res
+        .status(500)
+        .json({ error: 'Failed to fetch user stats', details: errorMessage });
+    }
   }
-});
+);
 
 // Helper function to log user activity
 async function logUserActivity(userId: string, type: string, metadata: object) {
-    try {
-        await appwriteDatabases.createDocument(
-            config.appwrite.databaseId!,
-            'user_activity', // Assuming this collection exists
-            ID.unique(),
-            {
-                user_id: userId,
-                type: type,
-                timestamp: new Date().toISOString(),
-                metadata_json: JSON.stringify(metadata)
-            }
-        );
-    } catch (error) {
-        console.error(`Failed to log user activity of type ${type} for user ${userId}:`, error);
-    }
+  try {
+    await supabase.from('user_activity').insert({
+      user_id: userId,
+      type: type,
+      data: metadata,
+      created_at: new Date().toISOString(),
+    });
+  } catch (error: unknown) {
+    console.error(
+      `Failed to log user activity of type ${type} for user ${userId}:`,
+      error
+    );
+  }
 }
 
 // GET /api/user/stats/extended - Get user's extended gaming statistics
-app.get('/api/user/stats/extended', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get(
+  '/api/user/stats/extended',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
     try {
-        const userId = req.user!.$id;
-        const databaseId = config.appwrite.databaseId!;
-        const userGamesCollectionId = 'user_games';
+      const userId = req.user!.id;
 
-        const userGames = await appwriteDatabases.listDocuments(
-            databaseId,
-            userGamesCollectionId,
-            [Query.equal('user_id', userId), Query.limit(5000)] // A high limit to get all games
-        );
+      const { data: userGames, error } = await supabase
+        .from('user_games')
+        .select('hours_played')
+        .eq('user_id', userId)
+        .limit(5000); // A high limit to get all games
 
-        const totalHoursPlayed = userGames.documents.reduce((sum, game) => sum + (game.hours_played || 0), 0);
+      if (error) {
+        throw error;
+      }
 
-        res.json({
-            totalHoursPlayed: Math.round(totalHoursPlayed * 100) / 100, // Round to 2 decimal places
-        });
+      const totalHoursPlayed = (userGames || []).reduce(
+        (sum: number, game: any) => sum + (game.hours_played || 0),
+        0
+      );
 
-    } catch (error) {
-        console.error('Error fetching user extended stats:', error);
-        const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch user extended stats', details: errorMessage });
+      res.json({
+        totalHoursPlayed: Math.round(totalHoursPlayed * 100) / 100, // Round to 2 decimal places
+      });
+    } catch (error: unknown) {
+      console.error('Error fetching user extended stats:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch user extended stats',
+        details: errorMessage,
+      });
     }
-});
+  }
+);
+
+// GET /api/user/stats/dashboard - Get comprehensive dashboard statistics
+app.get(
+  '/api/user/stats/dashboard',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const now = new Date();
+
+      // Calculate time boundaries
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+      // Get all user games with game details for comprehensive stats
+      const { data: allUserGames, error: gamesError } = await supabase
+        .from('user_games')
+        .select(
+          `
+          id,
+          status,
+          hours_played,
+          updated_at,
+          added_at,
+          game:games(
+            id,
+            genres,
+            price_final
+          )
+        `
+        )
+        .eq('user_id', userId);
+
+      if (gamesError) {
+        throw gamesError;
+      }
+
+      const userGames = allUserGames || [];
+
+      // Calculate status counts
+      const statusCounts = userGames.reduce(
+        (acc, game) => {
+          acc[game.status] = (acc[game.status] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      // Calculate time-based completions
+      // Note: We use updated_at as proxy for completion time since completed_at doesn't exist
+      const completedGames = userGames.filter(
+        g => g.status === 'completed' || g.status === 'completed_100'
+      );
+
+      const completedThisWeek = completedGames.filter(g => {
+        if (!g.updated_at) return false;
+        return new Date(g.updated_at) >= startOfWeek;
+      }).length;
+
+      const completedThisMonth = completedGames.filter(g => {
+        if (!g.updated_at) return false;
+        return new Date(g.updated_at) >= startOfMonth;
+      }).length;
+
+      const completedThisYear = completedGames.filter(g => {
+        if (!g.updated_at) return false;
+        return new Date(g.updated_at) >= startOfYear;
+      }).length;
+
+      // Calculate playtime stats
+      const totalHoursPlayed = userGames.reduce(
+        (sum, g) => sum + (g.hours_played || 0),
+        0
+      );
+
+      // Calculate genre distribution
+      const genreCounts: Record<string, number> = {};
+      userGames.forEach(ug => {
+        const game = ug.game as any;
+        if (game?.genres && Array.isArray(game.genres)) {
+          game.genres.forEach((genre: string) => {
+            genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+          });
+        }
+      });
+
+      const topGenres = Object.entries(genreCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+
+      // Calculate collection value estimate (sum of game prices in cents, then convert to dollars)
+      const collectionValueCents = userGames.reduce((sum, ug) => {
+        const game = ug.game as any;
+        return sum + (game?.price_final || 0);
+      }, 0);
+      const collectionValueEstimate = Math.round(collectionValueCents) / 100;
+
+      // Get recent achievement count
+      const { count: recentAchievementCount } = await supabase
+        .from('user_achievements')
+        .select('id', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('is_unlocked', true)
+        .gte('unlock_time', startOfMonth.toISOString());
+
+      // Calculate average hours per completed game
+      const avgHoursPerCompletion =
+        completedGames.length > 0
+          ? Math.round(
+              (completedGames.reduce(
+                (sum, g) => sum + (g.hours_played || 0),
+                0
+              ) /
+                completedGames.length) *
+                10
+            ) / 10
+          : 0;
+
+      // Build response
+      const dashboardStats = {
+        // Status counts
+        totalGames: userGames.length,
+        completedGames: statusCounts['completed'] || 0,
+        completed100: statusCounts['completed_100'] || 0,
+        currentlyPlaying: statusCounts['currently_playing'] || 0,
+        wantToPlay: statusCounts['want_to_play'] || 0,
+        onHold: statusCounts['on_hold'] || 0,
+        dropped: statusCounts['dropped'] || 0,
+
+        // Time-based completions
+        completedThisWeek,
+        completedThisMonth,
+        completedThisYear,
+
+        // Playtime stats
+        totalHoursPlayed: Math.round(totalHoursPlayed * 10) / 10,
+        avgHoursPerCompletion,
+
+        // Insights
+        topGenres,
+        recentAchievementCount: recentAchievementCount || 0,
+        collectionValueEstimate,
+
+        // Computed
+        completionPercentage:
+          userGames.length > 0
+            ? Math.round(
+                (((statusCounts['completed'] || 0) +
+                  (statusCounts['completed_100'] || 0)) /
+                  userGames.length) *
+                  100
+              )
+            : 0,
+      };
+
+      res.json(dashboardStats);
+    } catch (error: unknown) {
+      console.error('Error fetching dashboard stats:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch dashboard stats',
+        details: errorMessage,
+      });
+    }
+  }
+);
 
 // GET /api/user/achievements/recent - Get user's most recent achievements
-app.get('/api/user/achievements/recent', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get(
+  '/api/user/achievements/recent',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
     try {
-        const userId = req.user!.$id;
-        const databaseId = config.appwrite.databaseId!;
-        const userAchievementsCollectionId = 'user_achievements';
-        const achievementsCollectionId = 'achievements';
-        const gamesCollectionId = config.appwrite.gamesCollectionId!;
+      const userId = req.user!.id;
 
-        // Fetch 5 most recent unlocked achievements
-        const recentUserAchievements = await appwriteDatabases.listDocuments(
-            databaseId,
-            userAchievementsCollectionId,
-            [
-                Query.equal('user_id', userId),
-                Query.equal('is_unlocked', true),
-                Query.orderDesc('unlock_time'),
-                Query.limit(5)
-            ]
-        );
+      // Fetch 5 most recent unlocked achievements with related data
+      const { data: recentUserAchievements, error: achievementsError } =
+        await supabase
+          .from('user_achievements')
+          .select(
+            `
+                *,
+                achievement:achievements(*),
+                game:games(*)
+            `
+          )
+          .eq('user_id', userId)
+          .eq('is_unlocked', true)
+          .order('unlock_time', { ascending: false })
+          .limit(5);
 
-        // Enhance with full achievement and game details
-        const detailedAchievements = await Promise.all(
-            recentUserAchievements.documents.map(async (userAch) => {
-                // Fetch base achievement details
-                const achievementDetails = await appwriteDatabases.listDocuments(
-                    databaseId,
-                    achievementsCollectionId,
-                    [Query.equal('api_name', userAch.achievement_api_name), Query.limit(1)]
-                );
-                
-                // Fetch game details
-                const gameDetails = await appwriteDatabases.listDocuments(
-                    databaseId,
-                    gamesCollectionId,
-                    [Query.equal('steam_appid', userAch.steam_appid), Query.limit(1)]
-                );
+      if (achievementsError) {
+        throw achievementsError;
+      }
 
-                return {
-                    ...userAch,
-                    achievement: achievementDetails.documents[0] || null,
-                    game: gameDetails.documents[0] || null,
-                };
-            })
-        );
-
-        res.json(detailedAchievements);
-
-    } catch (error) {
-        console.error('Error fetching recent achievements:', error);
-        const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch recent achievements', details: errorMessage });
+      res.json(recentUserAchievements || []);
+    } catch (error: unknown) {
+      console.error('Error fetching recent achievements:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch recent achievements',
+        details: errorMessage,
+      });
     }
-});
+  }
+);
 
 // GET /api/user/activity - Get user's most recent activities
-app.get('/api/user/activity', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get(
+  '/api/user/activity',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
     try {
-        const userId = req.user!.$id;
-        const response = await appwriteDatabases.listDocuments(
-            config.appwrite.databaseId!,
-            'user_activity',
-            [
-                Query.equal('user_id', userId),
-                Query.orderDesc('timestamp'),
-                Query.limit(10)
-            ]
-        );
-        res.json(response.documents);
-    } catch (error) {
-        console.error('Error fetching user activity:', error);
-        const errorMessage = error instanceof AppwriteException ? error.message : 'An unknown error occurred.';
-        res.status(500).json({ error: 'Failed to fetch user activity', details: errorMessage });
-    }
-});
+      const userId = req.user!.id;
+      const { data: activities, error } = await supabase
+        .from('user_activity')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-app.listen(port, "0.0.0.0", () => {
+      if (error) {
+        throw error;
+      }
+
+      res.json(activities || []);
+    } catch (error: unknown) {
+      console.error('Error fetching user activity:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch user activity',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+app.listen(port, '0.0.0.0', () => {
   console.log(`API server listening on port ${port}`);
 });

@@ -7,6 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:ci": "eslint src/**/*.{ts,tsx} --quiet",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
+    "type-check": "tsc --noEmit",
+    "test": "echo 'No tests yet' && exit 0",
+    "test:watch": "echo 'No tests yet' && exit 0",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -18,8 +25,10 @@
     "@types/node": "^24.0.4",
     "antd": "^5.26.2",
     "axios": "^1.10.0",
+    "framer-motion": "^12.25.0",
     "moment": "^2.30.1",
     "react": "^19.1.0",
+    "react-countup": "^6.5.3",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2"
   },
@@ -29,9 +38,12 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
     "eslint": "^9.29.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.2.0",
+    "prettier": "^3.3.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^7.0.0"

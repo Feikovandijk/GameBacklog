@@ -25,7 +25,7 @@ const GameCompletionChart: React.FC<GameCompletionChartProps> = ({ stats }) => {
     label: false,
     interactions: [{ type: 'element-selected' }],
     legend: {
-        position: 'bottom' as const,
+      position: 'bottom' as const,
     },
     color: ['#82E0AA', '#5DADE2', '#A569BD'],
     statistic: {
@@ -45,4 +45,4 @@ const GameCompletionChart: React.FC<GameCompletionChartProps> = ({ stats }) => {
   return <Pie {...config} />;
 };
 
-export default GameCompletionChart; 
+export default GameCompletionChart;

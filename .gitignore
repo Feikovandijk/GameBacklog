@@ -15,6 +15,7 @@ user-dashboard/node_modules
 # production
 /build
 /dist
+api/dist
 /.svelte-kit
 
 # misc
@@ -37,3 +38,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo 
 .env.backup
+
+# cursor
+.cursorrules

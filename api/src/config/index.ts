@@ -4,6 +4,14 @@ import path from 'path';
 // Load environment variables from the root .env file
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
+// --- DEBUG: Check if .env variables are loaded ---
+console.log('SUPABASE_URL is defined:', !!process.env.SUPABASE_URL);
+console.log(
+  'SUPABASE_SERVICE_KEY is defined:',
+  !!process.env.SUPABASE_SERVICE_KEY
+);
+// --- END DEBUG ---
+
 interface Config {
   port: number;
   steamApiKey: string | undefined;
@@ -27,10 +35,7 @@ interface Config {
 const config: Config = {
   port: process.env.PORT ? parseInt(process.env.PORT, 10) : 6543,
   steamApiKey: process.env.STEAM_API_KEY || process.env.STEAM_API_KEY_0,
-  steamApiKeys: [
-    process.env.STEAM_API_KEY_0,
-    process.env.STEAM_API_KEY_1,
-  ],
+  steamApiKeys: [process.env.STEAM_API_KEY_0, process.env.STEAM_API_KEY_1],
   appwrite: {
     endpoint: process.env.APPWRITE_ENDPOINT,
     projectId: process.env.APPWRITE_PROJECT_ID,
@@ -40,11 +45,13 @@ const config: Config = {
   },
   worker: {
     id: process.env.WORKER_ID ? parseInt(process.env.WORKER_ID, 10) : 0,
-    total: process.env.TOTAL_WORKERS ? parseInt(process.env.TOTAL_WORKERS, 10) : 1,
+    total: process.env.TOTAL_WORKERS
+      ? parseInt(process.env.TOTAL_WORKERS, 10)
+      : 1,
   },
   supabaseUrl: process.env.SUPABASE_URL,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_KEY,
 };
 
-export default config; 
+export default config;

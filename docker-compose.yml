@@ -1,60 +1,34 @@
-version: '3.8'
-
-# This Docker Compose file is a blueprint for deploying the application to a production environment.
-# Platforms like Render, Railway, or Komodo will not use this file directly, but you will
-# configure your services on their dashboards using the same concepts defined here:
-# services, build contexts, start commands, and environment variables.
-
 services:
-  #----------------------------------------------------------------------------------
-  # API Service
-  # Corresponds to your backend worker/service on a PaaS.
-  #----------------------------------------------------------------------------------
   api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    # On a PaaS, you would have one service with the "Start Command": npm run start
-    # and a separate "Cron Job" service with the command: npm run sync-games
+    image: feikovd/gamebacklog-api:latest
     restart: unless-stopped
     env_file:
-      - ./.env
+      - .env
     ports:
-      - "8080:8080"
-    # In production, the code is baked into the image. This volume is for development.
-    # We mount the source code to see changes without rebuilding the image.
-    volumes:
-      - ./api:/app
-      - /app/node_modules
-
-  #----------------------------------------------------------------------------------
-  # Dashboard Service
-  # Corresponds to your frontend "Static Site" or "Web Service" on a PaaS.
-  #----------------------------------------------------------------------------------
-  dashboard:
-    build:
-      context: ./devdashboard
-      dockerfile: Dockerfile
+      - '6543:6543'
+  worker:
+    image: feikovd/gamebacklog-api:latest
     restart: unless-stopped
-    ports:
-      # Maps the container's port 80 (Nginx) to the host's port 80
-      - "80:80"
+    env_file:
+      - .env
+    command: ['node', 'dist/scripts/worker.js']
     depends_on:
-      - api # Ensures the API starts before the dashboard.
+      - api
 
-  #----------------------------------------------------------------------------------
-  # Watchtower Service (Optional but Recommended for self-hosting)
-  # Automatically updates your running containers to the latest image from a registry.
-  # PaaS platforms have this auto-deploy functionality built-in.
-  #----------------------------------------------------------------------------------
-  watchtower:
-    image: containrrr/watchtower
+  user-dashboard:
+    image: feikovd/gamebacklog-userdash:latest
     restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    # This command tells Watchtower to check for new images every 5 minutes (300 seconds).
-    command: --interval 300
+    environment:
+      - BACKEND_URL=http://api:6543
+    ports:
+      - '80:80'
+    depends_on:
+      - api
 
-volumes:
-  appwrite_data:
-  appwrite_cache: 
+  dev-dashboard:
+    image: feikovd/gamebacklog-devdash:latest
+    restart: unless-stopped
+    ports:
+      - '81:80'
+    depends_on:
+      - api

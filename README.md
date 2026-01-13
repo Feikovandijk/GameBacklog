@@ -1,8 +1,8 @@
 # GameBacklog Manager
 
-A comprehensive Steam game library management system with user dashboards, analytics, and automated data synchronization.
+A Steam game library management system with user dashboards, analytics, and automated data synchronization.
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```
 GameBacklog/
@@ -13,7 +13,7 @@ GameBacklog/
 └── docker-compose.yml     # Docker orchestration
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -43,7 +43,6 @@ GameBacklog/
    Required variables:
    ```env
    # Steam API Configuration, feel free to add multiple keys here
-   STEAM_API_KEY=your_steam_api_key_here
    STEAM_API_KEY_0=your_steam_api_key_here
    STEAM_API_KEY_1=backup_steam_api_key_here
    
@@ -57,7 +56,6 @@ GameBacklog/
    ```
 
 3. **Set up Supabase database:**
-   - Run the SQL schema script in your Supabase SQL Editor
    - See `api/database-schema.sql` for the complete setup
 
 ## 🛠️ Development
@@ -93,9 +91,13 @@ npm run build       # Build for production
 - `npm run dev` - Development server with hot reload
 - `npm run build` - Compile TypeScript to JavaScript
 - `npm start` - Start production server
-- `npm run sync-games` - Initial Steam games sync (one-time)
-- `npm run refresh-games` - Enrich game data from Steam
-- `npm run recalculate-stats` - Recalculate dashboard statistics
+- `npm run sync:games` - Initial Steam games sync (one-time)
+- `npm run sync:games:pics` - Refresh header images for all games
+- `npm run sync:players` - Sync current player count for all games
+- `npm run sync:enrich` - Enrich game data with additional information from the Steam API
+- `npm run refresh:games` - Enrich game data from Steam
+- `npm run recalculate:stats` - Recalculate dashboard statistics
+- `npm run recalculate:analytics` - Recalculate analytics data
 
 #### User Dashboard Scripts (`user-dashboard/`)
 - `npm run dev` - Development server (http://localhost:5173)
@@ -124,6 +126,11 @@ npm run build       # Build for production
    - Syncs individual user's Steam game libraries
    - Tracks playtime, achievements, and game statistics
    - Updates user's personal game backlog
+  
+4. **steam-player-count-sync-service** - Sync current player count for all games
+   - Syncs **only** player counts
+   - Refreshes player counts after a set interval (1 hour by default)
+   - Games that have a player count of 0 for 24 hours are blocked from future syncing
 
 ### Running Steam Services
 
@@ -131,25 +138,24 @@ npm run build       # Build for production
 ```bash
 cd api
 npm run build
-npm run sync-games    # Initial Steam games sync
+npm run sync:games    # Initial Steam games sync
 ```
 
 #### Continuous Data Enrichment
 ```bash
 # Single worker
-npm run refresh-games
+npm run refresh:games
 
 # Multiple workers (faster processing)
-WORKER_ID=0 TOTAL_WORKERS=3 npm run refresh-games &
-WORKER_ID=1 TOTAL_WORKERS=3 npm run refresh-games &
-WORKER_ID=2 TOTAL_WORKERS=3 npm run refresh-games &
+WORKER_ID=0 TOTAL_WORKERS=2 npm run refresh:games &
+WORKER_ID=1 TOTAL_WORKERS=2 npm run refresh:games &
 ```
 
-## 🚀 Production Deployment
+## Production Deployment
 
 ### PM2 Deployment
 
-The project includes a comprehensive PM2 ecosystem configuration for production deployment.
+The project includes a PM2 ecosystem configuration for production deployment.
 
 #### Deploy All Services
 ```bash
@@ -205,7 +211,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-## 📊 Database Schema
+## Database Schema
 
 ### Core Tables
 
@@ -225,7 +231,7 @@ docker-compose down
 - **Optimized indexes** for query performance
 - **Foreign key constraints** for data integrity
 
-## 🔧 Configuration
+## Configuration
 
 ### API Configuration (`api/src/config/index.ts`)
 
@@ -255,48 +261,12 @@ interface Config {
 | `WORKER_ID` | Worker ID for parallel processing | ❌ |
 | `TOTAL_WORKERS` | Total number of workers | ❌ |
 
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Environment Variables Not Loading
-```bash
-# Check if .env file exists and has correct path
-ls -la .env
-cat .env
-
-# Test environment loading
-cd api && node -e "console.log(require('./dist/config/index.js').default)"
-```
-
-#### Steam API Rate Limiting
-- The services include built-in rate limiting
-- Adjust `GAMES_PER_MINUTE_LIMIT` in services if needed
-- Use multiple Steam API keys for higher limits
-
-#### Database Connection Issues
-- Verify Supabase credentials in `.env`
-- Check Supabase project status
-- Ensure database schema is properly set up
-
-#### PM2 Process Issues
-```bash
-# Check PM2 status
-pm2 status
-
-# View detailed logs
-pm2 logs --lines 100
-
-# Restart problematic process
-pm2 restart <process-name>
-```
 
 ### Performance Optimization
 
 #### Memory Usage
 - **API Server**: ~1GB
 - **Steam Workers**: ~2GB each
-- **Total Recommended**: 8-10GB RAM
 
 #### Scaling Workers
 ```bash
@@ -304,42 +274,7 @@ pm2 restart <process-name>
 # Increase TOTAL_WORKERS and add more worker configurations
 ```
 
-## 📝 Development Guidelines
-
-### Code Style
-
-- **TypeScript** for all backend code
-- **React** with TypeScript for frontend
-- **ESLint** configuration included
-- **Prettier** for code formatting
-
-### Git Workflow
-
-```bash
-# Feature development
-git checkout -b feature/new-feature
-# Make changes
-git commit -m "feat: add new feature"
-git push origin feature/new-feature
-
-# Create pull request
-# Merge after review
-```
-
-### Testing
-
-```bash
-# Run linting
-cd api && npm run lint
-
-# Build test
-npm run build
-
-# Manual testing
-npm run dev
-```
-
-## 📚 API Documentation
+## API Documentation
 
 ### Authentication
 - Steam OAuth integration

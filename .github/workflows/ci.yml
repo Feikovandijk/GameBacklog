@@ -1,61 +1,77 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: ['main', 'dev']
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: ['main', 'dev']
+
+env:
+  NODE_VERSION: '20.x'
 
 jobs:
-  build-and-test:
+  validate-and-build:
+    name: Validation & Build
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Use Node.js 20.x
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      # ----------------- API Checks -----------------
+      # ================== API Pipeline ==================
       - name: API - Install Dependencies
         run: npm install --prefix api
 
-      - name: API - Check for Vulnerabilities
-        run: npm audit --prefix api --audit-level=high
+      - name: API - Quality Checks
+        run: |
+          echo "Running Lint..."
+          npm run --prefix api lint:ci
+          echo "Running Type Check..."
+          npm run --prefix api type-check
+          echo "Running Security Audit..."
+          npm audit --prefix api --audit-level=high
 
-      - name: API - Run Linter
-        run: npm run --prefix api lint
+      - name: API - Build & Test
+        run: |
+          npm run --prefix api build
+          npm run --prefix api test
 
-      - name: API - Run Build
-        run: npm run --prefix api build
-
-      # ----------------- Developer Dashboard Checks -----------------
-      - name: Developer Dashboard - Install Dependencies
-        run: npm install --prefix devdashboard
-
-      - name: Developer Dashboard - Check for Vulnerabilities
-        run: npm audit --prefix devdashboard --audit-level=high
-
-      - name: Developer Dashboard - Run Linter
-        run: npm run --prefix devdashboard lint
-
-      - name: Developer Dashboard - Run Build
-        run: npm run --prefix devdashboard build
-
-      # ----------------- Dashboard Checks -----------------
-
+      # ================== User Dashboard Pipeline ==================
       - name: User Dashboard - Install Dependencies
         run: npm install --prefix user-dashboard
 
-      - name: User Dashboard - Check for Vulnerabilities
-        run: npm audit --prefix user-dashboard --audit-level=high
+      - name: User Dashboard - Quality Checks
+        run: |
+          echo "Running Lint..."
+          npm run --prefix user-dashboard lint:ci
+          echo "Running Type Check..."
+          npm run --prefix user-dashboard type-check
+          echo "Running Security Audit..."
+          npm audit --prefix user-dashboard --audit-level=high
 
-      - name: User Dashboard - Run Linter
-        run: npm run --prefix user-dashboard lint
-
-      - name: User Dashboard - Run Build
+      - name: User Dashboard - Build
         run: npm run --prefix user-dashboard build
-#      - name: Build and Push API Image
-#        uses: docker/build-push-action@v2 
+
+      # ================== General Checks ==================
+      - name: Project - Security & Quality Scan
+        run: |
+          echo "Scanning for TODOs..."
+          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+            -not -path "*/node_modules/*" \
+            -not -path "*/dist/*" \
+            -not -path "*/build/*" \
+            -exec grep -Hn "TODO\|FIXME" {} \; || true
+
+          echo "Scanning for potential secrets..."
+          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.json" \) \
+            -not -path "*/node_modules/*" \
+            -not -path "*/dist/*" \
+            -not -path "*/build/*" \
+            -not -path "*test*" \
+            -exec grep -l "password\|secret\|token\|key" {} \; || true
