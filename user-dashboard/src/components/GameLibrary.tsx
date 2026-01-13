@@ -36,36 +36,46 @@ const GameLibrary: React.FC = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [pagination, setPagination] = useState({
         current: 1,
-        pageSize: 12, // multiples of 2,3,4 for grid
+        pageSize: 50,
         total: 0,
     });
 
     // Filters
     const [searchText, setSearchText] = useState('');
     const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+    const [appending, setAppending] = useState(false);
 
     // Modal state
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedGame, setSelectedGame] = useState<UserGame | null>(null);
 
     const fetchGames = async (
-        page = pagination.current,
-        pageSize = pagination.pageSize,
-        search = searchText,
-        status = statusFilter
+        page = 1,
+        append = false
     ) => {
-        setLoading(true);
+        if (append) {
+            setAppending(true);
+        } else {
+            setLoading(true);
+        }
+
         try {
+            const pageSize = pagination.pageSize; // Source from state as single source of truth
             const offset = (page - 1) * pageSize;
 
             const response = await api.getUserGames({
                 offset,
                 limit: pageSize,
-                search,
-                status,
+                search: searchText,
+                status: statusFilter,
             });
 
-            setGames(response.data.documents);
+            if (append) {
+                setGames(prev => [...prev, ...response.data.documents]);
+            } else {
+                setGames(response.data.documents);
+            }
+
             setPagination(prev => ({
                 ...prev,
                 total: response.data.total,
@@ -77,12 +87,18 @@ const GameLibrary: React.FC = () => {
             message.error('Failed to load library');
         } finally {
             setLoading(false);
+            setAppending(false);
         }
     };
 
     useEffect(() => {
-        fetchGames();
+        // Reset to page 1 when filters change
+        fetchGames(1, false);
     }, [searchText, statusFilter]);
+
+    const handleLoadMore = () => {
+        fetchGames(pagination.current + 1, true);
+    };
 
     const handleEdit = (game: UserGame) => {
         setSelectedGame(game);
@@ -95,7 +111,7 @@ const GameLibrary: React.FC = () => {
             await api.userGamesAPI.updateGame(selectedGame.$id, values);
             message.success('Game updated');
             setIsModalVisible(false);
-            fetchGames(); // Refresh
+            fetchGames(pagination.current, false); // Refresh current view
         } catch {
             message.error('Failed to update game');
         }
@@ -107,7 +123,7 @@ const GameLibrary: React.FC = () => {
             await api.userGamesAPI.removeGame(selectedGame.$id);
             message.success('Game removed');
             setIsModalVisible(false);
-            fetchGames();
+            fetchGames(1, false); // Refresh
         } catch {
             message.error('Failed to delete game');
         }
@@ -318,6 +334,20 @@ const GameLibrary: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {/* Load More Button */}
+            {games.length < pagination.total && (
+                <div className="load-more-container">
+                    <Button
+                        size="large"
+                        onClick={handleLoadMore}
+                        loading={appending}
+                        className="load-more-button"
+                    >
+                        Load next {pagination.pageSize}
+                    </Button>
+                </div>
+            )}
+
             <EditGameModal
                 game={selectedGame}
                 open={isModalVisible}
@@ -347,6 +377,18 @@ const GameLibrary: React.FC = () => {
         }
         .glass-table .ant-table-tbody > tr:hover > td {
            background: rgba(255,255,255,0.05) !important;
+        }
+        .load-more-container {
+           display: flex;
+           justify-content: center;
+           margin-top: 32px;
+           margin-bottom: 32px;
+        }
+        .load-more-button {
+           min-width: 200px;
+           background: rgba(255,255,255,0.05) !important;
+           border: 1px solid rgba(255,255,255,0.1) !important;
+           color: white !important;
         }
       `}</style>
         </div>
