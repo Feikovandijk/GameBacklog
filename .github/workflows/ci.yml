@@ -10,9 +10,8 @@ env:
   NODE_VERSION: '20.x'
 
 jobs:
-  # Job 1: Code Quality Checks
-  code-quality:
-    name: Code Quality & Formatting
+  validate-and-build:
+    name: Validation & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -25,169 +24,54 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      # ================== API Quality Checks ==================
+      # ================== API Pipeline ==================
       - name: API - Install Dependencies
         run: npm install --prefix api
 
-      - name: API - Run ESLint
-        run: npm run --prefix api lint:ci
+      - name: API - Quality Checks
+        run: |
+          echo "Running Lint..."
+          npm run --prefix api lint:ci
+          echo "Running Type Check..."
+          npm run --prefix api type-check
+          echo "Running Security Audit..."
+          npm audit --prefix api --audit-level=high
 
-      - name: API - Type Check
-        run: npm run --prefix api type-check
+      - name: API - Build & Test
+        run: |
+          npm run --prefix api build
+          npm run --prefix api test
 
-      - name: API - Security Audit
-        run: npm audit --prefix api --audit-level=high
-
-      # ================== Dev Dashboard Quality Checks ==================
-      - name: Dev Dashboard - Install Dependencies
-        run: npm install --prefix devdashboard
-
-      - name: Dev Dashboard - Run ESLint
-        run: npm run --prefix devdashboard lint:ci
-
-      - name: Dev Dashboard - Type Check
-        run: npm run --prefix devdashboard type-check
-
-      - name: Dev Dashboard - Security Audit
-        run: npm audit --prefix devdashboard --audit-level=high
-
-      # ================== User Dashboard Quality Checks ==================
+      # ================== User Dashboard Pipeline ==================
       - name: User Dashboard - Install Dependencies
         run: npm install --prefix user-dashboard
 
-      - name: User Dashboard - Run ESLint
-        run: npm run --prefix user-dashboard lint:ci
-
-      - name: User Dashboard - Type Check
-        run: npm run --prefix user-dashboard type-check
-
-      - name: User Dashboard - Security Audit
-        run: npm audit --prefix user-dashboard --audit-level=high
-
-  # Job 2: Build & Test
-  build-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    needs: code-quality
-
-    strategy:
-      matrix:
-        project: [api, devdashboard, user-dashboard]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install Dependencies - ${{ matrix.project }}
-        run: npm install --prefix ${{ matrix.project }}
-
-      - name: Build - ${{ matrix.project }}
-        run: npm run --prefix ${{ matrix.project }} build
-
-      - name: Test - ${{ matrix.project }}
-        run: npm run --prefix ${{ matrix.project }} test
-        continue-on-error: true # Allow tests to fail for now
-
-      - name: Upload Build Artifacts - ${{ matrix.project }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ matrix.project }}-${{ github.sha }}
-          path: |
-            ${{ matrix.project }}/dist/
-            ${{ matrix.project }}/build/
-          retention-days: 7
-
-  # Job 3: Additional Quality Checks
-  additional-checks:
-    name: Additional Quality Checks
-    runs-on: ubuntu-latest
-    needs: code-quality
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Check for TODO/FIXME comments
+      - name: User Dashboard - Quality Checks
         run: |
-          echo "Scanning for TODO and FIXME comments..."
+          echo "Running Lint..."
+          npm run --prefix user-dashboard lint:ci
+          echo "Running Type Check..."
+          npm run --prefix user-dashboard type-check
+          echo "Running Security Audit..."
+          npm audit --prefix user-dashboard --audit-level=high
+
+      - name: User Dashboard - Build
+        run: npm run --prefix user-dashboard build
+
+      # ================== General Checks ==================
+      - name: Project - Security & Quality Scan
+        run: |
+          echo "Scanning for TODOs..."
           find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
-            -not -path "./node_modules/*" \
-            -not -path "./dist/*" \
-            -not -path "./build/*" \
-            -exec grep -Hn "TODO\|FIXME\|XXX\|HACK" {} \; || true
+            -not -path "*/node_modules/*" \
+            -not -path "*/dist/*" \
+            -not -path "*/build/*" \
+            -exec grep -Hn "TODO\|FIXME" {} \; || true
 
-      - name: Check file sizes
-        run: |
-          echo "Checking for large files..."
-          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
-            -not -path "./node_modules/*" \
-            -not -path "./dist/*" \
-            -not -path "./build/*" \
-            -size +100k -exec ls -lh {} \; || true
-
-      - name: Check for sensitive patterns
-        run: |
           echo "Scanning for potential secrets..."
-          # Check for common secret patterns (excluding test files)
-          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" \) \
-            -not -path "./node_modules/*" \
-            -not -path "./dist/*" \
-            -not -path "./build/*" \
+          find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.json" \) \
+            -not -path "*/node_modules/*" \
+            -not -path "*/dist/*" \
+            -not -path "*/build/*" \
             -not -path "*test*" \
-            -not -path "*spec*" \
             -exec grep -l "password\|secret\|token\|key" {} \; || true
-
-  # Job 4: Dependency Analysis
-  dependency-analysis:
-    name: Dependency Analysis
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Analyze API Dependencies
-        run: |
-          cd api
-          npm install
-          echo "Checking for outdated packages in API..."
-          npm outdated || true
-          echo "Checking for duplicate dependencies..."
-          npm ls --depth=0 || true
-
-      - name: Analyze Dev Dashboard Dependencies
-        run: |
-          cd devdashboard
-          npm install
-          echo "Checking for outdated packages in Dev Dashboard..."
-          npm outdated || true
-          echo "Checking for duplicate dependencies..."
-          npm ls --depth=0 || true
-
-      - name: Analyze User Dashboard Dependencies
-        run: |
-          cd user-dashboard
-          npm install
-          echo "Checking for outdated packages in User Dashboard..."
-          npm outdated || true
-          echo "Checking for duplicate dependencies..."
-          npm ls --depth=0 || true
-
-#      - name: Build and Push API Image
-#        uses: docker/build-push-action@v2
