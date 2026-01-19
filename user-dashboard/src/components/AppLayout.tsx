@@ -81,8 +81,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
             href='#'
             onClick={() => navigate('/dashboard')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/dashboard')
-                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
               }`}
           >
             <span className='material-symbols-outlined font-bold'>dashboard</span>
@@ -92,8 +92,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
             href='#'
             onClick={() => navigate('/games')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/games')
-                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
               }`}
           >
             <span
@@ -133,40 +133,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
             <span className='font-medium text-sm'>Reports</span>
           </a>
 
-          <div className='mt-8 mb-2 px-4'>
-            <h3 className='text-xs font-bold text-text-secondary/60 uppercase tracking-wider mb-4'>
-              Research Goals
-            </h3>
-            <div className='flex flex-col gap-3'>
-              <div className='flex items-center justify-between group cursor-pointer'>
-                <div className='flex items-center gap-3'>
-                  <span className='size-2 rounded-full bg-accent-blue'></span>
-                  <span className='text-sm text-text-secondary group-hover:text-white transition-colors'>
-                    UX Audit Q4
-                  </span>
-                </div>
-                <span className='text-xs text-text-secondary/50'>3/5</span>
-              </div>
-              <div className='flex items-center justify-between group cursor-pointer'>
-                <div className='flex items-center gap-3'>
-                  <span className='size-2 rounded-full bg-accent-purple'></span>
-                  <span className='text-sm text-text-secondary group-hover:text-white transition-colors'>
-                    Comp Analysis
-                  </span>
-                </div>
-                <span className='text-xs text-text-secondary/50'>1/8</span>
-              </div>
-              <div className='flex items-center justify-between group cursor-pointer'>
-                <div className='flex items-center gap-3'>
-                  <span className='size-2 rounded-full bg-primary'></span>
-                  <span className='text-sm text-text-secondary group-hover:text-white transition-colors'>
-                    Churn Study
-                  </span>
-                </div>
-                <span className='text-xs text-text-secondary/50'>0/4</span>
-              </div>
-            </div>
-          </div>
+
         </nav>
 
         <div className='p-4 border-t border-border-dark/50'>
@@ -182,9 +149,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
               <p className='text-sm font-bold text-white truncate'>
                 {user.display_name}
               </p>
-              <p className='text-xs text-text-secondary truncate'>
-                Lead Researcher
-              </p>
+
             </div>
             <span className='material-symbols-outlined text-text-secondary text-[20px]'>
               settings
