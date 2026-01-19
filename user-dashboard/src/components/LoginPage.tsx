@@ -43,7 +43,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     </button>
 
                     <p className='mt-8 text-sm text-text-muted'>
-                        By logging in, you agree to track way too many games.
+                        By logging in, you agree to our privacy policy and terms of service.
                     </p>
                 </div>
             </div>

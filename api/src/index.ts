@@ -9,7 +9,7 @@ import cookieParser from 'cookie-parser';
 import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 
 const app = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', 1); // Trust a single reverse proxy in production, or specify a number/CIDR range
 const port = config.port;
 
 // CORS Configuration
@@ -64,6 +64,7 @@ app.use(
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
     saveUninitialized: false,
+    proxy: true, // Ensure session knows it's behind a proxy
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
@@ -88,29 +89,7 @@ app.get('/api/csrf-token', (req: Request, res: Response) => {
 });
 
 // Extend Express Request interface to include user
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface User {
-      id: string;
-      steam_id: string;
-      display_name: string;
-      avatar_url: string;
-      profile_url: string;
-      real_name?: string;
-      country_code?: string;
-      is_public_profile: boolean;
-      auto_import_steam_games: boolean;
-      sync_steam_playtime: boolean;
-      default_game_status: string;
-      theme: string;
-      default_view: string;
-      created_at: string;
-      last_steam_sync?: string;
-      last_active?: string;
-    }
-  }
-}
+// Extended Express Request interface is defined in api/src/types/express.d.ts
 
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: any) {
@@ -127,8 +106,15 @@ app.get('/auth/steam', passport.authenticate('steam'));
 
 app.get(
   '/auth/steam/return',
+  (req, res, next) => {
+    console.log('Hitting /auth/steam/return');
+    console.log('Request Headers:', JSON.stringify(req.headers, null, 2));
+    next();
+  },
   passport.authenticate('steam', { failureRedirect: '/' }),
   (req: Request, res: Response) => {
+    console.log('Steam auth successful. Session:', req.sessionID);
+    console.log('User:', req.user ? 'Authenticated' : 'Not Authenticated');
     // Successful authentication, redirect to dashboard
     res.redirect(`${config.frontendUrl}/dashboard`);
   }
