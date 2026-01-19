@@ -9,7 +9,7 @@ import cookieParser from 'cookie-parser';
 import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 
 const app = express();
-app.set('trust proxy', true); // Trust all proxies for debugging purposes in this Docker/Tunnel setup
+app.set('trust proxy', 1); // Trust a single reverse proxy in production, or specify a number/CIDR range
 const port = config.port;
 
 // CORS Configuration
