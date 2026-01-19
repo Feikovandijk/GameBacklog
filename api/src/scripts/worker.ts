@@ -2,9 +2,12 @@ import { runPlayerCountSync } from '../services/steam-player-count-sync-service'
 import { runSyncService } from '../services/steam-sync-service';
 import { runPicsRefreshService } from '../services/steam-pics-refresh-service';
 
+import { syncTrendingGames } from '../services/steam-discovery-service';
+
 const PLAYER_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const GAME_LIST_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const PICS_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const TRENDING_SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 async function runPlayerCountLoop() {
   console.log('Starting Player Count Sync Loop...');
@@ -59,6 +62,25 @@ async function runPicsRefreshLoop() {
   }
 }
 
+async function runTrendingSyncLoop() {
+  console.log('Starting Trending Games Sync Loop...');
+  while (true) {
+    try {
+      console.log(`\n[Trending Sync] Starting at ${new Date().toISOString()}`);
+      await syncTrendingGames();
+      console.log(`[Trending Sync] Finished at ${new Date().toISOString()}`);
+    } catch (error) {
+      console.error('[Trending Sync] Error:', error);
+    }
+    console.log(
+      `[Trending Sync] Sleeping for ${TRENDING_SYNC_INTERVAL_MS / 60000} minutes...`
+    );
+    await new Promise(resolve =>
+      setTimeout(resolve, TRENDING_SYNC_INTERVAL_MS)
+    );
+  }
+}
+
 async function runWorker() {
   console.log('Starting Worker Service with multiple tasks...');
 
@@ -67,6 +89,7 @@ async function runWorker() {
     runPlayerCountLoop(),
     runGameListSyncLoop(),
     runPicsRefreshLoop(),
+    runTrendingSyncLoop(),
   ]);
 }
 

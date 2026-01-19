@@ -325,6 +325,46 @@ app.get(
 );
 
 app.get(
+  '/api/games/trending',
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const days = parseInt(req.query.days as string);
+
+      let query = supabase
+        .from('games')
+        .select('*')
+        .eq('steam_app_type', 'game')
+        .not('current_players', 'is', null) // Filter out games with no player count
+        .order('current_players', { ascending: false })
+        .limit(limit);
+
+      if (!isNaN(days) && days > 0) {
+        const date = new Date();
+        date.setDate(date.getDate() - days);
+        query = query.gte('release_date', date.toISOString());
+      }
+
+      const { data: games, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      res.json(games || []);
+    } catch (error: unknown) {
+      console.error('Error fetching trending games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch trending games',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+app.get(
   '/api/latest-games-with-achievements',
   async (_req: Request, res: Response): Promise<void> => {
     try {

@@ -1,56 +1,7 @@
 import React, { useState, useRef } from 'react';
-import {
-  Layout,
-  Menu,
-  Avatar,
-  AutoComplete,
-  Button,
-  Typography,
-  message,
-  Space,
-  Input,
-  Dropdown,
-  ConfigProvider,
-  theme,
-} from 'antd';
-import {
-  AppstoreOutlined,
-  UnorderedListOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  UserOutlined,
-  LogoutOutlined,
-} from '@ant-design/icons';
-import type { MenuProps } from 'antd';
-import type { User, Game } from '../services/api';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { gamesAPI, userGamesAPI } from '../services/api';
-
-const { Text } = Typography;
-
-const { Header, Content, Sider } = Layout;
-
-type MenuItem = Required<MenuProps>['items'][number];
-
-function getItem(
-  label: React.ReactNode,
-  key: React.Key,
-  icon?: React.ReactNode,
-  children?: MenuItem[]
-): MenuItem {
-  return { key, icon, children, label } as MenuItem;
-}
-
-const mainMenuItems: MenuItem[] = [
-  getItem('Dashboard', '/dashboard', <AppstoreOutlined />),
-  getItem('Game List', '/games', <UnorderedListOutlined />),
-  getItem('Kanban Board', '/board', <AppstoreOutlined />),
-  getItem('Add Game', '/add-game', <PlusOutlined />),
-];
-
-const bottomMenuItems: MenuItem[] = [
-  getItem('Profile', '/profile', <UserOutlined />),
-];
+import type { User, Game } from '../services/api';
 
 interface AppLayoutProps {
   user: User;
@@ -58,273 +9,234 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-// Custom dark theme tokens
-const darkTheme = {
-  algorithm: theme.darkAlgorithm,
-  token: {
-    colorPrimary: '#7B61FF',
-    colorBgContainer: 'rgba(255, 255, 255, 0.03)',
-    colorBgElevated: 'rgba(30, 30, 50, 0.95)',
-    colorBorder: 'rgba(255, 255, 255, 0.08)',
-    colorText: 'rgba(255, 255, 255, 0.95)',
-    colorTextSecondary: 'rgba(255, 255, 255, 0.6)',
-    borderRadius: 12,
-  },
-  components: {
-    Layout: {
-      siderBg: 'rgba(15, 15, 35, 0.98)',
-      headerBg: 'rgba(15, 15, 35, 0.98)',
-      bodyBg: 'transparent',
-    },
-    Menu: {
-      darkItemBg: 'transparent',
-      darkItemSelectedBg: 'rgba(123, 97, 255, 0.2)',
-      darkItemHoverBg: 'rgba(255, 255, 255, 0.05)',
-      darkItemColor: 'rgba(255, 255, 255, 0.7)',
-      darkItemSelectedColor: '#7B61FF',
-    },
-    Input: {
-      colorBgContainer: 'rgba(255, 255, 255, 0.05)',
-      colorBorder: 'rgba(255, 255, 255, 0.1)',
-    },
-    Button: {
-      colorBgContainer: 'rgba(255, 255, 255, 0.05)',
-    },
-  },
-};
-
-const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
+const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchOptions, setSearchOptions] = useState<
-    { label: React.ReactNode; value: string; game?: Game }[]
-  >([]);
-
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Game[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleMenuClick: MenuProps['onClick'] = e => {
-    navigate(e.key);
-  };
+  const isActive = (path: string) => location.pathname === path;
 
-  const handleSearch = async (value: string) => {
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
     if (!value.trim()) {
-      setSearchOptions([]);
+      setSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Set a delay for search to avoid too many API calls
+    setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const response = await gamesAPI.searchGames(value, 5);
-        const options = response.data.map((game: Game) => ({
-          value: game.name,
-          label: (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Space>
-                <Avatar src={game.header_image} shape='square' size='small' />
-                <div>
-                  <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>{game.name}</div>
-                  <Text type='secondary' style={{ fontSize: '12px' }}>
-                    {game.developers?.join(', ')}
-                  </Text>
-                </div>
-              </Space>
-              <Button
-                type='link'
-                size='small'
-                icon={<PlusOutlined />}
-                onClick={e => {
-                  e.stopPropagation();
-                  handleQuickAdd(game);
-                }}
-              >
-                Add
-              </Button>
-            </div>
-          ),
-          game: game,
-        }));
-        setSearchOptions(options);
+        setSearchResults(response.data);
       } catch (error) {
         console.error('Search error:', error);
-        setSearchOptions([]);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
       }
     }, 300);
   };
 
-  const handleQuickAdd = async (game: Game) => {
+  const handleAddGame = async (game: Game) => {
     try {
       await userGamesAPI.addGame({
         steam_appid: game.steam_appid,
         status: 'want_to_play',
         priority: 1,
       });
-      message.success(`${game.name} added to your backlog!`);
-      setSearchOptions([]); // Clear search results
+      alert(`${game.name} added to backlog!`); // Temporary alert
+      setSearchQuery('');
+      setSearchResults([]);
     } catch (error) {
       console.error('Error adding game:', error);
-      message.error(
-        `Failed to add ${game.name}. It might already be in your backlog.`
-      );
+      alert('Failed to add game.');
     }
   };
 
-  const handleSelect = () => {
-    // Clear search results when selecting
-    setSearchOptions([]);
-  };
-
-  const userMenuItems = [
-    {
-      key: 'profile',
-      label: 'Profile',
-      icon: <UserOutlined />,
-      onClick: () => navigate('/profile'),
-    },
-    {
-      type: 'divider' as const,
-    },
-    {
-      key: 'logout',
-      label: 'Logout',
-      icon: <LogoutOutlined />,
-      onClick: onLogout,
-    },
-  ];
-
   return (
-    <ConfigProvider theme={darkTheme}>
-      <Layout style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)' }}>
-        <Sider
-          width={220}
-          style={{
-            background: 'rgba(15, 15, 35, 0.95)',
-            borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-            backdropFilter: 'blur(20px)',
-          }}
-        >
-          <div
-            style={{
-              height: '64px',
-              display: 'flex',
-              alignItems: 'center',
-              paddingLeft: '24px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: '20px',
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #fff 0%, #7B61FF 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              GameBacklog
-            </h2>
+    <div className='bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display min-h-screen flex overflow-x-hidden'>
+      {/* Sidebar */}
+      <aside className='fixed left-0 top-0 h-screen w-64 bg-surface-dark border-r border-border-dark flex flex-col z-50 hidden md:flex'>
+        <div className='h-20 flex items-center gap-3 px-6 border-b border-border-dark/50'>
+          <div className='size-8 flex items-center justify-center bg-primary rounded-lg text-background-dark shadow-lg shadow-primary/30'>
+            <span className='material-symbols-outlined text-[20px] font-bold'>
+              code
+            </span>
           </div>
-          <Menu
-            onClick={handleMenuClick}
-            selectedKeys={[location.pathname]}
-            mode='inline'
-            items={mainMenuItems}
-            theme='dark'
-            style={{
-              background: 'transparent',
-              borderRight: 'none',
-              marginTop: '16px',
-            }}
-          />
-          <div style={{ flex: 1 }} />
-          <Menu
-            onClick={handleMenuClick}
-            selectedKeys={[location.pathname]}
-            mode='inline'
-            items={bottomMenuItems}
-            theme='dark'
-            style={{
-              background: 'transparent',
-              borderRight: 'none',
-              marginTop: 'auto',
-            }}
-          />
-        </Sider>
-        <Layout style={{ background: 'transparent' }}>
-          <Header
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 24px',
-              background: 'rgba(15, 15, 35, 0.6)',
-              backdropFilter: 'blur(20px)',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            }}
+          <h2 className='text-white text-lg font-bold leading-tight tracking-[-0.015em]'>
+            DevTracker
+          </h2>
+        </div>
+
+        <nav className='flex-1 overflow-y-auto py-6 px-4 flex flex-col gap-2'>
+          <a
+            href='#'
+            onClick={() => navigate('/dashboard')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/dashboard')
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              }`}
           >
-            <div style={{ flex: 1 }} />
-            <div style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>
-              <AutoComplete
-                options={searchOptions}
-                onSearch={handleSearch}
-                onSelect={handleSelect}
-                style={{ width: '100%', maxWidth: '500px' }}
-              >
-                <Input
-                  prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.4)' }} />}
-                  placeholder='Search games...'
-                  size='middle'
-                  allowClear
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '10px',
-                  }}
+            <span className='material-symbols-outlined font-bold'>dashboard</span>
+            <span className='font-bold text-sm'>Dashboard</span>
+          </a>
+          <a
+            href='#'
+            onClick={() => navigate('/games')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/games')
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              }`}
+          >
+            <span
+              className={`material-symbols-outlined transition-transform ${!isActive('/games') ? 'group-hover:scale-110' : ''
+                }`}
+            >
+              library_books
+            </span>
+            <span className='font-medium text-sm'>Library</span>
+          </a>
+          {/* Placeholders for other links */}
+          <a
+            href='#'
+            className='flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white hover:bg-surface-hover rounded-xl transition-all group'
+          >
+            <span className='material-symbols-outlined group-hover:scale-110 transition-transform'>
+              analytics
+            </span>
+            <span className='font-medium text-sm'>Analysis</span>
+          </a>
+          <a
+            href='#'
+            className='flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white hover:bg-surface-hover rounded-xl transition-all group'
+          >
+            <span className='material-symbols-outlined group-hover:scale-110 transition-transform'>
+              trending_up
+            </span>
+            <span className='font-medium text-sm'>Trends</span>
+          </a>
+          <a
+            href='#'
+            className='flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white hover:bg-surface-hover rounded-xl transition-all group'
+          >
+            <span className='material-symbols-outlined group-hover:scale-110 transition-transform'>
+              description
+            </span>
+            <span className='font-medium text-sm'>Reports</span>
+          </a>
+
+
+        </nav>
+
+        <div className='p-4 border-t border-border-dark/50'>
+          <button
+            onClick={() => navigate('/profile')}
+            className='flex items-center gap-3 w-full p-2 hover:bg-surface-hover rounded-xl transition-colors text-left'
+          >
+            <div
+              className='bg-center bg-no-repeat bg-cover rounded-full size-9 border border-border-dark'
+              style={{ backgroundImage: `url("${user.avatar_url}")` }}
+            ></div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-sm font-bold text-white truncate'>
+                {user.display_name}
+              </p>
+
+            </div>
+            <span className='material-symbols-outlined text-text-secondary text-[20px]'>
+              settings
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className='flex-1 md:ml-64 flex flex-col min-h-screen'>
+        {/* Header */}
+        <header className='flex items-center justify-between px-6 py-4 md:px-8 border-b border-border-dark bg-background-dark/50 backdrop-blur-md sticky top-0 z-40'>
+          <button className='md:hidden text-white mr-4'>
+            <span className='material-symbols-outlined'>menu</span>
+          </button>
+
+          <div className='flex-1 max-w-xl relative'>
+            <label className='flex flex-col w-full !h-10'>
+              <div className='flex w-full flex-1 items-stretch rounded-lg h-full border border-border-dark focus-within:border-primary transition-colors bg-surface-dark/50 overflow-visible z-50'>
+                <div className='text-text-secondary flex items-center justify-center pl-3 pr-2'>
+                  <span className='material-symbols-outlined text-[20px]'>
+                    search
+                  </span>
+                </div>
+                <input
+                  className='flex w-full min-w-0 flex-1 resize-none bg-transparent text-white focus:outline-none placeholder:text-text-secondary px-2 text-sm font-normal leading-normal'
+                  placeholder='Search games to add...'
+                  value={searchQuery}
+                  onChange={handleSearch}
                 />
-              </AutoComplete>
-            </div>
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-              <Dropdown
-                menu={{ items: userMenuItems }}
-                placement='bottomRight'
-                trigger={['click']}
-              >
-                <Button
-                  type='text'
-                  style={{
-                    height: '40px',
-                    padding: '4px 12px',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                  }}
-                >
-                  <Space>
-                    <Avatar src={user.avatar_url} size='small' />
-                    <span style={{ color: 'rgba(255,255,255,0.9)' }}>
-                      {user.display_name}
-                    </span>
-                  </Space>
-                </Button>
-              </Dropdown>
-            </div>
-          </Header>
-          <Content style={{ margin: 0, overflow: 'auto' }}>{children}</Content>
-        </Layout>
-      </Layout>
-    </ConfigProvider>
+              </div>
+            </label>
+
+            {/* Search Results Dropdown */}
+            {(isSearching || searchResults.length > 0) && (
+              <div className='absolute top-full left-0 right-0 mt-2 bg-surface-dark border border-border-dark rounded-xl shadow-xl overflow-hidden z-[100]'>
+                {isSearching ? (
+                  <div className='p-4 text-center text-text-secondary'>
+                    Searching...
+                  </div>
+                ) : (
+                  <ul>
+                    {searchResults.map(game => (
+                      <li
+                        key={game.steam_appid}
+                        className='p-3 hover:bg-surface-hover cursor-pointer border-b border-border-dark/30 last:border-0 flex items-center gap-3 transition-colors'
+                        onClick={() => handleAddGame(game)}
+                      >
+                        <img
+                          src={game.header_image}
+                          alt={game.name}
+                          className='w-12 h-12 object-cover rounded'
+                        />
+                        <div className='flex-1 min-w-0'>
+                          <p className='text-sm font-bold text-white truncate'>
+                            {game.name}
+                          </p>
+                          <p className='text-xs text-text-secondary truncate'>
+                            {game.developers?.join(', ')}
+                          </p>
+                        </div>
+                        <span className='material-symbols-outlined text-primary'>
+                          add_circle
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className='flex items-center gap-4 ml-6'>
+            <button className='size-10 rounded-full bg-surface-dark hover:bg-surface-hover text-white flex items-center justify-center transition-colors border border-border-dark relative'>
+              <span className='material-symbols-outlined text-[20px]'>
+                notifications
+              </span>
+              <span className='absolute top-2 right-2 size-2 bg-primary rounded-full border border-surface-dark'></span>
+            </button>
+          </div>
+        </header>
+
+        <main className='flex-1 w-full p-6 md:p-8 lg:px-10 lg:py-8 flex flex-col'>
+          {children}
+        </main>
+      </div>
+    </div>
   );
 };
 

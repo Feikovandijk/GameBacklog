@@ -142,7 +142,8 @@ async function recordReviewHistory(gameId: string, totalReviews: number) {
 
 export async function updateGameInSupabase(
   gameId: string,
-  steamData: WebApiData | null
+  steamData: WebApiData | null,
+  options: { deepSync?: boolean } = { deepSync: true }
 ) {
   if (steamData) {
     // This is a valid game, do a full update
@@ -246,12 +247,12 @@ export async function updateGameInSupabase(
 
       console.log(`Successfully updated game ${steamData.name}`);
 
-      if (hasSteamAchievements) {
+      if (options.deepSync && hasSteamAchievements) {
         console.log(`Game ${steamData.name} has achievements. Syncing...`);
         await syncGameAchievements(gameId, steamData.steam_appid);
       }
 
-      if (reviews?.total_reviews) {
+      if (options.deepSync && reviews?.total_reviews) {
         await recordReviewHistory(gameId, Number(reviews.total_reviews));
       }
 
