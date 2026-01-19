@@ -9,7 +9,7 @@ import cookieParser from 'cookie-parser';
 import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 
 const app = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', true); // Trust all proxies for debugging purposes in this Docker/Tunnel setup
 const port = config.port;
 
 // CORS Configuration
@@ -64,6 +64,7 @@ app.use(
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
     saveUninitialized: false,
+    proxy: true, // Ensure session knows it's behind a proxy
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
@@ -76,6 +77,29 @@ app.use(
 // Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
+
+// DEBUG: Auth Debug Endpoint
+app.get('/api/debug-auth', (req: Request, res: Response) => {
+  res.json({
+    protocol: req.protocol,
+    secure: req.secure,
+    ip: req.ip,
+    ips: req.ips,
+    headers: {
+      host: req.headers.host,
+      'x-forwarded-for': req.headers['x-forwarded-for'],
+      'x-forwarded-proto': req.headers['x-forwarded-proto'],
+      cookie: req.headers.cookie ? 'present' : 'missing',
+    },
+    session: req.session
+      ? {
+          id: req.sessionID,
+          cookie: req.session.cookie,
+          user: req.user,
+        }
+      : 'no-session',
+  });
+});
 
 // CSRF Protection
 // Global protection removed to satisfy CodeQL. Applied specifically to state-changing routes below.
@@ -105,8 +129,15 @@ app.get('/auth/steam', passport.authenticate('steam'));
 
 app.get(
   '/auth/steam/return',
+  (req, res, next) => {
+    console.log('Hitting /auth/steam/return');
+    console.log('Request Headers:', JSON.stringify(req.headers, null, 2));
+    next();
+  },
   passport.authenticate('steam', { failureRedirect: '/' }),
   (req: Request, res: Response) => {
+    console.log('Steam auth successful. Session:', req.sessionID);
+    console.log('User:', req.user ? 'Authenticated' : 'Not Authenticated');
     // Successful authentication, redirect to dashboard
     res.redirect(`${config.frontendUrl}/dashboard`);
   }
