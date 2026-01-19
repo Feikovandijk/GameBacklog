@@ -3,7 +3,6 @@ import {
   fetchGameDetailsFromSteam,
   updateGameInSupabase,
 } from './steam-refresh-service';
-import config from '../config';
 export async function syncTrendingGames() {
   console.log('Starting Trending Games Sync...');
 
@@ -17,8 +16,8 @@ export async function syncTrendingGames() {
       throw new Error(`Failed to fetch trending games: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    const ranks = data.response?.ranks || [];
+    const data: any = await response.json();
+    const ranks: any[] = data.response?.ranks || [];
 
     if (ranks.length === 0) {
       console.log('No trending games found in response.');
@@ -31,8 +30,8 @@ export async function syncTrendingGames() {
     const topGames = ranks.slice(0, 50);
 
     for (const rankItem of topGames) {
-      const appId = rankItem.appid;
-      const concurrentPlayers = rankItem.concurrent_in_game;
+      const appId = Number(rankItem.appid);
+      const concurrentPlayers = Number(rankItem.concurrent_in_game);
 
       console.log(
         `Processing Trending Game: ID ${appId}, Players: ${concurrentPlayers}`
@@ -53,11 +52,18 @@ export async function syncTrendingGames() {
         const oneDayAgo = new Date();
         oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-        if (new Date(existingGame.last_updated) < oneDayAgo) {
-          const steamData = await fetchGameDetailsFromSteam(appId);
-          if (steamData) {
-            await updateGameInSupabase(existingGame.id, steamData);
-            updatedCount++;
+        if (existingGame.last_updated) {
+          const lastUpdated =
+            typeof existingGame.last_updated === 'string'
+              ? existingGame.last_updated
+              : String(existingGame.last_updated);
+
+          if (new Date(lastUpdated) < oneDayAgo) {
+            const steamData = await fetchGameDetailsFromSteam(appId);
+            if (steamData) {
+              await updateGameInSupabase(String(existingGame.id), steamData);
+              updatedCount++;
+            }
           }
         }
       } else {
@@ -79,7 +85,7 @@ export async function syncTrendingGames() {
             .single();
 
           if (newGame && !error) {
-            await updateGameInSupabase(newGame.id, steamData);
+            await updateGameInSupabase(String(newGame.id), steamData);
             updatedCount++;
           }
         }
@@ -93,11 +99,6 @@ export async function syncTrendingGames() {
   } catch (error) {
     console.error('Error syncing trending games:', error);
   }
-}
-
-function extractAppIdFromUrl(url: string): number | null {
-  const match = url.match(/\/app\/(\d+)/);
-  return match ? parseInt(match[1]) : null;
 }
 
 export async function syncPopularNewReleases() {
@@ -126,8 +127,8 @@ export async function syncPopularNewReleases() {
 
     let updatedCount = 0;
 
-    for (const item of items) {
-      const logoUrl = item.logo;
+    for (const item of items as any[]) {
+      const logoUrl = String(item.logo);
       const appIdMatch = logoUrl?.match(/\/apps\/(\d+)\//);
 
       if (!appIdMatch) {
@@ -136,7 +137,7 @@ export async function syncPopularNewReleases() {
       }
 
       const appId = parseInt(appIdMatch[1]);
-      const name = item.name;
+      const name = String(item.name);
 
       console.log(`Processing Popular New Game: ${name} (ID ${appId})`);
       let currentPlayers = 0;
@@ -170,11 +171,19 @@ export async function syncPopularNewReleases() {
         // Check if needs refresh
         const oneDayAgo = new Date();
         oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-        if (new Date(existingGame.last_updated) < oneDayAgo) {
-          const steamData = await fetchGameDetailsFromSteam(appId);
-          if (steamData) {
-            await updateGameInSupabase(existingGame.id, steamData);
-            updatedCount++;
+
+        if (existingGame.last_updated) {
+          const lastUpdated =
+            typeof existingGame.last_updated === 'string'
+              ? existingGame.last_updated
+              : String(existingGame.last_updated);
+
+          if (new Date(lastUpdated) < oneDayAgo) {
+            const steamData = await fetchGameDetailsFromSteam(appId);
+            if (steamData) {
+              await updateGameInSupabase(String(existingGame.id), steamData);
+              updatedCount++;
+            }
           }
         }
       } else {
@@ -199,7 +208,7 @@ export async function syncPopularNewReleases() {
         if (newGame && !error) {
           const steamData = await fetchGameDetailsFromSteam(appId);
           if (steamData) {
-            await updateGameInSupabase(newGame.id, steamData);
+            await updateGameInSupabase(String(newGame.id), steamData);
             updatedCount++;
           }
         }
