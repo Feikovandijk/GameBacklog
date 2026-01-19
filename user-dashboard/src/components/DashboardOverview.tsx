@@ -127,12 +127,7 @@ const DashboardOverview: React.FC = () => {
               {stats?.totalGames || 0}
             </h3>
           </div>
-          <div className='ml-auto flex items-center text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded'>
-            <span className='material-symbols-outlined text-[14px] mr-1'>
-              trending_up
-            </span>
-            +5%
-          </div>
+
         </div>
         <div className='bg-surface-dark rounded-2xl p-6 border border-border-dark flex items-center gap-4 hover:border-primary/30 transition-colors shadow-sm'>
           <div className='size-12 rounded-xl bg-accent-blue/10 flex items-center justify-center text-accent-blue'>
@@ -148,9 +143,7 @@ const DashboardOverview: React.FC = () => {
               {stats?.wantToPlay || 0}
             </h3>
           </div>
-          <div className='ml-auto text-text-secondary text-xs font-medium'>
-            Next: Tomorrow
-          </div>
+
         </div>
         <div className='bg-surface-dark rounded-2xl p-6 border border-border-dark flex items-center gap-4 hover:border-primary/30 transition-colors shadow-sm'>
           <div className='size-12 rounded-xl bg-accent-purple/10 flex items-center justify-center text-accent-purple'>
