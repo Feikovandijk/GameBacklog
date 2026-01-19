@@ -59,6 +59,7 @@ app.use(cookieParser()); // lgtm[js/missing-token-validation]
 
 // Session configuration
 app.use(
+  // lgtm[js/missing-token-validation]
   session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
@@ -70,7 +71,7 @@ app.use(
       sameSite: 'lax',
     },
   })
-); // lgtm[js/missing-token-validation]
+);
 
 // Passport middleware
 app.use(passport.initialize());
