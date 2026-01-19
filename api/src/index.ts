@@ -78,29 +78,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// DEBUG: Auth Debug Endpoint
-app.get('/api/debug-auth', (req: Request, res: Response) => {
-  res.json({
-    protocol: req.protocol,
-    secure: req.secure,
-    ip: req.ip,
-    ips: req.ips,
-    headers: {
-      host: req.headers.host,
-      'x-forwarded-for': req.headers['x-forwarded-for'],
-      'x-forwarded-proto': req.headers['x-forwarded-proto'],
-      cookie: req.headers.cookie ? 'present' : 'missing',
-    },
-    session: req.session
-      ? {
-          id: req.sessionID,
-          cookie: req.session.cookie,
-          user: req.user,
-        }
-      : 'no-session',
-  });
-});
-
 // CSRF Protection
 // Global protection removed to satisfy CodeQL. Applied specifically to state-changing routes below.
 // app.use(doubleCsrfProtection);
