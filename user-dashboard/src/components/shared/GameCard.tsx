@@ -30,14 +30,7 @@ const GameCard: React.FC<GameCardProps> = ({
     };
 
     const calculateProgress = () => {
-        if (
-            game.status === 'completed' ||
-            game.status === 'completed_100'
-        ) {
-            return 100;
-        }
-        // Arbitrary target of 20h for demo purposes if not completed
-        return Math.min(100, Math.round(((game.hours_played || 0) / 20) * 100));
+        return game.completion_percentage || 0;
     };
 
     return (
