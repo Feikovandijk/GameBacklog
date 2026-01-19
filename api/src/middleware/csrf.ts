@@ -1,0 +1,31 @@
+import { doubleCsrf } from 'csrf-csrf';
+import { Request } from 'express';
+
+const CSRF_SECRET = process.env.CSRF_SECRET;
+
+if (process.env.NODE_ENV === 'production' && !CSRF_SECRET) {
+  throw new Error(
+    'CSRF_SECRET environment variable must be set in production.'
+  );
+}
+
+const SECRET_KEY = CSRF_SECRET || 'dev-secret-key-do-not-use-in-prod';
+const COOKIE_NAME = 'x-csrf-token';
+
+export const {
+  invalidCsrfTokenError,
+  generateCsrfToken,
+  doubleCsrfProtection,
+} = doubleCsrf({
+  getSecret: () => SECRET_KEY,
+  getSessionIdentifier: (req: Request) => req.user?.id || 'anon',
+  cookieName: COOKIE_NAME,
+  cookieOptions: {
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  },
+  size: 64,
+  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
+  getCsrfTokenFromRequest: (req: Request) => req.headers['x-csrf-token'],
+});

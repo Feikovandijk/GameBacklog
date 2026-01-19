@@ -141,6 +141,11 @@ export const authAPI = {
     window.location.href = `${API_BASE_URL}/auth/steam`;
   },
   logout: () => api.post('/auth/logout'),
+  fetchCsrfToken: async () => {
+    const { data } = await api.get<{ csrfToken: string }>('/api/csrf-token');
+    api.defaults.headers.common['x-csrf-token'] = data.csrfToken;
+    return data.csrfToken;
+  },
 };
 
 // User Games
