@@ -4,15 +4,6 @@ import {
   updateGameInSupabase,
 } from './steam-refresh-service';
 import config from '../config';
-
-/**
- * Syncs the "Trending" or "Most Played" games from Steam.
- * Since we don't have a direct "Most Played" endpoint in the public Store API that gives us IDs easily without scraping,
- * we can use the 'ISteamChartsService' if available, or fall back to a known proxy/endpoint.
- *
- * For this implementation, we'll use the Steam Web API `ISteamChartsService/GetGamesByConcurrentPlayers`
- * which is a reliable way to get top played games.
- */
 export async function syncTrendingGames() {
   console.log('Starting Trending Games Sync...');
 
@@ -37,8 +28,6 @@ export async function syncTrendingGames() {
     console.log(`Found ${ranks.length} trending games. Syncing details...`);
 
     let updatedCount = 0;
-
-    // We process only the top 50 to avoid rate limits and keep it fast
     const topGames = ranks.slice(0, 50);
 
     for (const rankItem of topGames) {
@@ -49,8 +38,6 @@ export async function syncTrendingGames() {
         `Processing Trending Game: ID ${appId}, Players: ${concurrentPlayers}`
       );
 
-      // 1. Update the 'current_players' count immediately if the game exists
-      // We do this first to ensure even if we don't do a full metadata refresh, the player count is fresh.
       const { data: existingGame } = await supabase
         .from('games')
         .select('id, last_updated')
@@ -63,7 +50,6 @@ export async function syncTrendingGames() {
           .update({ current_players: concurrentPlayers })
           .eq('id', existingGame.id);
 
-        // Optional: If it hasn't been updated in 24h, force a refresh
         const oneDayAgo = new Date();
         oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
@@ -75,26 +61,8 @@ export async function syncTrendingGames() {
           }
         }
       } else {
-        // New game! We must fetch details and insert it.
-        // We need to "create" it. updateGameInSupabase handles "upsert" effectively if passing a valid ID?
-        // Actually `updateGameInSupabase` takes a `gameId`. If we don't have one, we might need a different approach
-        // OR we rely on `steam-pics-refresh-service` logic which handles upserts.
-        // Let's reuse the logic: extract fetching into a helper or just do it here.
-        // The `steam-refresh-service` accepts a UUID. We might not have one.
-        // For simplicity/safety: We see if `updateGameInSupabase` can handle creation if passed a placeholder or we create a stub first.
-
-        // Actually, best practice: Insert a stub using steam_appid if possible, or just fetch full data and insert.
-        // Let's fetch full data first.
         const steamData = await fetchGameDetailsFromSteam(appId);
         if (steamData) {
-          // We rely on Supabase to generate the ID or we specific the steam_appid.
-          // Our `games` table usually has `steam_appid` as unique.
-          // Let's try to upsert with just steam_appid match.
-
-          // Reuse `steam-refresh-service` logic but slightly modified for new insert?
-          // `updateGameInSupabase` updates by `id`.
-          // We will manually insert here to avoid complexity of refactoring the other service right now.
-
           const { data: newGame, error } = await supabase
             .from('games')
             .upsert(
@@ -111,14 +79,11 @@ export async function syncTrendingGames() {
             .single();
 
           if (newGame && !error) {
-            // Now perform full update using the helper which knows how to map all fields
             await updateGameInSupabase(newGame.id, steamData);
             updatedCount++;
           }
         }
       }
-
-      // nice throttle
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
@@ -130,10 +95,133 @@ export async function syncTrendingGames() {
   }
 }
 
+function extractAppIdFromUrl(url: string): number | null {
+  const match = url.match(/\/app\/(\d+)/);
+  return match ? parseInt(match[1]) : null;
+}
+
+export async function syncPopularNewReleases() {
+  console.log('Starting Popular New Releases Sync...');
+
+  try {
+    // This endpoint returns "Popular New" releases
+    const url = `https://store.steampowered.com/search/results/?filter=popularnew&json=1&count=50`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch popular new games: ${response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    const items = data.items || [];
+
+    if (items.length === 0) {
+      console.log('No popular new games found in response.');
+      return;
+    }
+
+    console.log(`Found ${items.length} popular new games. Syncing details...`);
+
+    let updatedCount = 0;
+
+    for (const item of items) {
+      const logoUrl = item.logo;
+      const appIdMatch = logoUrl?.match(/\/apps\/(\d+)\//);
+
+      if (!appIdMatch) {
+        console.warn(`Could not extract App ID from logo URL: ${logoUrl}`);
+        continue;
+      }
+
+      const appId = parseInt(appIdMatch[1]);
+      const name = item.name;
+
+      console.log(`Processing Popular New Game: ${name} (ID ${appId})`);
+      let currentPlayers = 0;
+      try {
+        // GetNumberOfCurrentPlayers DOES NOT require a key.
+        const playersRes = await fetch(
+          `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appId}`
+        );
+        if (playersRes.ok) {
+          const playersData = await playersRes.json();
+          currentPlayers = playersData.response?.player_count || 0;
+        }
+      } catch (e) {
+        console.warn(`Failed to fetch player count for ${appId}`, e);
+      }
+
+      // 2. Upsert the game stub immediately
+      const { data: existingGame } = await supabase
+        .from('games')
+        .select('id, last_updated')
+        .eq('steam_appid', appId)
+        .single();
+
+      if (existingGame) {
+        // Update player count
+        await supabase
+          .from('games')
+          .update({ current_players: currentPlayers })
+          .eq('id', existingGame.id);
+
+        // Check if needs refresh
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        if (new Date(existingGame.last_updated) < oneDayAgo) {
+          const steamData = await fetchGameDetailsFromSteam(appId);
+          if (steamData) {
+            await updateGameInSupabase(existingGame.id, steamData);
+            updatedCount++;
+          }
+        }
+      } else {
+        // New game insert
+        // Insert stub
+        const { data: newGame, error } = await supabase
+          .from('games')
+          .upsert(
+            {
+              steam_appid: appId,
+              name: name,
+              current_players: currentPlayers,
+              steam_app_type: 'game',
+              last_updated: new Date().toISOString(),
+              release_date: new Date().toISOString(),
+            },
+            { onConflict: 'steam_appid' }
+          )
+          .select()
+          .single();
+
+        if (newGame && !error) {
+          const steamData = await fetchGameDetailsFromSteam(appId);
+          if (steamData) {
+            await updateGameInSupabase(newGame.id, steamData);
+            updatedCount++;
+          }
+        }
+      }
+
+      // Nice throttle
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    console.log(
+      `Popular New Releases Sync Completed. Updated/Added ${updatedCount} games.`
+    );
+  } catch (error) {
+    console.error('Error syncing popular new games:', error);
+  }
+}
+
 // Auto-run if executed directly
 if (require.main === module) {
-  void syncTrendingGames().then(() => {
-    // Optional: exit process if needed, or let node handle it
+  void (async () => {
+    await syncTrendingGames();
+    await syncPopularNewReleases();
     // process.exit(0);
-  });
+  })();
 }
