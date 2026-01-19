@@ -326,15 +326,26 @@ app.get(
 
 app.get(
   '/api/games/trending',
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
-      const { data: games, error } = await supabase
+      const limit = parseInt(req.query.limit as string) || 10;
+      const days = parseInt(req.query.days as string);
+
+      let query = supabase
         .from('games')
         .select('*')
         .eq('steam_app_type', 'game')
         .not('current_players', 'is', null) // Filter out games with no player count
         .order('current_players', { ascending: false })
-        .limit(10);
+        .limit(limit);
+
+      if (!isNaN(days) && days > 0) {
+        const date = new Date();
+        date.setDate(date.getDate() - days);
+        query = query.gte('release_date', date.toISOString());
+      }
+
+      const { data: games, error } = await query;
 
       if (error) {
         throw error;

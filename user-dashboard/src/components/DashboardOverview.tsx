@@ -19,7 +19,7 @@ const DashboardOverview: React.FC = () => {
           authAPI.getCurrentUser(),
           userGamesAPI.getDashboardStats(),
           userGamesAPI.getRecentlyPlayed(3),
-          gamesAPI.getTrendingGames(5),
+          gamesAPI.getTrendingGames(5, 7),
         ]);
 
         if (userRes.status === 'fulfilled') setUser(userRes.value.data);
@@ -278,7 +278,7 @@ const DashboardOverview: React.FC = () => {
                 <div>
                   <h2 className='text-white text-lg font-bold'>Market Pulse</h2>
                   <p className='text-text-secondary text-xs'>
-                    Trending games on Steam
+                    Trending games released this week
                   </p>
                 </div>
               </div>
@@ -301,7 +301,7 @@ const DashboardOverview: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className='text-sm divide-y divide-border-dark/50'>
-                  {trendingGames.map((game, index) => (
+                  {trendingGames.map((game) => (
                     <tr
                       key={game.$id}
                       className='group hover:bg-surface-hover/50 transition-colors'

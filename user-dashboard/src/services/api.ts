@@ -189,8 +189,8 @@ export const userGamesAPI = {
 export const gamesAPI = {
   searchGames: (query: string, limit = 20) =>
     api.get<Game[]>('/api/games/search', { params: { q: query, limit } }),
-  getTrendingGames: (limit = 10) =>
-    api.get<Game[]>('/api/games/trending', { params: { limit } }),
+  getTrendingGames: (limit = 10, days?: number) =>
+    api.get<Game[]>('/api/games/trending', { params: { limit, days } }),
 };
 
 export const getActivity = () => userGamesAPI.getActivity();
