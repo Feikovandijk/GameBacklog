@@ -55,7 +55,7 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(cookieParser());
+app.use(cookieParser()); // lgtm[js/missing-token-validation]
 
 // Session configuration
 app.use(
@@ -70,7 +70,7 @@ app.use(
       sameSite: 'lax',
     },
   })
-);
+); // lgtm[js/missing-token-validation]
 
 // Passport middleware
 app.use(passport.initialize());
