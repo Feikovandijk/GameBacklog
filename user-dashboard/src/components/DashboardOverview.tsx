@@ -327,7 +327,7 @@ const DashboardOverview: React.FC = () => {
                       </td>
                       <td className='px-6 py-4 text-right text-white font-mono'>
                         {/* Use current_players if available, otherwise just mock or exclude for now if not in type */}
-                        {(game as any).current_players?.toLocaleString() || 'N/A'}
+                        {game.current_players?.toLocaleString() || 'N/A'}
                       </td>
                       <td className='px-6 py-4 text-right font-mono text-text-secondary'>
                         {game.price_final ? `$${(game.price_final / 100).toFixed(2)}` : 'Free'}
