@@ -88,29 +88,7 @@ app.get('/api/csrf-token', (req: Request, res: Response) => {
 });
 
 // Extend Express Request interface to include user
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface User {
-      id: string;
-      steam_id: string;
-      display_name: string;
-      avatar_url: string;
-      profile_url: string;
-      real_name?: string;
-      country_code?: string;
-      is_public_profile: boolean;
-      auto_import_steam_games: boolean;
-      sync_steam_playtime: boolean;
-      default_game_status: string;
-      theme: string;
-      default_view: string;
-      created_at: string;
-      last_steam_sync?: string;
-      last_active?: string;
-    }
-  }
-}
+// Extended Express Request interface is defined in api/src/types/express.d.ts
 
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: any) {
