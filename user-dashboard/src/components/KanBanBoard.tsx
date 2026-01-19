@@ -13,15 +13,11 @@ import {
     type DragEndEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { Typography, Button, message, Spin } from 'antd';
-import { MoreOutlined } from '@ant-design/icons';
 import * as api from '../services/api';
 import GameCard from './shared/GameCard';
 import StatusBadge, { type GameStatus } from './shared/StatusBadge';
 import EditGameModal from './EditGameModal';
 import type { UserGame } from '../services/api';
-
-const { Text } = Typography;
 
 // Configuration for columns
 const COLUMNS: { id: GameStatus; title: string }[] = [
@@ -43,7 +39,9 @@ const KanBanBoard: React.FC = () => {
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
     );
 
     const fetchGames = async () => {
@@ -85,17 +83,17 @@ const KanBanBoard: React.FC = () => {
 
         // Optimistic update
         const originalGames = [...games];
-        setGames(games.map(g =>
-            g.$id === activeGameId ? { ...g, status: newStatus } : g
-        ));
+        setGames(
+            games.map(g =>
+                g.$id === activeGameId ? { ...g, status: newStatus } : g
+            )
+        );
 
         // API Call
         try {
             await api.userGamesAPI.updateGame(activeGameId, { status: newStatus });
-            message.success(`Moved to ${newStatus.replace('_', ' ')}`);
         } catch (error) {
             console.error('Update failed:', error);
-            message.error('Failed to move card');
             setGames(originalGames); // Revert
         }
     };
@@ -112,7 +110,7 @@ const KanBanBoard: React.FC = () => {
             setIsModalVisible(false);
             fetchGames();
         } catch {
-            message.error('Failed to save');
+            console.error('Failed to save');
         }
     };
 
@@ -122,63 +120,45 @@ const KanBanBoard: React.FC = () => {
             await api.userGamesAPI.removeGame(editingGame.$id);
             setGames(games.filter(g => g.$id !== editingGame.$id));
             setIsModalVisible(false);
-            message.success('Game removed');
         } catch {
-            message.error('Failed to remove');
+            console.error('Failed to remove');
         }
     };
 
     // Sub-component for Droppable Column
-    const BoardColumn = ({ id, title, children }: { id: string, title: string, children: React.ReactNode }) => {
+    const BoardColumn = ({
+        id,
+        title,
+        children,
+    }: {
+        id: string;
+        title: string;
+        children: React.ReactNode;
+    }) => {
         const { setNodeRef, isOver } = useDroppable({ id });
 
         return (
             <div
                 ref={setNodeRef}
-                style={{
-                    flex: '0 0 320px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: '100%',
-                    background: isOver ? 'rgba(255,255,255,0.05)' : 'transparent',
-                    transition: 'background 0.2s',
-                    borderRadius: 16,
-                    padding: 8
-                }}
+                className={`flex-shrink-0 w-80 flex flex-col h-full rounded-2xl p-2 transition-colors duration-200 ${isOver ? 'bg-white/5' : 'bg-transparent'
+                    }`}
             >
-                <div style={{
-                    padding: '16px 8px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 10
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <StatusBadge status={id} minimal style={{ width: 10, height: 10 }} />
-                        <Text strong style={{ color: 'white', fontSize: 16 }}>{title}</Text>
-                        <span style={{
-                            background: 'rgba(255,255,255,0.1)',
-                            borderRadius: 12,
-                            padding: '2px 8px',
-                            fontSize: 12,
-                            color: 'rgba(255,255,255,0.6)'
-                        }}>
+                <div className='flex items-center justify-between p-4 sticky top-0 z-10'>
+                    <div className='flex items-center gap-2'>
+                        <StatusBadge status={id} minimal className='w-2.5 h-2.5' />
+                        <span className='font-bold text-white text-lg'>{title}</span>
+                        <span className='bg-white/10 rounded-full px-2.5 py-0.5 text-xs text-text-secondary font-medium'>
                             {React.Children.count(children)}
                         </span>
                     </div>
-                    <Button type="text" icon={<MoreOutlined style={{ color: 'rgba(255,255,255,0.4)' }} />} />
+                    {/* <button className='text-text-secondary hover:text-white transition-colors'>
+            <span className='material-symbols-outlined text-[20px]'>
+              more_horiz
+            </span>
+          </button> */}
                 </div>
 
-                <div style={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    padding: '0 8px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 16
-                }}>
+                <div className='flex-1 overflow-y-auto px-2 pb-4 flex flex-col gap-4'>
                     {children}
                 </div>
             </div>
@@ -187,15 +167,18 @@ const KanBanBoard: React.FC = () => {
 
     // Draggable card wrapper
     const DraggableCard = ({ game }: { game: UserGame }) => {
-        const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-            id: game.$id,
-            data: { game }
-        });
+        const { attributes, listeners, setNodeRef, transform, isDragging } =
+            useDraggable({
+                id: game.$id,
+                data: { game },
+            });
 
-        const style = transform ? {
-            transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-            opacity: isDragging ? 0 : 1
-        } : undefined;
+        const style = transform
+            ? {
+                transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+                opacity: isDragging ? 0 : 1,
+            }
+            : undefined;
 
         return (
             <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
@@ -206,30 +189,21 @@ const KanBanBoard: React.FC = () => {
 
     if (loading) {
         return (
-            <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Spin size="large" />
+            <div className='h-full flex items-center justify-center'>
+                <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-primary'></div>
             </div>
         );
     }
 
     return (
-        <div className="dashboard-container" style={{ height: 'calc(100vh - 64px)', padding: 0, display: 'flex', flexDirection: 'column' }}>
+        <div className='h-[calc(100vh-64px)] flex flex-col'>
             {/* Header */}
-            <div style={{ padding: '24px 32px 0' }}>
-                <h1 className="page-title" style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>
-                    <span className="gradient-text">Project Board</span>
-                </h1>
+            <div className='px-8 pt-6 pb-2'>
+                <h1 className='text-3xl font-bold text-white'>Project Board</h1>
             </div>
 
-            {/* Board Area - Horizontal Scroll */}
-            <div style={{
-                flex: 1,
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                padding: '24px 32px',
-                display: 'flex',
-                gap: 16
-            }}>
+            {/* Board Area */}
+            <div className='flex-1 overflow-x-auto overflow-y-hidden p-8 flex gap-4'>
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCorners}
@@ -242,15 +216,21 @@ const KanBanBoard: React.FC = () => {
                                 .filter(g => g.status === col.id)
                                 .map(game => (
                                     <DraggableCard key={game.$id} game={game} />
-                                ))
-                            }
+                                ))}
                         </BoardColumn>
                     ))}
 
                     <DragOverlay>
                         {activeGame ? (
-                            <div style={{ transform: 'rotate(2deg)', cursor: 'grabbing' }}>
-                                <GameCard game={activeGame} className="dragging-card" showProgress />
+                            <div
+                                className='transform rotate-2 cursor-grabbing shadow-2xl'
+                                style={{ width: '100%', maxWidth: '300px' }}
+                            >
+                                <GameCard
+                                    game={activeGame}
+                                    className='shadow-accent-purple/50'
+                                    showProgress
+                                />
                             </div>
                         ) : null}
                     </DragOverlay>

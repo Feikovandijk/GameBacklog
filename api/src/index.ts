@@ -325,6 +325,34 @@ app.get(
 );
 
 app.get(
+  '/api/games/trending',
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const { data: games, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('steam_app_type', 'game')
+        .order('current_players', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        throw error;
+      }
+
+      res.json(games || []);
+    } catch (error: unknown) {
+      console.error('Error fetching trending games:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch trending games',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+app.get(
   '/api/latest-games-with-achievements',
   async (_req: Request, res: Response): Promise<void> => {
     try {

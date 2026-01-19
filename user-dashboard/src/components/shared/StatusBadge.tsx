@@ -1,13 +1,4 @@
 import React from 'react';
-import { Tag } from 'antd';
-import {
-    ClockCircleOutlined,
-    PlayCircleOutlined,
-    CheckCircleOutlined,
-    StopOutlined,
-    PauseCircleOutlined,
-    TrophyOutlined,
-} from '@ant-design/icons';
 
 export type GameStatus =
     | 'want_to_play'
@@ -19,112 +10,94 @@ export type GameStatus =
 
 interface StatusBadgeProps {
     status: GameStatus | string;
-    minimal?: boolean; // If true, only shows icon or dot
+    minimal?: boolean;
     className?: string;
     style?: React.CSSProperties;
 }
 
 const statusConfig: Record<
     string,
-    { label: string; color: string; icon: React.ReactNode; bg: string; border: string }
+    { label: string; color: string; bg: string; border: string; icon: string }
 > = {
     want_to_play: {
         label: 'Backlog',
-        color: '#5DADE2',
-        bg: 'rgba(93, 173, 226, 0.1)',
-        border: 'rgba(93, 173, 226, 0.3)',
-        icon: <ClockCircleOutlined />,
+        color: 'text-accent-blue',
+        bg: 'bg-accent-blue/10',
+        border: 'border-accent-blue/20',
+        icon: 'schedule',
     },
     currently_playing: {
         label: 'Playing',
-        color: '#7B61FF',
-        bg: 'rgba(123, 97, 255, 0.1)',
-        border: 'rgba(123, 97, 255, 0.3)',
-        icon: <PlayCircleOutlined />,
+        color: 'text-accent-purple',
+        bg: 'bg-accent-purple/10',
+        border: 'border-accent-purple/20',
+        icon: 'play_circle',
     },
     completed: {
         label: 'Completed',
-        color: '#4ECB71',
-        bg: 'rgba(78, 203, 113, 0.1)',
-        border: 'rgba(78, 203, 113, 0.3)',
-        icon: <CheckCircleOutlined />,
+        color: 'text-accent-green',
+        bg: 'bg-accent-green/10',
+        border: 'border-accent-green/20',
+        icon: 'check_circle',
     },
     completed_100: {
         label: '100% Completed',
-        color: '#FFD700',
-        bg: 'rgba(255, 215, 0, 0.1)',
-        border: 'rgba(255, 215, 0, 0.3)',
-        icon: <TrophyOutlined />,
+        color: 'text-yellow-400',
+        bg: 'bg-yellow-400/10',
+        border: 'border-yellow-400/20',
+        icon: 'emoji_events',
     },
     on_hold: {
         label: 'On Hold',
-        color: '#FFB347',
-        bg: 'rgba(255, 179, 71, 0.1)',
-        border: 'rgba(255, 179, 71, 0.3)',
-        icon: <PauseCircleOutlined />,
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        border: 'border-accent-orange/20',
+        icon: 'pause_circle',
     },
     dropped: {
         label: 'Dropped',
-        color: '#FF6B6B',
-        bg: 'rgba(255, 107, 107, 0.1)',
-        border: 'rgba(255, 107, 107, 0.3)',
-        icon: <StopOutlined />,
+        color: 'text-status-error',
+        bg: 'bg-status-error/10',
+        border: 'border-status-error/20',
+        icon: 'cancel',
     },
 };
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({
     status,
     minimal = false,
-    className,
+    className = '',
     style,
 }) => {
     const config = statusConfig[status] || {
         label: status,
-        color: '#888',
-        bg: 'rgba(136, 136, 136, 0.1)',
-        border: 'rgba(136, 136, 136, 0.3)',
-        icon: null,
+        color: 'text-text-secondary',
+        bg: 'bg-white/5',
+        border: 'border-white/10',
+        icon: 'help',
     };
 
     if (minimal) {
         return (
             <div
-                className={className}
-                style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    backgroundColor: config.color,
-                    boxShadow: `0 0 5px ${config.color}`,
-                    ...style,
-                }}
+                className={`w-2 h-2 rounded-full ring-2 ring-opacity-50 ${config.bg.replace(
+                    '/10',
+                    ''
+                )} ${className}`}
+                style={style}
                 title={config.label}
             />
         );
     }
 
     return (
-        <Tag
-            icon={config.icon}
-            className={className}
-            style={{
-                color: config.color,
-                background: config.bg,
-                borderColor: config.border,
-                borderRadius: '12px',
-                padding: '0 10px',
-                height: '24px',
-                lineHeight: '22px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 600,
-                ...style,
-            }}
+        <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${config.color} ${config.bg} ${config.border} ${className}`}
+            style={style}
         >
+            <span className='material-symbols-outlined text-[14px]'>{config.icon}</span>
             {config.label}
-        </Tag>
+        </span>
     );
 };
 

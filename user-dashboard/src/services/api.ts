@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -188,6 +188,8 @@ export const userGamesAPI = {
 export const gamesAPI = {
   searchGames: (query: string, limit = 20) =>
     api.get<Game[]>('/api/games/search', { params: { q: query, limit } }),
+  getTrendingGames: (limit = 10) =>
+    api.get<Game[]>('/api/games/trending', { params: { limit } }),
 };
 
 export const getActivity = () => userGamesAPI.getActivity();

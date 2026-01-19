@@ -7,12 +7,14 @@ import {
 } from 'react-router-dom';
 import { authAPI } from './services/api';
 import type { User } from './services/api';
-import { Button, Spin, ConfigProvider } from 'antd';
+// import { Button, Spin, ConfigProvider } from 'antd';
+// import { Spin } from 'antd'; // Removed antd Spin
 import AppLayout from './components/AppLayout';
 import KanBanBoard from './components/KanBanBoard';
 import DashboardOverview from './components/DashboardOverview';
 import GameLibrary from './components/GameLibrary';
 import AddGamePage from './components/AddGamePage';
+import LoginPage from './components/LoginPage';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -43,49 +45,30 @@ const App = () => {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
-        <Spin size='large' />
+      <div className="flex h-screen w-full items-center justify-center bg-background-dark">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-surface-dark border-t-primary" />
       </div>
     );
   }
 
   return (
-    <ConfigProvider>
-      <Router>
-        {user ? (
-          <AppLayout user={user} onLogout={handleLogout}>
-            <Routes>
-              <Route path='/dashboard' element={<DashboardOverview />} />
-              <Route path='/board' element={<KanBanBoard />} />
-              <Route path='/games' element={<GameLibrary />} />
-              <Route path='/add-game' element={<AddGamePage />} />
-              <Route path='/profile' element={<div>Profile Page</div>} />
-              <Route path='*' element={<Navigate to='/dashboard' />} />
-            </Routes>
-          </AppLayout>
-        ) : (
-          <LoginPage onLogin={handleLogin} />
-        )}
-      </Router>
-    </ConfigProvider>
+    <Router>
+      {user ? (
+        <AppLayout user={user} onLogout={handleLogout}>
+          <Routes>
+            <Route path='/dashboard' element={<DashboardOverview />} />
+            <Route path='/board' element={<KanBanBoard />} />
+            <Route path='/games' element={<GameLibrary />} />
+            <Route path='/add-game' element={<AddGamePage />} />
+            <Route path='/profile' element={<div>Profile Page</div>} />
+            <Route path='*' element={<Navigate to='/dashboard' />} />
+          </Routes>
+        </AppLayout>
+      ) : (
+        <LoginPage onLogin={handleLogin} />
+      )}
+    </Router>
   );
 };
-
-const LoginPage = ({ onLogin }: { onLogin: () => void }) => (
-  <div style={{ textAlign: 'center', paddingTop: '100px', height: '100vh' }}>
-    <h2>Welcome to GameBacklog</h2>
-    <p>Please log in with your Steam account to continue.</p>
-    <Button type='primary' size='large' onClick={onLogin}>
-      Login with Steam
-    </Button>
-  </div>
-);
 
 export default App;
