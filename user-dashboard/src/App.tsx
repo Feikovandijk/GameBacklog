@@ -23,6 +23,7 @@ const App = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        await authAPI.fetchCsrfToken();
         const currentUser = await authAPI.getCurrentUser();
         setUser(currentUser.data);
       } catch {

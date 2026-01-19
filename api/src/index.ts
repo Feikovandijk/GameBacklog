@@ -5,6 +5,8 @@ import config from './config';
 import { passport, User } from './auth/steam-auth';
 import { syncUserWithSteam } from './services/user-steam-sync-service';
 import { supabase } from './supabase/client';
+import cookieParser from 'cookie-parser';
+import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -53,6 +55,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 // Session configuration
 app.use(
@@ -71,6 +74,15 @@ app.use(
 // Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
+
+// CSRF Protection
+app.use(doubleCsrfProtection);
+
+// CSRF Token Endpoint
+app.get('/api/csrf-token', (req: Request, res: Response) => {
+  const csrfToken = generateCsrfToken(req, res);
+  res.json({ csrfToken });
+});
 
 // Extend Express Request interface to include user
 declare global {
