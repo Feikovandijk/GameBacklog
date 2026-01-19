@@ -52,12 +52,21 @@ const GameCard: React.FC<GameCardProps> = ({
         >
             {/* Cover Image */}
             <div className='relative aspect-video bg-background-dark overflow-hidden'>
-                {!imgError && game.game?.header_image ? (
+                {!imgError && (game.game?.header_image || game.steam_appid) ? (
                     <img
-                        src={game.game.header_image}
+                        src={game.game?.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
                         alt={game.game?.name}
                         className='w-full h-full object-cover transition-transform duration-500 group-hover:scale-110'
-                        onError={() => setImgError(true)}
+                        onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            const fallbackUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
+                            // If we weren't already trying the fallback logic or if the primary source failed
+                            if (target.src !== fallbackUrl && game.steam_appid) {
+                                target.src = fallbackUrl;
+                            } else {
+                                setImgError(true);
+                            }
+                        }}
                     />
                 ) : (
                     <div className='absolute inset-0 flex items-center justify-center bg-gradient-to-br from-background-dark to-surface-dark p-4 text-center'>
@@ -120,8 +129,8 @@ const GameCard: React.FC<GameCardProps> = ({
                         <div className='mt-1 h-1.5 bg-white/10 rounded-full overflow-hidden'>
                             <div
                                 className={`h-full rounded-full ${game.status === 'currently_playing'
-                                        ? 'bg-accent-purple'
-                                        : 'bg-accent-green'
+                                    ? 'bg-accent-purple'
+                                    : 'bg-accent-green'
                                     }`}
                                 style={{ width: `${calculateProgress()}%` }}
                             />

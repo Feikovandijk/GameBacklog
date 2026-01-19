@@ -332,6 +332,7 @@ app.get(
         .from('games')
         .select('*')
         .eq('steam_app_type', 'game')
+        .not('current_players', 'is', null) // Filter out games with no player count
         .order('current_players', { ascending: false })
         .limit(10);
 

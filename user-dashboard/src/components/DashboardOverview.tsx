@@ -309,9 +309,20 @@ const DashboardOverview: React.FC = () => {
                       <td className='px-6 py-4'>
                         <div className='flex items-center gap-3'>
                           <img
-                            src={game.header_image}
+                            src={game.header_image || (game.steam_appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg` : '')}
                             alt={game.name}
                             className="w-10 h-10 object-cover rounded"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              // Fallback to standard Steam header URL format if the specific one fails
+                              const fallbackUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
+                              if (target.src !== fallbackUrl) {
+                                target.src = fallbackUrl;
+                              } else {
+                                // If even the fallback fails, show a transparent placeholder or custom error
+                                target.style.display = 'none';
+                              }
+                            }}
                           />
                           <span className='font-bold text-white group-hover:text-primary transition-colors line-clamp-1'>
                             {game.name}

@@ -21,6 +21,8 @@
     "sync:games:pics": "ts-node src/services/steam-pics-refresh-service.ts",
     "sync:players": "ts-node src/services/steam-player-count-sync-service.ts",
     "sync:enrich": "ts-node src/scripts/enrich-all-games.ts",
+    "sync:trending": "ts-node src/services/steam-discovery-service.ts",
+    "worker": "ts-node src/scripts/worker.ts",
     "//----- Refresh Scripts -----    ": "",
     "refresh:games": "node dist/services/steam-refresh-service.js",
     "//----- Recalculate Scripts -----    ": "",

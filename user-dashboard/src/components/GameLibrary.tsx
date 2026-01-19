@@ -169,8 +169,8 @@ const GameLibrary: React.FC = () => {
                         <button
                             onClick={() => setViewMode('grid')}
                             className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
-                                    ? 'bg-primary text-background-dark'
-                                    : 'text-text-secondary hover:text-white'
+                                ? 'bg-primary text-background-dark'
+                                : 'text-text-secondary hover:text-white'
                                 }`}
                         >
                             <span className='material-symbols-outlined text-[20px] block'>
@@ -180,8 +180,8 @@ const GameLibrary: React.FC = () => {
                         <button
                             onClick={() => setViewMode('list')}
                             className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
-                                    ? 'bg-primary text-background-dark'
-                                    : 'text-text-secondary hover:text-white'
+                                ? 'bg-primary text-background-dark'
+                                : 'text-text-secondary hover:text-white'
                                 }`}
                         >
                             <span className='material-symbols-outlined text-[20px] block'>
@@ -247,9 +247,18 @@ const GameLibrary: React.FC = () => {
                                             <td className='px-6 py-4'>
                                                 <div className='flex items-center gap-4'>
                                                     <img
-                                                        src={game.game?.header_image}
+                                                        src={game.game?.header_image || (game.steam_appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg` : undefined)}
                                                         alt={game.game?.name}
                                                         className='w-12 h-12 object-cover rounded-lg border border-border-dark'
+                                                        onError={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            const fallbackUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
+                                                            if (target.src !== fallbackUrl && game.steam_appid) {
+                                                                target.src = fallbackUrl;
+                                                            } else {
+                                                                target.style.display = 'none';
+                                                            }
+                                                        }}
                                                     />
                                                     <div>
                                                         <div className='font-bold text-white group-hover:text-primary transition-colors'>

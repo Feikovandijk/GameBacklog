@@ -41,6 +41,7 @@ export interface Game {
   tags: string[];
   price_final: number;
   price_currency: string;
+  current_players?: number;
 }
 
 export interface UserGame {
