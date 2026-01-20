@@ -66,10 +66,10 @@ app.use(
     saveUninitialized: false,
     proxy: true, // Ensure session knows it's behind a proxy
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // Always secure with trust proxy enabled
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'lax',
+      sameSite: 'none', // Allow cross-site usage (required for some auth flows through proxies)
     },
   })
 );
