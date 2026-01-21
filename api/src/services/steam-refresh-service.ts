@@ -38,22 +38,36 @@ async function fetchWithRetry(
       // Don't retry on client errors (4xx) or server errors that are not rate-limiting (e.g. 500)
       if (response.status >= 400 && response.status < 500) {
         console.warn(
-          `Request to ${url} failed with status ${response.status}. Not retrying.`
+          `Request to ${sanitizeUrl(url)} failed with status ${response.status}. Not retrying.`
         );
         return response; // Return the failed response to be handled by the caller
       }
       console.warn(
-        `Request to ${url} failed with status ${response.status}. Retrying in ${backoff / 1000}s...`
+        `Request to ${sanitizeUrl(url)} failed with status ${response.status}. Retrying in ${backoff / 1000}s...`
       );
     } catch (error: any) {
       console.warn(
-        `Request to ${url} failed with error: ${error.message}. Retrying in ${backoff / 1000}s...`
+        `Request to ${sanitizeUrl(url)} failed with error: ${error.message}. Retrying in ${backoff / 1000}s...`
       );
     }
     await new Promise(resolve => setTimeout(resolve, backoff));
     backoff *= 2; // Exponential backoff
   }
-  throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
+  throw new Error(
+    `Failed to fetch from ${sanitizeUrl(url)} after ${retries} attempts.`
+  );
+}
+
+function sanitizeUrl(urlStr: string): string {
+  try {
+    const url = new URL(urlStr);
+    if (url.searchParams.has('key')) {
+      url.searchParams.set('key', '***');
+    }
+    return url.toString();
+  } catch {
+    return urlStr;
+  }
 }
 
 export async function fetchGameDetailsFromSteam(
