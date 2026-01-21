@@ -58,16 +58,49 @@ async function fetchWithRetry(
   );
 }
 
+/**
+ * Redact sensitive information (such as API keys) from a string representation
+ * of a URL or error message before logging.
+ */
+function redactSecrets(input: string): string {
+  let result = input;
+
+  // Redact explicit Steam API key value if it is present in the string.
+  if (STEAM_API_KEY) {
+    // Escape special regex characters in the key
+    const escapedKey = STEAM_API_KEY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const keyRegex = new RegExp(escapedKey, 'g');
+    result = result.replace(keyRegex, '***');
+  }
+
+  // Fallback: redact common API key patterns even if the exact value is unknown.
+  // Example patterns:
+  //   ?key=SECRET
+  //   &api_key=SECRET
+  //   /key/SECRET
+  result = result.replace(/([?&](?:key|api_key|apikey)=)[^&#]*/gi, '$1***');
+  result = result.replace(/(\/(?:key|api_key|apikey)\/)[^/?#]*/gi, '$1***');
+
+  return result;
+}
+
 function sanitizeUrl(urlStr: string): string {
   try {
     const url = new URL(urlStr);
-    if (url.searchParams.has('key')) {
-      url.searchParams.set('key', '***');
+
+    // Remove or mask any query parameters that might contain API keys.
+    const sensitiveParamNames = ['key', 'api_key', 'apikey'];
+    for (const name of sensitiveParamNames) {
+      if (url.searchParams.has(name)) {
+        url.searchParams.set(name, '***');
+      }
     }
-    return url.toString();
+
+    // Also defensively redact any occurrence of the raw key in the final string.
+    return redactSecrets(url.toString());
   } catch {
     // Fallback: redact common API key patterns even if URL parsing fails
-    return urlStr.replace(/([?&]key=)[^&]*/gi, '$1***');
+    return redactSecrets(urlStr);
   }
 }
 
