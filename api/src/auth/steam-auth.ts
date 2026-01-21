@@ -20,7 +20,7 @@ console.log(`------------------------`);
 passport.use(
   new SteamStrategy(
     {
-      returnURL: `${config.frontendUrl}/auth/steam/return`,
+      returnURL: `${config.frontendUrl}/api/auth/steam/return`,
       realm: `${config.frontendUrl}/`,
       apiKey: config.steamApiKey!,
       passReqToCallback: true,
