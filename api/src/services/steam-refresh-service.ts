@@ -66,7 +66,8 @@ function sanitizeUrl(urlStr: string): string {
     }
     return url.toString();
   } catch {
-    return urlStr;
+    // Fallback: redact common API key patterns even if URL parsing fails
+    return urlStr.replace(/([?&]key=)[^&]*/gi, '$1***');
   }
 }
 
