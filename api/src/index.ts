@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import session from 'express-session';
 import cors from 'cors';
 import config from './config';
-import { passport, User } from './auth/steam-auth';
+import { passport, User as SteamUser } from './auth/steam-auth';
 import { syncUserWithSteam } from './services/user-steam-sync-service';
 import { supabase } from './supabase/client';
 import cookieParser from 'cookie-parser';
@@ -58,18 +58,19 @@ app.use(express.json());
 app.use(cookieParser()); // lgtm[js/missing-token-validation]
 
 // Session configuration
+const isProduction = process.env.NODE_ENV === 'production';
 app.use(
   // lgtm[js/missing-token-validation]
   session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
     saveUninitialized: false,
-    proxy: true, // Ensure session knows it's behind a proxy
+    proxy: isProduction, // Only trust proxy in production
     cookie: {
-      secure: true, // Always secure with trust proxy enabled
+      secure: isProduction, // Only use secure cookies in production (HTTPS)
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'none', // Allow cross-site usage (required for some auth flows through proxies)
+      sameSite: isProduction ? 'none' : 'lax', // 'lax' for localhost, 'none' for cross-site in production
     },
   })
 );
@@ -143,7 +144,7 @@ app.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       // Trigger the sync in the background and return immediately
-      syncUserWithSteam(req.user as User);
+      syncUserWithSteam(req.user as SteamUser);
       res
         .status(202)
         .json({ message: 'Sync process started in the background.' });
@@ -511,7 +512,7 @@ app.get(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
 
       // Get query parameters for filtering
       const { status, priority, limit = 20, offset = 0 } = req.query;
@@ -564,7 +565,7 @@ app.get(
   '/api/user/games/recently-played',
   requireAuth,
   async (req: Request, res: Response) => {
-    const user = req.user as User;
+    const user = req.user as SteamUser;
     const { limit = 5 } = req.query;
 
     try {
@@ -608,7 +609,7 @@ app.post(
   doubleCsrfProtection,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
       const { steam_appid, status, priority, user_notes, user_tags } = req.body;
 
       if (!steam_appid || !status) {
@@ -707,7 +708,7 @@ app.put(
   doubleCsrfProtection,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
       const gameId = req.params.id;
       const {
         status,
@@ -816,7 +817,7 @@ app.delete(
   doubleCsrfProtection,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
       const gameId = req.params.id;
 
       // Verify ownership
@@ -864,7 +865,7 @@ app.get(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
 
       // Get various stats in parallel
       const [
@@ -954,7 +955,7 @@ app.get(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
 
       const { data: userGames, error } = await supabase
         .from('user_games')
@@ -992,7 +993,7 @@ app.get(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
       const now = new Date();
 
       // Calculate time boundaries
@@ -1164,7 +1165,7 @@ app.get(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
 
       // Fetch 5 most recent unlocked achievements with related data
       const { data: recentUserAchievements, error: achievementsError } =
@@ -1205,7 +1206,7 @@ app.get(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as SteamUser).id;
       const { data: activities, error } = await supabase
         .from('user_activity')
         .select('*')

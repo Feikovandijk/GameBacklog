@@ -1,5 +1,6 @@
 import { doubleCsrf } from 'csrf-csrf';
 import { Request } from 'express';
+import { User } from '../types/steam.types';
 
 const CSRF_SECRET = process.env.CSRF_SECRET;
 
@@ -18,7 +19,7 @@ export const {
   doubleCsrfProtection,
 } = doubleCsrf({
   getSecret: () => SECRET_KEY,
-  getSessionIdentifier: (req: Request) => req.user?.id || 'anon',
+  getSessionIdentifier: (req: Request) => (req.user as User)?.id || 'anon',
   cookieName: COOKIE_NAME,
   cookieOptions: {
     sameSite: 'lax',
