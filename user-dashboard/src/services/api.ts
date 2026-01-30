@@ -190,12 +190,22 @@ export const userGamesAPI = {
     api.get<UserGame[]>(`/api/user/games/recently-played?limit=${limit}`),
 };
 
+export interface PopularTag {
+  name: string;
+  count: number;
+  totalPlayers: number;
+}
+
 // Public Games (for search)
 export const gamesAPI = {
   searchGames: (query: string, limit = 20) =>
     api.get<Game[]>('/api/games/search', { params: { q: query, limit } }),
   getTrendingGames: (limit = 10, days?: number) =>
     api.get<Game[]>('/api/games/trending', { params: { limit, days } }),
+  getPopularTags: (limit = 5, days = 7) =>
+    api.get<PopularTag[]>('/api/games/popular-tags', {
+      params: { limit, days },
+    }),
 };
 
 export const getActivity = () => userGamesAPI.getActivity();

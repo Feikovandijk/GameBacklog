@@ -246,20 +246,38 @@ const GameLibrary: React.FC = () => {
                                         >
                                             <td className='px-6 py-4'>
                                                 <div className='flex items-center gap-4'>
-                                                    <img
-                                                        src={game.game?.header_image || (game.steam_appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg` : undefined)}
-                                                        alt={game.game?.name}
-                                                        className='w-12 h-12 object-cover rounded-lg border border-border-dark'
-                                                        onError={(e) => {
-                                                            const target = e.target as HTMLImageElement;
-                                                            const fallbackUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
-                                                            if (target.src !== fallbackUrl && game.steam_appid) {
-                                                                target.src = fallbackUrl;
-                                                            } else {
-                                                                target.style.display = 'none';
-                                                            }
-                                                        }}
-                                                    />
+                                                    <div className='relative w-12 h-12 rounded-lg border border-border-dark overflow-hidden bg-background-dark flex-shrink-0'>
+                                                        <img
+                                                            src={game.game?.header_image || (game.steam_appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg` : undefined)}
+                                                            alt={game.game?.name}
+                                                            className='w-full h-full object-cover'
+                                                            onError={(e) => {
+                                                                const target = e.target as HTMLImageElement;
+                                                                const headerUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
+                                                                const capsuleUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/capsule_616x353.jpg`;
+
+                                                                if (game.steam_appid) {
+                                                                    if (target.src !== headerUrl && target.src !== capsuleUrl) {
+                                                                        target.src = headerUrl;
+                                                                    } else if (target.src === headerUrl) {
+                                                                        target.src = capsuleUrl;
+                                                                    } else {
+                                                                        // Replace with placeholder
+                                                                        target.style.display = 'none';
+                                                                        const placeholder = target.parentElement?.querySelector('.placeholder-icon');
+                                                                        if (placeholder) (placeholder as HTMLElement).style.display = 'flex';
+                                                                    }
+                                                                } else {
+                                                                    target.style.display = 'none';
+                                                                    const placeholder = target.parentElement?.querySelector('.placeholder-icon');
+                                                                    if (placeholder) (placeholder as HTMLElement).style.display = 'flex';
+                                                                }
+                                                            }}
+                                                        />
+                                                        <div className='placeholder-icon hidden absolute inset-0 items-center justify-center bg-gradient-to-br from-primary/20 to-accent-purple/20'>
+                                                            <span className='material-symbols-outlined text-primary/50 text-[20px]'>sports_esports</span>
+                                                        </div>
+                                                    </div>
                                                     <div>
                                                         <div className='font-bold text-white group-hover:text-primary transition-colors'>
                                                             {game.game?.name}

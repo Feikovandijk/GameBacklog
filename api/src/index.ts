@@ -326,6 +326,166 @@ app.get(
   }
 );
 
+// GET /api/games/popular-tags - Get popular tags from trending games
+app.get(
+  '/api/games/popular-tags',
+  async (req: Request, res: Response): Promise<void> => {
+    // Steam tag ID to name mapping (most common tags)
+    const steamTagIdToName: Record<string, string> = {
+      // Genres
+      '19': 'Action',
+      '21': 'Adventure',
+      '122': 'RPG',
+      '9': 'Strategy',
+      '599': 'Simulation',
+      '4166': 'Sports',
+      '1773': 'Racing',
+      '1774': 'Puzzle',
+      '4191': 'Casual',
+      '3959': 'Indie',
+      '4182': 'Singleplayer',
+      '492': 'Free to Play',
+      '128': 'Multiplayer',
+      '1775': 'Co-op',
+      '3843': 'Online Co-Op',
+      '3841': 'Local Co-Op',
+      '3871': 'Local Multiplayer',
+      '1685': 'Open World',
+      '1742': 'First-Person',
+      '1697': 'Third Person',
+      '1664': 'FPS',
+      '1770': 'Shooter',
+      '3964': 'Platformer',
+      '3839': 'Horror',
+      '1667': 'Survival',
+      '4106': 'Action RPG',
+      '1695': 'Turn-Based',
+      '1677': 'Turn-Based Strategy',
+      '101': 'Real Time Tactics',
+      '4231': 'Fighting',
+      '4736': 'Visual Novel',
+      '4486': 'Story Rich',
+      '1654': 'Relaxing',
+      '5350': 'Building',
+      '4325': 'City Builder',
+      '4474': 'Sandbox',
+      '1702': 'Crafting',
+      '7250': 'Resource Management',
+      '4064': 'Exploration',
+      '1662': 'Sci-fi',
+      '3942': 'Fantasy',
+      '21978': 'VR',
+      '113': 'Massively Multiplayer',
+      '4026': 'Difficult',
+      '5716': 'Roguelike',
+      '1716': 'Roguelite',
+      '6730': 'Deckbuilder',
+      '1625': 'Card Game',
+      '5537': 'Souls-like',
+      '1628': 'Metroidvania',
+      '4695': 'Anime',
+      '4085': 'Atmospheric',
+      '4295': 'Stealth',
+      '5711': 'Team-Based',
+      '1100687': 'PvP',
+      '1100689': 'PvE',
+      '3834': 'Competitive',
+      '29482': 'Immersive Sim',
+      '3810': 'Controller Support',
+      '7368': 'Steam Achievements',
+      '8945': 'Mod Support',
+      '9130': 'Steam Workshop',
+      '3859': '2D',
+      '4004': '3D',
+      '4726': 'Cute',
+      '1720': 'Dungeon Crawler',
+      '1708': 'Tactical',
+      '1659': 'Zombies',
+      '7743': 'Soundtrack',
+      '4747': 'Character Customization',
+      '5613': 'Detective',
+      '1719': 'Comedy',
+      '4684': 'Military',
+      '4604': 'World War II',
+      '10235': 'Level Editor',
+      '4835': 'Retro',
+      '3978': 'Pixel Graphics',
+      '4195': 'Minimalist',
+      '87918': 'Farming Sim',
+      '17894': 'Base Building',
+      '6915': 'Hack and Slash',
+      '5547': 'Arena Shooter',
+      '6129': 'Logic',
+      '1710': 'Dark',
+      '1721': 'Battle Royale',
+    };
+
+    try {
+      const limit = parseInt(req.query.limit as string) || 5;
+      const days = parseInt(req.query.days as string) || 7;
+
+      // Get trending games from the past N days
+      const date = new Date();
+      date.setDate(date.getDate() - days);
+
+      const { data: games, error } = await supabase
+        .from('games')
+        .select('tags, current_players')
+        .eq('steam_app_type', 'game')
+        .not('current_players', 'is', null)
+        .not('tags', 'is', null)
+        .gte('player_count_last_updated', date.toISOString())
+        .order('current_players', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        throw error;
+      }
+
+      // Aggregate tags with weighted counts based on player count
+      const tagCounts: Record<string, { count: number; totalPlayers: number }> =
+        {};
+
+      for (const game of games || []) {
+        if (game.tags && Array.isArray(game.tags)) {
+          const playerWeight = game.current_players || 1;
+          for (const tagId of game.tags) {
+            // Only count tags we have names for
+            const tagName = steamTagIdToName[tagId];
+            if (tagName) {
+              if (!tagCounts[tagName]) {
+                tagCounts[tagName] = { count: 0, totalPlayers: 0 };
+              }
+              tagCounts[tagName].count += 1;
+              tagCounts[tagName].totalPlayers += playerWeight;
+            }
+          }
+        }
+      }
+
+      // Sort by total players (weighted popularity)
+      const sortedTags = Object.entries(tagCounts)
+        .sort(([, a], [, b]) => b.totalPlayers - a.totalPlayers)
+        .slice(0, limit)
+        .map(([name, data]) => ({
+          name,
+          count: data.count,
+          totalPlayers: data.totalPlayers,
+        }));
+
+      res.json(sortedTags);
+    } catch (error: unknown) {
+      console.error('Error fetching popular tags:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to fetch popular tags',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
 app.get(
   '/api/games/trending',
   async (req: Request, res: Response): Promise<void> => {
@@ -577,6 +737,10 @@ app.get(
                 steam_appid,
                 playtime_2weeks,
                 game_id,
+                hours_played,
+                status,
+                updated_at,
+                last_played,
                 game:games(*)
             `
         )
