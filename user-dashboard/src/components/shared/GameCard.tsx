@@ -52,18 +52,32 @@ const GameCard: React.FC<GameCardProps> = ({
                         className='w-full h-full object-cover transition-transform duration-500 group-hover:scale-110'
                         onError={(e) => {
                             const target = e.target as HTMLImageElement;
-                            const fallbackUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
-                            // If we weren't already trying the fallback logic or if the primary source failed
-                            if (target.src !== fallbackUrl && game.steam_appid) {
-                                target.src = fallbackUrl;
+                            const headerUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
+                            const capsuleUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/capsule_616x353.jpg`;
+                            const libraryUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/library_600x900.jpg`;
+
+                            // Try multiple fallback URLs before giving up
+                            if (game.steam_appid) {
+                                if (target.src !== headerUrl && target.src !== capsuleUrl && target.src !== libraryUrl) {
+                                    target.src = headerUrl;
+                                } else if (target.src === headerUrl) {
+                                    target.src = capsuleUrl;
+                                } else if (target.src === capsuleUrl) {
+                                    target.src = libraryUrl;
+                                } else {
+                                    setImgError(true);
+                                }
                             } else {
                                 setImgError(true);
                             }
                         }}
                     />
                 ) : (
-                    <div className='absolute inset-0 flex items-center justify-center bg-gradient-to-br from-background-dark to-surface-dark p-4 text-center'>
-                        <span className='font-bold text-text-secondary text-sm'>
+                    <div className='absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-primary/20 via-background-dark to-accent-purple/20 p-4 text-center'>
+                        <span className='material-symbols-outlined text-[48px] text-primary/40 mb-2'>
+                            sports_esports
+                        </span>
+                        <span className='font-bold text-text-secondary text-sm line-clamp-2'>
                             {game.game?.name || 'Unknown Game'}
                         </span>
                     </div>

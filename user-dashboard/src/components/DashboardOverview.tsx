@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { userGamesAPI, authAPI, gamesAPI } from '../services/api';
-import type { DashboardStats, User, UserGame, Game } from '../services/api';
+import type { DashboardStats, User, UserGame, Game, PopularTag } from '../services/api';
 
 const DashboardOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -11,21 +11,24 @@ const DashboardOverview: React.FC = () => {
 
   const [recentlyPlayed, setRecentlyPlayed] = useState<UserGame[]>([]);
   const [trendingGames, setTrendingGames] = useState<Game[]>([]);
+  const [popularTags, setPopularTags] = useState<PopularTag[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, statsRes, recentRes, trendingRes] = await Promise.allSettled([
+        const [userRes, statsRes, recentRes, trendingRes, tagsRes] = await Promise.allSettled([
           authAPI.getCurrentUser(),
           userGamesAPI.getDashboardStats(),
           userGamesAPI.getRecentlyPlayed(3),
           gamesAPI.getTrendingGames(5, 7),
+          gamesAPI.getPopularTags(4, 7),
         ]);
 
         if (userRes.status === 'fulfilled') setUser(userRes.value.data);
         if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
         if (recentRes.status === 'fulfilled') setRecentlyPlayed(recentRes.value.data);
         if (trendingRes.status === 'fulfilled') setTrendingGames(trendingRes.value.data);
+        if (tagsRes.status === 'fulfilled') setPopularTags(tagsRes.value.data);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -347,130 +350,80 @@ const DashboardOverview: React.FC = () => {
           </section>
         </div>
 
-        {/* Community Insights */}
+        {/* Popular Tags */}
         <div className='lg:col-span-1 flex flex-col gap-6'>
           <section className='flex flex-col bg-surface-dark rounded-2xl border border-border-dark overflow-hidden p-5 h-full'>
             <div className='flex items-center justify-between mb-5'>
               <h2 className='text-white text-lg font-bold'>
-                Community Insights
+                Popular Tags
               </h2>
-              <button className='p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary transition-colors'>
-                <span className='material-symbols-outlined text-[20px]'>
-                  refresh
+              <div className='flex items-center gap-1 text-text-secondary text-xs'>
+                <span className='material-symbols-outlined text-[16px]'>
+                  schedule
                 </span>
-              </button>
+                This Week
+              </div>
             </div>
             <p className='text-text-secondary text-sm mb-4'>
-              Trending technical tags on Steam discussions.
+              Tags appearing most often in this week's top games.
             </p>
             <div className='flex flex-col gap-3'>
-              <div className='group bg-background-dark/50 border border-border-dark rounded-xl p-3 hover:border-primary/50 transition-all cursor-pointer'>
-                <div className='flex justify-between items-start'>
-                  <div className='flex flex-col'>
-                    <span className='text-white font-bold text-sm group-hover:text-primary transition-colors'>
-                      #ShaderCompilation
-                    </span>
-                    <span className='text-text-secondary text-xs mt-1'>
-                      Tech / Performance
-                    </span>
-                  </div>
-                  <div className='flex items-center text-primary text-xs font-bold'>
-                    <span className='material-symbols-outlined text-[16px]'>
-                      trending_up
-                    </span>
-                  </div>
+              {popularTags.length > 0 ? (
+                popularTags.map((tag, index) => {
+                  // Bar width based on % of top 50 games with this tag (max is 50 games)
+                  const maxGames = 50;
+                  const percentage = Math.round((tag.count / maxGames) * 100);
+                  const barWidth = Math.max(15, percentage);
+
+                  // Different colors for different ranks
+                  const colors = [
+                    'bg-primary',
+                    'bg-accent-blue',
+                    'bg-accent-purple',
+                    'bg-text-secondary/60',
+                  ];
+                  const barColor = colors[index] || colors[3];
+
+                  return (
+                    <div
+                      key={tag.name}
+                      className='group bg-background-dark/50 border border-border-dark rounded-xl p-3 hover:border-primary/50 transition-all cursor-pointer'
+                    >
+                      <div className='flex justify-between items-start'>
+                        <div className='flex flex-col'>
+                          <span className='text-white font-bold text-sm group-hover:text-primary transition-colors'>
+                            {tag.name}
+                          </span>
+                          <span className='text-text-secondary text-xs mt-1'>
+                            in {tag.count} of top 50 games
+                          </span>
+                        </div>
+                        <div className='flex items-center text-primary text-xs font-bold'>
+                          <span className='material-symbols-outlined text-[16px]'>
+                            trending_up
+                          </span>
+                        </div>
+                      </div>
+                      <div className='mt-3 flex items-center gap-2'>
+                        <div className='h-1 flex-1 bg-border-dark rounded-full overflow-hidden'>
+                          <div
+                            className={`h-full ${barColor} rounded-full`}
+                            style={{ width: `${barWidth}%` }}
+                          />
+                        </div>
+                        <span className='text-xs text-text-secondary font-mono'>
+                          {percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className='text-center text-text-secondary py-4'>
+                  Loading tags...
                 </div>
-                <div className='mt-3 flex items-center gap-2'>
-                  <div className='h-1 flex-1 bg-border-dark rounded-full overflow-hidden'>
-                    <div className='h-full bg-accent-blue w-[85%] rounded-full'></div>
-                  </div>
-                  <span className='text-xs text-text-secondary font-mono'>
-                    High Vol
-                  </span>
-                </div>
-              </div>
-              <div className='group bg-background-dark/50 border border-border-dark rounded-xl p-3 hover:border-primary/50 transition-all cursor-pointer'>
-                <div className='flex justify-between items-start'>
-                  <div className='flex flex-col'>
-                    <span className='text-white font-bold text-sm group-hover:text-primary transition-colors'>
-                      #DeckVerified
-                    </span>
-                    <span className='text-text-secondary text-xs mt-1'>
-                      Platform / Steam Deck
-                    </span>
-                  </div>
-                  <div className='flex items-center text-primary text-xs font-bold'>
-                    <span className='material-symbols-outlined text-[16px]'>
-                      trending_up
-                    </span>
-                  </div>
-                </div>
-                <div className='mt-3 flex items-center gap-2'>
-                  <div className='h-1 flex-1 bg-border-dark rounded-full overflow-hidden'>
-                    <div className='h-full bg-accent-purple w-[60%] rounded-full'></div>
-                  </div>
-                  <span className='text-xs text-text-secondary font-mono'>
-                    Med Vol
-                  </span>
-                </div>
-              </div>
-              <div className='group bg-background-dark/50 border border-border-dark rounded-xl p-3 hover:border-primary/50 transition-all cursor-pointer'>
-                <div className='flex justify-between items-start'>
-                  <div className='flex flex-col'>
-                    <span className='text-white font-bold text-sm group-hover:text-primary transition-colors'>
-                      #CoopDesync
-                    </span>
-                    <span className='text-text-secondary text-xs mt-1'>
-                      Bug / Networking
-                    </span>
-                  </div>
-                  <div className='flex items-center text-red-400 text-xs font-bold'>
-                    <span className='material-symbols-outlined text-[16px]'>
-                      warning
-                    </span>
-                  </div>
-                </div>
-                <div className='mt-3 flex items-center gap-2'>
-                  <div className='h-1 flex-1 bg-border-dark rounded-full overflow-hidden'>
-                    <div className='h-full bg-red-400 w-[45%] rounded-full'></div>
-                  </div>
-                  <span className='text-xs text-text-secondary font-mono'>
-                    Rising
-                  </span>
-                </div>
-              </div>
-              <div className='group bg-background-dark/50 border border-border-dark rounded-xl p-3 hover:border-primary/50 transition-all cursor-pointer'>
-                <div className='flex justify-between items-start'>
-                  <div className='flex flex-col'>
-                    <span className='text-white font-bold text-sm group-hover:text-primary transition-colors'>
-                      #PriceRegional
-                    </span>
-                    <span className='text-text-secondary text-xs mt-1'>
-                      Economy
-                    </span>
-                  </div>
-                  <div className='flex items-center text-text-secondary text-xs font-bold'>
-                    <span className='material-symbols-outlined text-[16px]'>
-                      remove
-                    </span>
-                  </div>
-                </div>
-                <div className='mt-3 flex items-center gap-2'>
-                  <div className='h-1 flex-1 bg-border-dark rounded-full overflow-hidden'>
-                    <div className='h-full bg-text-secondary/40 w-[20%] rounded-full'></div>
-                  </div>
-                  <span className='text-xs text-text-secondary font-mono'>
-                    Low Vol
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
-            <button className='mt-auto w-full py-3 text-sm text-primary font-bold hover:bg-primary/5 rounded-xl transition-colors flex items-center justify-center gap-2'>
-              View All Tags
-              <span className='material-symbols-outlined text-[16px]'>
-                arrow_forward
-              </span>
-            </button>
           </section>
         </div>
       </div>

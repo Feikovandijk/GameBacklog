@@ -17,14 +17,17 @@ console.log(
 console.log(`------------------------`);
 
 // Define return path constant to avoid magic strings
-const STEAM_RETURN_PATH = '/api/auth/steam/return';
+const STEAM_RETURN_PATH = '/auth/steam/return';
+
+// API URL for OAuth callback (must be the API server, not frontend)
+const API_URL = process.env.API_URL || `http://localhost:${config.port}`;
 
 // Configure Passport Steam strategy
 passport.use(
   new SteamStrategy(
     {
-      returnURL: `${config.frontendUrl}${STEAM_RETURN_PATH}`,
-      realm: `${config.frontendUrl}/`,
+      returnURL: `${API_URL}${STEAM_RETURN_PATH}`,
+      realm: `${API_URL}/`,
       apiKey: config.steamApiKey!,
       passReqToCallback: true,
     },
