@@ -22,9 +22,10 @@ export const {
   getSessionIdentifier: (req: Request) => (req.user as User)?.id || 'anon',
   cookieName: COOKIE_NAME,
   cookieOptions: {
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
+    domain: process.env.COOKIE_DOMAIN || undefined,
   },
   size: 64,
   ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],

@@ -71,6 +71,7 @@ app.use(
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: isProduction ? 'none' : 'lax', // 'lax' for localhost, 'none' for cross-site in production
+      domain: process.env.COOKIE_DOMAIN || undefined, // '.feiko.org' for cross-subdomain in production
     },
   })
 );
