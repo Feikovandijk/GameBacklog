@@ -70,7 +70,8 @@ app.use(
       secure: isProduction, // Only use secure cookies in production (HTTPS)
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: isProduction ? 'none' : 'lax', // 'lax' for localhost, 'none' for cross-site in production
+      sameSite: 'lax', // 'lax' is sufficient for same-site subdomain requests and more secure than 'none'
+      domain: process.env.COOKIE_DOMAIN || undefined, // '.feiko.org' for cross-subdomain in production
     },
   })
 );

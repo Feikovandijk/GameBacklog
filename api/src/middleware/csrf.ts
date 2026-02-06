@@ -22,9 +22,10 @@ export const {
   getSessionIdentifier: (req: Request) => (req.user as User)?.id || 'anon',
   cookieName: COOKIE_NAME,
   cookieOptions: {
-    sameSite: 'lax',
+    sameSite: 'lax', // 'lax' is sufficient for same-site subdomain requests and more secure than 'none'
     secure: process.env.NODE_ENV === 'production',
     path: '/',
+    domain: process.env.COOKIE_DOMAIN || undefined,
   },
   size: 64,
   ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
