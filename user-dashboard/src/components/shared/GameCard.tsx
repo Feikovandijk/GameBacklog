@@ -35,7 +35,7 @@ const GameCard: React.FC<GameCardProps> = ({
 
     return (
         <motion.div
-            layoutId={game.$id}
+            layoutId={game.id}
             className={`group relative bg-surface-dark border border-border-dark rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 ${className}`}
             onClick={onClick}
             initial={{ opacity: 0, y: 10 }}

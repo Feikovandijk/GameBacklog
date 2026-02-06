@@ -64,7 +64,7 @@ const KanBanBoard: React.FC = () => {
     // Drag Handlers
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
-        const game = games.find(g => g.$id === active.id);
+        const game = games.find(g => g.id === active.id);
         setActiveGame(game || null);
     };
 
@@ -78,14 +78,14 @@ const KanBanBoard: React.FC = () => {
         const newStatus = over.id as GameStatus;
 
         // Find game
-        const game = games.find(g => g.$id === activeGameId);
+        const game = games.find(g => g.id === activeGameId);
         if (!game || game.status === newStatus) return;
 
         // Optimistic update
         const originalGames = [...games];
         setGames(
             games.map(g =>
-                g.$id === activeGameId ? { ...g, status: newStatus } : g
+                g.id === activeGameId ? { ...g, status: newStatus } : g
             )
         );
 
@@ -106,7 +106,7 @@ const KanBanBoard: React.FC = () => {
     const handleUpdateGame = async (values: Partial<UserGame>) => {
         if (!editingGame) return;
         try {
-            await api.userGamesAPI.updateGame(editingGame.$id, values);
+            await api.userGamesAPI.updateGame(editingGame.id, values);
             setIsModalVisible(false);
             fetchGames();
         } catch {
@@ -117,8 +117,8 @@ const KanBanBoard: React.FC = () => {
     const handleDeleteGame = async () => {
         if (!editingGame) return;
         try {
-            await api.userGamesAPI.removeGame(editingGame.$id);
-            setGames(games.filter(g => g.$id !== editingGame.$id));
+            await api.userGamesAPI.removeGame(editingGame.id);
+            setGames(games.filter(g => g.id !== editingGame.id));
             setIsModalVisible(false);
         } catch {
             console.error('Failed to remove');
@@ -169,7 +169,7 @@ const KanBanBoard: React.FC = () => {
     const DraggableCard = ({ game }: { game: UserGame }) => {
         const { attributes, listeners, setNodeRef, transform, isDragging } =
             useDraggable({
-                id: game.$id,
+                id: game.id,
                 data: { game },
             });
 
@@ -215,7 +215,7 @@ const KanBanBoard: React.FC = () => {
                             {games
                                 .filter(g => g.status === col.id)
                                 .map(game => (
-                                    <DraggableCard key={game.$id} game={game} />
+                                    <DraggableCard key={game.id} game={game} />
                                 ))}
                         </BoardColumn>
                     ))}

@@ -24,6 +24,14 @@ cd api && npm run lint && npm run type-check && npm run test
 cd user-dashboard && npm run lint && npm run type-check
 ```
 
+### Dev Dashboard
+
+// turbo
+
+```bash
+cd devdashboard && npm run lint && npm run type-check
+```
+
 ## Individual Commands
 
 ### Linting

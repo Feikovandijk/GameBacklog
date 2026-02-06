@@ -30,7 +30,7 @@ cd user-dashboard && npm run dev
 
 3. Open the dashboard in browser:
    - User Dashboard: http://localhost:5173
-   - API Health: http://localhost:6543/api/health
+   - API check: http://localhost:6543/api/stats
 
 ## Notes
 

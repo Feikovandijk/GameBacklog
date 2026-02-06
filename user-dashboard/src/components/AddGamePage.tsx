@@ -29,7 +29,7 @@ const AddGamePage: React.FC = () => {
   };
 
   const handleAddGame = async (game: Game) => {
-    setAdding(prev => ({ ...prev, [game.$id]: true }));
+    setAdding(prev => ({ ...prev, [game.id]: true }));
     try {
       await api.userGamesAPI.addGame({
         steam_appid: game.steam_appid,
@@ -40,7 +40,7 @@ const AddGamePage: React.FC = () => {
       console.error('Error adding game:', error);
       // alert(`Failed to add ${game.name}. It might already be in your backlog.`);
     } finally {
-      setAdding(prev => ({ ...prev, [game.$id]: false }));
+      setAdding(prev => ({ ...prev, [game.id]: false }));
     }
   };
 
@@ -81,7 +81,7 @@ const AddGamePage: React.FC = () => {
         <div className='space-y-4'>
           {searchResults.map(game => (
             <div
-              key={game.$id}
+              key={game.id}
               className='flex flex-col sm:flex-row items-center gap-4 p-4 bg-background-dark/50 border border-white/5 rounded-xl hover:border-white/10 transition-colors'
             >
               <div className='w-full sm:w-24 h-32 sm:h-24 flex-shrink-0 bg-black rounded-lg overflow-hidden border border-white/5'>
@@ -108,10 +108,10 @@ const AddGamePage: React.FC = () => {
 
               <button
                 onClick={() => handleAddGame(game)}
-                disabled={adding[game.$id]}
+                disabled={adding[game.id]}
                 className='w-full sm:w-auto px-6 py-2.5 bg-surface-hover hover:bg-white/10 text-white font-medium rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap'
               >
-                {adding[game.$id] ? (
+                {adding[game.id] ? (
                   <span className='flex items-center justify-center gap-2'>
                     <span className='w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin' />
                     Adding...

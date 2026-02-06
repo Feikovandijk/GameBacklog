@@ -11,7 +11,7 @@ import { userGamesAPI } from '../../services/api';
 import moment from 'moment';
 
 interface Activity {
-    $id: string;
+    id: string;
     type: string;
     timestamp?: string;
     created_at?: string;
@@ -155,7 +155,7 @@ const RecentActivityFeed: React.FC = () => {
 
                     return (
                         <motion.div
-                            key={activity.$id}
+                            key={activity.id}
                             className="activity-item"
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}

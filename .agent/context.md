@@ -47,7 +47,7 @@ GameBacklog is a Steam game library management system with automated data synchr
 
 ### API Endpoints
 
-All endpoints prefixed with `/api/`. Use Express Router pattern.
+Routes are defined inline in `api/src/index.ts` (no Express Router extraction). Auth routes use `/auth/*` prefix; data routes use `/api/*` prefix. State-changing user routes (POST/PUT/DELETE on `/api/user/games`) have CSRF protection via `doubleCsrfProtection` middleware.
 
 ### React Components
 
@@ -70,7 +70,7 @@ See `.env.example`. Key vars:
 
 - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`
 - `STEAM_API_KEY_0`, `STEAM_API_KEY_1`, ... (multiple keys for workers)
-- `SESSION_SECRET`, `FRONTEND_URL`, `PORT`
+- `SESSION_SECRET`, `FRONTEND_URL`, `API_URL`, `PORT`
 
 ## Common Commands
 
