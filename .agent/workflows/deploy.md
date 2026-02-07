@@ -66,7 +66,7 @@ pm2 status
 
 ## Post-Deployment Verification
 
-- Check API health: `curl http://localhost:6543/api/health`
+- Check API responds: `curl http://localhost:6543/api/stats`
 - Check dashboard is serving: `curl http://localhost/`
 - Review PM2 logs: `pm2 logs gamebacklog-api`
 

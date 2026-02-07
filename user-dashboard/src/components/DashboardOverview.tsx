@@ -195,7 +195,7 @@ const DashboardOverview: React.FC = () => {
           <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
             {recentlyPlayed.map((userGame, index) => (
               <div
-                key={userGame.$id}
+                key={userGame.id}
                 className='bg-surface-dark rounded-2xl border border-border-dark overflow-hidden group hover:border-primary/50 transition-all cursor-pointer'
                 onClick={() => navigate('/games')}
               >
@@ -299,7 +299,7 @@ const DashboardOverview: React.FC = () => {
                 <tbody className='text-sm divide-y divide-border-dark/50'>
                   {trendingGames.map((game) => (
                     <tr
-                      key={game.$id}
+                      key={game.id}
                       className='group hover:bg-surface-hover/50 transition-colors'
                     >
                       <td className='px-6 py-4'>

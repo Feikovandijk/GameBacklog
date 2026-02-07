@@ -82,7 +82,7 @@ const GameLibrary: React.FC = () => {
     const handleUpdateGame = async (values: Partial<UserGame>) => {
         if (!selectedGame) return;
         try {
-            await api.userGamesAPI.updateGame(selectedGame.$id, values);
+            await api.userGamesAPI.updateGame(selectedGame.id, values);
             setIsModalVisible(false);
             fetchGames(pagination.current, false);
         } catch {
@@ -93,7 +93,7 @@ const GameLibrary: React.FC = () => {
     const handleDeleteGame = async () => {
         if (!selectedGame) return;
         try {
-            await api.userGamesAPI.removeGame(selectedGame.$id);
+            await api.userGamesAPI.removeGame(selectedGame.id);
             setIsModalVisible(false);
             fetchGames(1, false);
         } catch {
@@ -209,7 +209,7 @@ const GameLibrary: React.FC = () => {
                         >
                             {games.map(game => (
                                 <div
-                                    key={game.$id}
+                                    key={game.id}
                                     onClick={() => handleEdit(game)}
                                     className='cursor-pointer'
                                 >
@@ -240,7 +240,7 @@ const GameLibrary: React.FC = () => {
                                 <tbody className='divide-y divide-border-dark/50 text-sm'>
                                     {games.map(game => (
                                         <tr
-                                            key={game.$id}
+                                            key={game.id}
                                             className='hover:bg-surface-hover/50 transition-colors group cursor-pointer'
                                             onClick={() => handleEdit(game)}
                                         >

@@ -113,7 +113,7 @@ const CurrentlyPlayingGrid: React.FC = () => {
             <div className="playing-games-grid">
                 {games.map((game, index) => (
                     <motion.div
-                        key={game.$id}
+                        key={game.id}
                         className="playing-game-card"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}

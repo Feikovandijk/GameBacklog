@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 export interface User {
-  $id: string;
+  id: string;
   steam_id: string;
   display_name: string;
   avatar_url: string;
@@ -27,7 +27,7 @@ export interface User {
 }
 
 export interface Game {
-  $id: string;
+  id: string;
   steam_appid: number;
   name: string;
   short_description: string;
@@ -45,7 +45,7 @@ export interface Game {
 }
 
 export interface UserGame {
-  $id: string;
+  id: string;
   user_id: string;
   game_id: string;
   steam_appid: number;
@@ -105,7 +105,7 @@ export interface DashboardStats {
 }
 
 export interface Achievement {
-  $id: string;
+  id: string;
   api_name: string;
   display_name: string;
   description: string;
@@ -116,7 +116,7 @@ export interface Achievement {
 }
 
 export interface RecentAchievement {
-  $id: string;
+  id: string;
   user_id: string;
   achievement_id: string;
   steam_appid: number;
@@ -127,7 +127,7 @@ export interface RecentAchievement {
 }
 
 export interface UserActivity {
-  $id: string;
+  id: string;
   user_id: string;
   type: string;
   timestamp: string;

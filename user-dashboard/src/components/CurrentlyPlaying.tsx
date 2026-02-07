@@ -117,7 +117,7 @@ const CurrentlyPlaying: React.FC = () => {
 
       <Row gutter={[16, 16]}>
         {currentlyPlaying.map(userGame => (
-          <Col xs={24} sm={12} lg={8} key={userGame.$id}>
+          <Col xs={24} sm={12} lg={8} key={userGame.id}>
             <Card
               hoverable
               cover={

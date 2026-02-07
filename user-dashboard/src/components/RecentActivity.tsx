@@ -12,7 +12,7 @@ import moment from 'moment';
 const { Text } = Typography;
 
 interface Activity {
-  $id: string;
+  id: string;
   type: string;
   timestamp: string;
   metadata_json: string;
