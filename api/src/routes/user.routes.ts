@@ -3,11 +3,13 @@ import * as userController from '../controllers/user.controller';
 import { asyncHandler } from '../utils/asyncHandler';
 import { requireAuth } from '../middleware/auth.middleware';
 import { doubleCsrfProtection } from '../middleware/csrf';
+import { rateLimit } from '../middleware/rate-limit';
 
 const router = Router();
 
 // Apply auth middleware to all routes in this router
 router.use(requireAuth);
+router.use(rateLimit(15 * 60 * 1000, 100)); // 100 requests per 15 minutes
 
 // Sync triggers background process, returns void synchronously
 router.post('/sync', userController.syncUser);
