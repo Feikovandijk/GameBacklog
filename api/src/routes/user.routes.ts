@@ -6,9 +6,11 @@ import { rateLimit } from '../middleware/rate-limit';
 
 const router = Router();
 
+// Apply rate limiting (100 requests per 15 minutes)
+router.use(rateLimit(15 * 60 * 1000, 100));
+
 // Apply auth middleware to all routes in this router
 router.use(requireAuth);
-router.use(rateLimit(15 * 60 * 1000, 100)); // 100 requests per 15 minutes
 
 // Sync triggers background process, returns void synchronously
 router.post('/sync', userController.syncUser);
