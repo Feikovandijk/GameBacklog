@@ -4,7 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { passport } from './auth/steam-auth';
 import config from './config';
-import { generateCsrfToken } from './middleware/csrf';
+import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -38,6 +38,7 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(doubleCsrfProtection);
 
 // Session configuration
 const isProduction = process.env.NODE_ENV === 'production';

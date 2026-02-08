@@ -2,7 +2,6 @@ import { Router } from 'express';
 import * as userController from '../controllers/user.controller';
 import { asyncHandler } from '../utils/asyncHandler';
 import { requireAuth } from '../middleware/auth.middleware';
-import { doubleCsrfProtection } from '../middleware/csrf';
 import { rateLimit } from '../middleware/rate-limit';
 
 const router = Router();
@@ -18,21 +17,9 @@ router.get(
   '/games/recently-played',
   asyncHandler(userController.getRecentlyPlayed)
 );
-router.post(
-  '/games',
-  doubleCsrfProtection,
-  asyncHandler(userController.addUserGame)
-);
-router.put(
-  '/games/:id',
-  doubleCsrfProtection,
-  asyncHandler(userController.updateUserGame)
-);
-router.delete(
-  '/games/:id',
-  doubleCsrfProtection,
-  asyncHandler(userController.deleteUserGame)
-);
+router.post('/games', asyncHandler(userController.addUserGame));
+router.put('/games/:id', asyncHandler(userController.updateUserGame));
+router.delete('/games/:id', asyncHandler(userController.deleteUserGame));
 
 router.get('/stats', asyncHandler(userController.getUserStats));
 router.get('/stats/extended', asyncHandler(userController.getExtendedStats));
