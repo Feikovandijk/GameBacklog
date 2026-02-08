@@ -107,9 +107,16 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
           {/* Placeholders for other links */}
           <a
             href='#'
-            className='flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white hover:bg-surface-hover rounded-xl transition-all group'
+            onClick={() => navigate('/board')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/board')
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              }`}
           >
-            <span className='material-symbols-outlined group-hover:scale-110 transition-transform'>
+            <span
+              className={`material-symbols-outlined transition-transform ${!isActive('/board') ? 'group-hover:scale-110' : ''
+                }`}
+            >
               analytics
             </span>
             <span className='font-medium text-sm'>Analysis</span>

@@ -1,0 +1,16 @@
+meta {
+  name: Get Trending Games
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/games/trending?limit=10&days=7
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 10
+  days: 7
+}

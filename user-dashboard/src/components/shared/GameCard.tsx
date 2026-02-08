@@ -131,13 +131,16 @@ const GameCard: React.FC<GameCardProps> = ({
                 {/* Progress Bar */}
                 {showProgress &&
                     (game.status === 'currently_playing' ||
+                        game.status === 'analysis_needed' ||
                         game.status === 'completed' ||
                         game.status === 'completed_100') && (
                         <div className='mt-1 h-1.5 bg-white/10 rounded-full overflow-hidden'>
                             <div
                                 className={`h-full rounded-full ${game.status === 'currently_playing'
                                     ? 'bg-accent-purple'
-                                    : 'bg-accent-green'
+                                    : game.status === 'analysis_needed'
+                                        ? 'bg-accent-orange'
+                                        : 'bg-accent-green'
                                     }`}
                                 style={{ width: `${calculateProgress()}%` }}
                             />
