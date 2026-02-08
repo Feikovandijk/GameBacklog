@@ -21,17 +21,19 @@ import type { UserGame } from '../services/api';
 
 // Configuration for columns
 const COLUMNS: { id: GameStatus; title: string }[] = [
-    { id: 'want_to_play', title: 'Backlog' },
-    { id: 'currently_playing', title: 'In Progress' },
-    { id: 'on_hold', title: 'On Hold' },
+    { id: 'want_to_play', title: 'To Play' },
+    { id: 'currently_playing', title: 'Playing' },
+    { id: 'analysis_needed', title: 'Analysis Needed' },
     { id: 'completed', title: 'Completed' },
-    { id: 'dropped', title: 'Dropped' },
 ];
 
 const KanBanBoard: React.FC = () => {
     const [games, setGames] = useState<UserGame[]>([]);
+    const [filteredGames, setFilteredGames] = useState<UserGame[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeGame, setActiveGame] = useState<UserGame | null>(null);
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
 
     // Modal
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -49,7 +51,16 @@ const KanBanBoard: React.FC = () => {
         try {
             // Fetch all games for board
             const response = await api.getUserGames({ limit: 500 });
-            setGames(response.data.documents);
+            const allGames = response.data.documents;
+            setGames(allGames);
+            setFilteredGames(allGames);
+
+            // Extract unique genres/tags for filter
+            const tags = new Set<string>();
+            allGames.forEach(g => {
+                g.game?.genres?.forEach(genre => tags.add(genre));
+            });
+            setAvailableTags(Array.from(tags).sort().slice(0, 8)); // Top 8 alphabetical for now
         } catch (error) {
             console.error('Error fetching board:', error);
         } finally {
@@ -60,6 +71,14 @@ const KanBanBoard: React.FC = () => {
     useEffect(() => {
         fetchGames();
     }, []);
+
+    useEffect(() => {
+        if (!selectedTag) {
+            setFilteredGames(games);
+        } else {
+            setFilteredGames(games.filter(g => g.game?.genres?.includes(selectedTag)));
+        }
+    }, [selectedTag, games]);
 
     // Drag Handlers
     const handleDragStart = (event: DragStartEvent) => {
@@ -83,11 +102,10 @@ const KanBanBoard: React.FC = () => {
 
         // Optimistic update
         const originalGames = [...games];
-        setGames(
-            games.map(g =>
-                g.id === activeGameId ? { ...g, status: newStatus } : g
-            )
+        const updatedGames = games.map(g =>
+            g.id === activeGameId ? { ...g, status: newStatus } : g
         );
+        setGames(updatedGames);
 
         // API Call
         try {
@@ -147,7 +165,7 @@ const KanBanBoard: React.FC = () => {
                     <div className='flex items-center gap-2'>
                         <StatusBadge status={id} minimal className='w-2.5 h-2.5' />
                         <span className='font-bold text-white text-lg'>{title}</span>
-                        <span className='bg-white/10 rounded-full px-2.5 py-0.5 text-xs text-text-secondary font-medium'>
+                        <span className='bg-primary/10 rounded-full px-2.5 py-0.5 text-xs text-primary font-bold'>
                             {React.Children.count(children)}
                         </span>
                     </div>
@@ -198,8 +216,39 @@ const KanBanBoard: React.FC = () => {
     return (
         <div className='h-[calc(100vh-64px)] flex flex-col'>
             {/* Header */}
-            <div className='px-8 pt-6 pb-2'>
-                <h1 className='text-3xl font-bold text-white'>Project Board</h1>
+            <div className='px-8 pt-6 pb-2 flex items-center justify-between'>
+                <h1 className='text-3xl font-bold text-white'>Active Analysis</h1>
+                <div className='flex items-center gap-2'>
+                    {/* <button className='bg-primary text-background-dark font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 transition-colors'>
+                        <span className='material-symbols-outlined'>sync</span>
+                        Sync Steam
+                    </button> */}
+                </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className='px-8 py-4 flex items-center gap-2 overflow-x-auto no-scrollbar'>
+                <button
+                    onClick={() => setSelectedTag(null)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${!selectedTag
+                        ? 'bg-primary text-background-dark'
+                        : 'bg-surface-light text-text-secondary hover:text-white hover:bg-surface-hover'
+                        }`}
+                >
+                    All Games
+                </button>
+                {availableTags.map(tag => (
+                    <button
+                        key={tag}
+                        onClick={() => setSelectedTag(tag)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${selectedTag === tag
+                            ? 'bg-primary text-background-dark'
+                            : 'bg-surface-light text-text-secondary hover:text-white hover:bg-surface-hover'
+                            }`}
+                    >
+                        {tag}
+                    </button>
+                ))}
             </div>
 
             {/* Board Area */}
@@ -212,7 +261,7 @@ const KanBanBoard: React.FC = () => {
                 >
                     {COLUMNS.map(col => (
                         <BoardColumn key={col.id} id={col.id} title={col.title}>
-                            {games
+                            {filteredGames
                                 .filter(g => g.status === col.id)
                                 .map(game => (
                                     <DraggableCard key={game.id} game={game} />
