@@ -38,7 +38,6 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(doubleCsrfProtection);
 
 // Session configuration
 const isProduction = process.env.NODE_ENV === 'production';
@@ -61,6 +60,9 @@ app.use(
 // Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
+
+// CSRF protection middleware (must run after session & auth)
+app.use(doubleCsrfProtection);
 
 // Routes
 app.get('/health', (_req: Request, res: Response) => {
