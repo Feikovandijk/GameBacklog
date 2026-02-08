@@ -1,10 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
-import { passport, User as SteamUser } from '../auth/steam-auth';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
+import { passport } from '../auth/steam-auth';
 import config from '../config';
 
 export const login = passport.authenticate('steam');
 
-export const returnAuth = [
+export const returnAuth: RequestHandler[] = [
   (req: Request, res: Response, next: NextFunction) => {
     console.log('Hitting /auth/steam/return');
     console.log('Request Headers:', JSON.stringify(req.headers, null, 2));

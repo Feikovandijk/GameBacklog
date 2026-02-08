@@ -67,7 +67,7 @@ export const getAnalytics = async (
       statsResponse?.reduce(
         (acc: Record<string, any>, doc: any) => {
           try {
-            acc[doc.key] = JSON.parse(doc.value);
+            acc[doc.key] = JSON.parse(doc.value as string);
           } catch (e) {
             console.error(`Failed to parse stat value for key: ${doc.key}`, e);
             acc[doc.key] = {};
@@ -87,7 +87,7 @@ export const getAnalytics = async (
     const analyticsData = {
       releaseYearDistribution: stats['analytics_releaseYearDistribution'] || {},
       genreDistribution: getTopN(
-        stats['analytics_genreDistribution'] || {},
+        (stats['analytics_genreDistribution'] || {}) as Record<string, number>,
         10
       ),
     };

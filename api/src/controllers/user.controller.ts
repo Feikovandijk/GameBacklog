@@ -3,10 +3,10 @@ import { supabase } from '../supabase/client';
 import { User as SteamUser } from '../auth/steam-auth';
 import { syncUserWithSteam } from '../services/user-steam-sync-service';
 
-export const syncUser = async (req: Request, res: Response): Promise<void> => {
+export const syncUser = (req: Request, res: Response): void => {
   try {
     // Trigger the sync in the background and return immediately
-    syncUserWithSteam(req.user as SteamUser);
+    void syncUserWithSteam(req.user as SteamUser);
     res
       .status(202)
       .json({ message: 'Sync process started in the background.' });
@@ -136,7 +136,7 @@ export const addUserGame = async (
     }
 
     // Check if user already has this game
-    const { data: existingUserGame, error: existingError } = await supabase
+    const { data: existingUserGame } = await supabase
       .from('user_games')
       .select('id')
       .eq('user_id', userId)
@@ -239,38 +239,52 @@ export const updateUserGame = async (
     if (status !== undefined) {
       updateData.status = status;
       // Log activity based on status change
-      if (status === 'completed' || status === 'completed_100') {
-        // Fetch game name for activity logging
-        const { data: gameData } = await supabase
-          .from('games')
-          .select('name')
-          .eq('steam_appid', userGame.steam_appid)
-          .single();
-        const gameName = gameData?.name || 'Unknown Game';
-        logUserActivity(userId, 'game.completed', { gameName });
-        updateData.completed_at = new Date().toISOString();
-      } else if (
-        status === 'currently_playing' &&
-        userGame.status !== 'currently_playing'
+      if (
+        status === 'completed' ||
+        status === 'completed_100' ||
+        (status === 'currently_playing' &&
+          userGame.status !== 'currently_playing')
       ) {
-        // Fetch game name for activity logging
+        // Fetch game name once for activity logging
         const { data: gameData } = await supabase
           .from('games')
           .select('name')
           .eq('steam_appid', userGame.steam_appid)
           .single();
         const gameName = gameData?.name || 'Unknown Game';
-        logUserActivity(userId, 'game.started', { gameName });
+
+        if (status === 'completed' || status === 'completed_100') {
+          void logUserActivity(userId, 'game.completed', { gameName });
+          updateData.completed_at = new Date().toISOString();
+        } else if (
+          status === 'currently_playing' &&
+          userGame.status !== 'currently_playing'
+        ) {
+          void logUserActivity(userId, 'game.started', { gameName });
+        }
       }
     }
-    if (priority !== undefined) updateData.priority = priority;
-    if (user_rating !== undefined) updateData.user_rating = user_rating;
-    if (user_notes !== undefined) updateData.user_notes = user_notes;
-    if (user_tags !== undefined) updateData.user_tags = user_tags;
-    if (hours_played !== undefined) updateData.hours_played = hours_played;
-    if (completion_percentage !== undefined)
+    if (priority !== undefined) {
+      updateData.priority = priority;
+    }
+    if (user_rating !== undefined) {
+      updateData.user_rating = user_rating;
+    }
+    if (user_notes !== undefined) {
+      updateData.user_notes = user_notes;
+    }
+    if (user_tags !== undefined) {
+      updateData.user_tags = user_tags;
+    }
+    if (hours_played !== undefined) {
+      updateData.hours_played = hours_played;
+    }
+    if (completion_percentage !== undefined) {
       updateData.completion_percentage = completion_percentage;
-    if (is_favorite !== undefined) updateData.is_favorite = is_favorite;
+    }
+    if (is_favorite !== undefined) {
+      updateData.is_favorite = is_favorite;
+    }
 
     // Set completion date if marking as completed
     if (
@@ -471,33 +485,51 @@ export const getDashboardStats = async (
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-    // Get all user games with game details for comprehensive stats
-    const { data: allUserGames, error: gamesError } = await supabase
-      .from('user_games')
-      .select(
-        `
-          id,
-          status,
-          hours_played,
-          updated_at,
-          added_at,
-          game:games(
-            id,
-            genres,
-            price_final
-          )
-        `
-      )
-      .eq('user_id', userId);
+    // Run optimized parallel queries for different stats
+    const [
+      statusCountsResult,
+      completedStatsResult,
+      playtimeResult,
+      genreDataResult,
+      collectionValueResult,
+      { count: recentAchievementCount },
+    ] = await Promise.all([
+      // Get status counts using database aggregation
+      supabase.from('user_games').select('status').eq('user_id', userId),
 
-    if (gamesError) {
-      throw gamesError;
-    }
+      // Get completed games with completed_at and hours_played for time-based and avg stats
+      supabase
+        .from('user_games')
+        .select('completed_at, hours_played')
+        .eq('user_id', userId)
+        .in('status', ['completed', 'completed_100']),
 
-    const userGames = allUserGames || [];
+      // Get total hours played
+      supabase.from('user_games').select('hours_played').eq('user_id', userId),
+
+      // Get genre data only
+      supabase
+        .from('user_games')
+        .select('game:games(genres)')
+        .eq('user_id', userId),
+
+      // Get collection value only
+      supabase
+        .from('user_games')
+        .select('game:games(price_final)')
+        .eq('user_id', userId),
+
+      // Get recent achievement count
+      supabase
+        .from('user_achievements')
+        .select('id', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('is_unlocked', true)
+        .gte('unlock_time', startOfMonth.toISOString()),
+    ]);
 
     // Calculate status counts
-    const statusCounts = userGames.reduce(
+    const statusCounts = (statusCountsResult.data || []).reduce(
       (acc, game) => {
         acc[game.status] = (acc[game.status] || 0) + 1;
         return acc;
@@ -505,36 +537,51 @@ export const getDashboardStats = async (
       {} as Record<string, number>
     );
 
-    // Calculate time-based completions
-    // Note: We use updated_at as proxy for completion time since completed_at doesn't exist
-    const completedGames = userGames.filter(
-      g => g.status === 'completed' || g.status === 'completed_100'
-    );
+    const totalGames = (statusCountsResult.data || []).length;
+
+    // Calculate time-based completions using completed_at
+    const completedGames = completedStatsResult.data || [];
 
     const completedThisWeek = completedGames.filter(g => {
-      if (!g.updated_at) return false;
-      return new Date(g.updated_at) >= startOfWeek;
+      if (!g.completed_at) {
+        return false;
+      }
+      return new Date(g.completed_at as string) >= startOfWeek;
     }).length;
 
     const completedThisMonth = completedGames.filter(g => {
-      if (!g.updated_at) return false;
-      return new Date(g.updated_at) >= startOfMonth;
+      if (!g.completed_at) {
+        return false;
+      }
+      return new Date(g.completed_at as string) >= startOfMonth;
     }).length;
 
     const completedThisYear = completedGames.filter(g => {
-      if (!g.updated_at) return false;
-      return new Date(g.updated_at) >= startOfYear;
+      if (!g.completed_at) {
+        return false;
+      }
+      return new Date(g.completed_at as string) >= startOfYear;
     }).length;
 
     // Calculate playtime stats
-    const totalHoursPlayed = userGames.reduce(
+    const totalHoursPlayed = (playtimeResult.data || []).reduce(
       (sum, g) => sum + (g.hours_played || 0),
       0
     );
 
+    // Calculate average hours per completed game
+    const avgHoursPerCompletion =
+      completedGames.length > 0
+        ? Math.round(
+            (completedGames.reduce((sum, g) => sum + (g.hours_played || 0), 0) /
+              completedGames.length) *
+              10
+          ) / 10
+        : 0;
+
     // Calculate genre distribution
     const genreCounts: Record<string, number> = {};
-    userGames.forEach(ug => {
+    (genreDataResult.data || []).forEach(ug => {
       const game = ug.game as any;
       if (game?.genres && Array.isArray(game.genres)) {
         game.genres.forEach((genre: string) => {
@@ -549,34 +596,19 @@ export const getDashboardStats = async (
       .map(([name, count]) => ({ name, count }));
 
     // Calculate collection value estimate (sum of game prices in cents, then convert to dollars)
-    const collectionValueCents = userGames.reduce((sum, ug) => {
-      const game = ug.game as any;
-      return sum + (game?.price_final || 0);
-    }, 0);
+    const collectionValueCents = (collectionValueResult.data || []).reduce(
+      (sum, ug) => {
+        const game = ug.game as any;
+        return sum + (game?.price_final || 0);
+      },
+      0
+    );
     const collectionValueEstimate = Math.round(collectionValueCents) / 100;
-
-    // Get recent achievement count
-    const { count: recentAchievementCount } = await supabase
-      .from('user_achievements')
-      .select('id', { count: 'exact' })
-      .eq('user_id', userId)
-      .eq('is_unlocked', true)
-      .gte('unlock_time', startOfMonth.toISOString());
-
-    // Calculate average hours per completed game
-    const avgHoursPerCompletion =
-      completedGames.length > 0
-        ? Math.round(
-            (completedGames.reduce((sum, g) => sum + (g.hours_played || 0), 0) /
-              completedGames.length) *
-              10
-          ) / 10
-        : 0;
 
     // Build response
     const dashboardStats = {
       // Status counts
-      totalGames: userGames.length,
+      totalGames,
       completedGames: statusCounts['completed'] || 0,
       completed100: statusCounts['completed_100'] || 0,
       currentlyPlaying: statusCounts['currently_playing'] || 0,
@@ -600,11 +632,11 @@ export const getDashboardStats = async (
 
       // Computed
       completionPercentage:
-        userGames.length > 0
+        totalGames > 0
           ? Math.round(
               (((statusCounts['completed'] || 0) +
                 (statusCounts['completed_100'] || 0)) /
-                userGames.length) *
+                totalGames) *
                 100
             )
           : 0,
