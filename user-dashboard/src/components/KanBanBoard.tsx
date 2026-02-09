@@ -17,6 +17,7 @@ import * as api from '../services/api';
 import GameCard from './shared/GameCard';
 import StatusBadge, { type GameStatus } from './shared/StatusBadge';
 import EditGameModal from './EditGameModal';
+import AddToBoardModal from './AddToBoardModal';
 import type { UserGame } from '../services/api';
 
 // Configuration for columns
@@ -33,9 +34,10 @@ const KanBanBoard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [activeGame, setActiveGame] = useState<UserGame | null>(null);
 
-    // Modal
+    // Modals
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingGame, setEditingGame] = useState<UserGame | null>(null);
+    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -198,8 +200,15 @@ const KanBanBoard: React.FC = () => {
     return (
         <div className='h-[calc(100vh-64px)] flex flex-col'>
             {/* Header */}
-            <div className='px-8 pt-6 pb-2'>
+            <div className='px-8 pt-6 pb-2 flex items-center justify-between'>
                 <h1 className='text-3xl font-bold text-white'>Project Board</h1>
+                <button
+                    onClick={() => setIsAddModalVisible(true)}
+                    className='px-5 py-2.5 bg-primary hover:bg-primary-hover text-background-dark font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2'
+                >
+                    <span className='material-symbols-outlined text-[20px]'>add</span>
+                    Add Game
+                </button>
             </div>
 
             {/* Board Area */}
@@ -243,6 +252,12 @@ const KanBanBoard: React.FC = () => {
                 onOk={handleUpdateGame}
                 onCancel={() => setIsModalVisible(false)}
                 onDelete={handleDeleteGame}
+            />
+
+            <AddToBoardModal
+                open={isAddModalVisible}
+                onCancel={() => setIsAddModalVisible(false)}
+                onGameAdded={fetchGames}
             />
         </div>
     );

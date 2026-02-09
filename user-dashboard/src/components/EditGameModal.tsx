@@ -70,9 +70,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               </label>
               <div className='aspect-video rounded-xl overflow-hidden border border-white/10 bg-background-dark'>
                 <img
-                  src={game.game?.header_image}
+                  src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
                   alt={game.game?.name}
                   className='w-full h-full object-cover'
+                  loading='lazy'
                 />
               </div>
             </div>
