@@ -22,17 +22,19 @@ import type { UserGame } from '../services/api';
 
 // Configuration for columns
 const COLUMNS: { id: GameStatus; title: string }[] = [
-    { id: 'want_to_play', title: 'Backlog' },
-    { id: 'currently_playing', title: 'In Progress' },
-    { id: 'on_hold', title: 'On Hold' },
+    { id: 'want_to_play', title: 'To Play' },
+    { id: 'currently_playing', title: 'Playing' },
+    { id: 'analysis_needed', title: 'Analysis Needed' },
     { id: 'completed', title: 'Completed' },
-    { id: 'dropped', title: 'Dropped' },
 ];
 
 const KanBanBoard: React.FC = () => {
     const [games, setGames] = useState<UserGame[]>([]);
+    const [filteredGames, setFilteredGames] = useState<UserGame[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeGame, setActiveGame] = useState<UserGame | null>(null);
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
 
     // Modals
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -54,7 +56,16 @@ const KanBanBoard: React.FC = () => {
         try {
             // Fetch all games for board
             const response = await api.getUserGames({ limit: 500 });
-            setGames(response.data.documents);
+            const allGames = response.data.documents;
+            setGames(allGames);
+            setFilteredGames(allGames);
+
+            // Extract unique genres/tags for filter
+            const tags = new Set<string>();
+            allGames.forEach(g => {
+                g.game?.genres?.forEach(genre => tags.add(genre));
+            });
+            setAvailableTags(Array.from(tags).sort().slice(0, 8)); // Top 8 alphabetical for now
         } catch (error) {
             console.error('Error fetching board:', error);
         } finally {
@@ -65,6 +76,14 @@ const KanBanBoard: React.FC = () => {
     useEffect(() => {
         fetchGames();
     }, []);
+
+    useEffect(() => {
+        if (!selectedTag) {
+            setFilteredGames(games);
+        } else {
+            setFilteredGames(games.filter(g => g.game?.genres?.includes(selectedTag)));
+        }
+    }, [selectedTag, games]);
 
     // Drag Handlers
     const handleDragStart = (event: DragStartEvent) => {
@@ -88,11 +107,10 @@ const KanBanBoard: React.FC = () => {
 
         // Optimistic update
         const originalGames = [...games];
-        setGames(
-            games.map(g =>
-                g.id === activeGameId ? { ...g, status: newStatus } : g
-            )
+        const updatedGames = games.map(g =>
+            g.id === activeGameId ? { ...g, status: newStatus } : g
         );
+        setGames(updatedGames);
 
         // API Call
         try {
@@ -166,9 +184,9 @@ const KanBanBoard: React.FC = () => {
                 <div className='flex items-center justify-between px-3 py-3 flex-shrink-0'>
                     <div className='flex items-center gap-2'>
                         <StatusBadge status={id} minimal className='w-2.5 h-2.5' />
-                        <span className='font-semibold text-white text-sm'>{title}</span>
-                        <span className='bg-white/10 rounded-full px-2 py-0.5 text-[11px] text-text-secondary font-medium min-w-[20px] text-center'>
-                            {count}
+                        <h2 className='font-bold text-white text-lg'>{title}</h2>
+                        <span className='bg-primary/10 rounded-full px-2.5 py-0.5 text-xs text-primary font-bold'>
+                            {React.Children.count(children)}
                         </span>
                     </div>
                     {count > 0 && (
@@ -229,40 +247,72 @@ const KanBanBoard: React.FC = () => {
     return (
         <div className='-m-6 md:-m-8 lg:-mx-10 lg:-my-8 flex flex-col h-[calc(100vh-57px)]'>
             {/* Header */}
-            <div className='px-6 pt-4 pb-3 flex items-center justify-between flex-shrink-0'>
-                <h1 className='text-2xl font-bold text-white'>Board</h1>
+            <div className='px-8 pt-6 pb-2 flex items-center justify-between'>
+                <h1 className='text-3xl font-bold text-white'>Active Analysis</h1>
+                <div className='flex items-center gap-2'>
+                    {/* <button className='bg-primary text-background-dark font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 transition-colors'>
+                        <span className='material-symbols-outlined'>sync</span>
+                        Sync Steam
+                    </button> */}
+                    <button
+                        onClick={() => setIsAddModalVisible(true)}
+                        className='px-4 py-2 bg-primary hover:bg-primary-hover text-background-dark font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2 text-sm'
+                    >
+                        <span className='material-symbols-outlined text-[18px]'>add</span>
+                        Add Game
+                    </button>
+                </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className='px-8 py-4 flex items-center gap-2 overflow-x-auto no-scrollbar'>
                 <button
-                    onClick={() => setIsAddModalVisible(true)}
-                    className='px-4 py-2 bg-primary hover:bg-primary-hover text-background-dark font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2 text-sm'
+                    onClick={() => setSelectedTag(null)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${!selectedTag
+                        ? 'bg-primary text-background-dark'
+                        : 'bg-surface-light text-text-secondary hover:text-white hover:bg-surface-hover'
+                        }`}
                 >
-                    <span className='material-symbols-outlined text-[18px]'>add</span>
-                    Add Game
+                    All Games
                 </button>
+                {availableTags.map(tag => (
+                    <button
+                        key={tag}
+                        onClick={() => setSelectedTag(tag)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${selectedTag === tag
+                            ? 'bg-primary text-background-dark'
+                            : 'bg-surface-light text-text-secondary hover:text-white hover:bg-surface-hover'
+                            }`}
+                    >
+                        {tag}
+                    </button>
+                ))}
             </div>
 
             {/* Board Area */}
-            <div className='flex-1 overflow-x-auto overflow-y-hidden px-6 pb-4 kanban-scroll'>
-                <div className='flex gap-3 h-full min-w-max'>
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCorners}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                    >
-                        {COLUMNS.map(col => (
-                            <BoardColumn
-                                key={col.id}
-                                id={col.id}
-                                title={col.title}
-                                onClear={() => setClearingColumn(col.id)}
-                            >
-                                {games
-                                    .filter(g => g.status === col.id)
-                                    .map(game => (
-                                        <DraggableCard key={game.id} game={game} />
-                                    ))}
-                            </BoardColumn>
-                        ))}
+            <div className='flex-1 overflow-x-auto overflow-y-hidden p-8 flex gap-4'>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCorners}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                >
+                    {COLUMNS.map(col => (
+                        <BoardColumn
+                            key={col.id}
+                            id={col.id}
+                            title={col.title}
+                            onClear={() => setClearingColumn(col.id)}
+                        >
+                            {filteredGames
+                                .filter(g => g.status === col.id)
+                                .map(game => (
+                                    <DraggableCard key={game.id} game={game} />
+                                ))}
+                        </BoardColumn>
+                    ))}
+
+
 
                         <DragOverlay>
                             {activeGame ? (
@@ -296,56 +346,58 @@ const KanBanBoard: React.FC = () => {
                 onGameAdded={fetchGames}
             />
 
-            {/* Clear Column Confirmation */}
-            {clearingColumn && (
-                <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'>
-                    <div className='bg-surface-dark border border-border-dark rounded-2xl w-full max-w-sm p-6 shadow-2xl'>
-                        <div className='flex items-center gap-3 mb-4'>
-                            <div className='p-2 bg-red-500/10 rounded-xl'>
-                                <span className='material-symbols-outlined text-red-400 text-[24px]'>
-                                    warning
-                                </span>
-                            </div>
-                            <h3 className='text-lg font-bold text-white'>
-                                Clear{' '}
-                                {
-                                    COLUMNS.find(c => c.id === clearingColumn)
-                                        ?.title
-                                }
-                            </h3>
+            {/* Clear Column Confirmation */ }
+    {
+        clearingColumn && (
+            <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'>
+                <div className='bg-surface-dark border border-border-dark rounded-2xl w-full max-w-sm p-6 shadow-2xl'>
+                    <div className='flex items-center gap-3 mb-4'>
+                        <div className='p-2 bg-red-500/10 rounded-xl'>
+                            <span className='material-symbols-outlined text-red-400 text-[24px]'>
+                                warning
+                            </span>
                         </div>
-                        <p className='text-text-secondary text-sm mb-6'>
-                            This will remove{' '}
-                            <span className='text-white font-semibold'>
-                                {
-                                    games.filter(
-                                        g => g.status === clearingColumn
-                                    ).length
-                                }{' '}
-                                games
-                            </span>{' '}
-                            from this column on your board. They will remain in your library.
-                        </p>
-                        <div className='flex gap-3 justify-end'>
-                            <button
-                                onClick={() => setClearingColumn(null)}
-                                className='px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-white font-medium transition-colors text-sm'
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() =>
-                                    handleClearColumn(clearingColumn)
-                                }
-                                className='px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm'
-                            >
-                                Clear All
-                            </button>
-                        </div>
+                        <h3 className='text-lg font-bold text-white'>
+                            Clear{' '}
+                            {
+                                COLUMNS.find(c => c.id === clearingColumn)
+                                    ?.title
+                            }
+                        </h3>
+                    </div>
+                    <p className='text-text-secondary text-sm mb-6'>
+                        This will remove{' '}
+                        <span className='text-white font-semibold'>
+                            {
+                                games.filter(
+                                    g => g.status === clearingColumn
+                                ).length
+                            }{' '}
+                            games
+                        </span>{' '}
+                        from this column on your board. They will remain in your library.
+                    </p>
+                    <div className='flex gap-3 justify-end'>
+                        <button
+                            onClick={() => setClearingColumn(null)}
+                            className='px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-white font-medium transition-colors text-sm'
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() =>
+                                handleClearColumn(clearingColumn)
+                            }
+                            className='px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm'
+                        >
+                            Clear All
+                        </button>
                     </div>
                 </div>
-            )}
-        </div>
+            </div>
+        )
+    }
+        </div >
     );
 };
 

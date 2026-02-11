@@ -52,6 +52,7 @@ export interface UserGame {
   status:
     | 'want_to_play'
     | 'currently_playing'
+    | 'analysis_needed'
     | 'completed'
     | 'completed_100'
     | 'on_hold'

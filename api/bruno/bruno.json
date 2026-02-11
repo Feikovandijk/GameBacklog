@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "GameBacklog API",
+  "type": "collection",
+  "ignore": [".git", "node_modules", ".env"]
+}

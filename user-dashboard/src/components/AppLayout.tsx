@@ -113,8 +113,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
               : 'text-text-secondary hover:text-white hover:bg-surface-hover'
               }`}
           >
-            <span className={`material-symbols-outlined transition-transform ${!isActive('/board') ? 'group-hover:scale-110' : ''
-                }`}>
+            <span
+              className={`material-symbols-outlined transition-transform ${!isActive('/board') ? 'group-hover:scale-110' : ''
+                }`}
+            >
               view_kanban
             </span>
             <span className='font-medium text-sm'>Board</span>

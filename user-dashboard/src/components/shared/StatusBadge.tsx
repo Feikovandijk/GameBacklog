@@ -3,6 +3,7 @@ import React from 'react';
 export type GameStatus =
     | 'want_to_play'
     | 'currently_playing'
+    | 'analysis_needed'
     | 'completed'
     | 'completed_100'
     | 'on_hold'
@@ -39,6 +40,13 @@ const statusConfig: Record<
         bg: 'bg-accent-green/10',
         border: 'border-accent-green/20',
         icon: 'check_circle',
+    },
+    analysis_needed: {
+        label: 'Analysis Needed',
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        border: 'border-accent-orange/20',
+        icon: 'science',
     },
     completed_100: {
         label: '100% Completed',
