@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import session from 'express-session';
 import cors from 'cors';
 import config from './config';
@@ -7,6 +7,11 @@ import { syncUserWithSteam } from './services/user-steam-sync-service';
 import { supabase } from './supabase/client';
 import cookieParser from 'cookie-parser';
 import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
+import { requestIdMiddleware, generateRequestId } from './middleware/requestId';
+import { errorHandler } from './middleware/errorHandler';
+import { logger } from './utils/logger';
+import { formatErrorResponse } from './utils/errorResponse';
+import { UnauthorizedError, SessionError } from './errors/AuthErrors';
 
 const app = express();
 app.set('trust proxy', 1); // Trust a single reverse proxy in production, or specify a number/CIDR range
@@ -76,6 +81,9 @@ app.use(
   })
 );
 
+// Request ID middleware (for log correlation)
+app.use(requestIdMiddleware);
+
 // Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
@@ -93,12 +101,47 @@ app.get('/api/csrf-token', (req: Request, res: Response) => {
 // Extend Express Request interface to include user
 // Extended Express Request interface is defined in api/src/types/express.d.ts
 
-// Authentication middleware
-function requireAuth(req: Request, res: Response, next: any) {
+/**
+ * Authentication middleware
+ * Verifies that the user is authenticated before allowing access to protected routes
+ *
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param next - Express next function
+ */
+function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const requestId = req.id || generateRequestId();
+  const user = req.user as SteamUser | undefined;
+
   if (req.isAuthenticated()) {
+    logger.debug('Authentication successful', {
+      requestId,
+      userId: user?.id,
+      path: req.path,
+    });
     return next();
   }
-  res.status(401).json({ error: 'Authentication required' });
+
+  const sessionExists = !!req.sessionID;
+  const errorCode = sessionExists ? 'SESSION_EXPIRED' : 'NO_SESSION';
+
+  logger.warn('Authentication required', {
+    requestId,
+    errorCode,
+    path: req.path,
+    sessionId: req.sessionID,
+  });
+
+  res.status(401).json(
+    formatErrorResponse(
+      new UnauthorizedError('Please log in to continue', errorCode, {
+        sessionExists,
+        path: req.path,
+      }),
+      req,
+      config.isDevelopment
+    )
+  );
 }
 
 // Supabase client is imported from ./supabase/client
@@ -108,35 +151,131 @@ app.get('/auth/steam', passport.authenticate('steam'));
 
 app.get(
   '/auth/steam/return',
-  (req, res, next) => {
-    console.log('Hitting /auth/steam/return');
-    console.log('Request Headers:', JSON.stringify(req.headers, null, 2));
+  (req: Request, res: Response, next: NextFunction) => {
+    const requestId = req.id || generateRequestId();
+
+    logger.auth('Steam return callback initiated', {
+      requestId,
+      sessionId: req.sessionID,
+    });
+
     next();
   },
-  passport.authenticate('steam', { failureRedirect: '/' }),
+  passport.authenticate('steam', {
+    failureRedirect: `${config.frontendUrl}/?auth=failed`,
+    keepSessionInfo: true,
+  }),
   (req: Request, res: Response) => {
-    console.log('Steam auth successful. Session:', req.sessionID);
-    console.log('User:', req.user ? 'Authenticated' : 'Not Authenticated');
-    // Successful authentication, redirect to dashboard
-    res.redirect(`${config.frontendUrl}/dashboard`);
+    const requestId = req.id || generateRequestId();
+
+    if (!req.user) {
+      logger.error(
+        'User missing after successful authentication',
+        new Error('No user object'),
+        { requestId, sessionId: req.sessionID }
+      );
+
+      return res.redirect(`${config.frontendUrl}/?auth=error`);
+    }
+
+    const user = req.user as SteamUser;
+
+    logger.auth('User authenticated, redirecting to dashboard', {
+      requestId,
+      userId: user.id,
+      steamId: user.steam_id,
+    });
+
+    res.redirect(`${config.frontendUrl}/dashboard?auth=success`);
   }
 );
 
-app.post('/auth/logout', (req: Request, res: Response) => {
+app.post('/auth/logout', (req: Request, res: Response): void => {
+  const requestId = req.id || generateRequestId();
+  const user = req.user as SteamUser | undefined;
+
+  if (!req.isAuthenticated()) {
+    logger.warn('Logout attempt with no active session', {
+      requestId,
+      sessionId: req.sessionID,
+    });
+
+    res.json({ success: true, message: 'Already logged out' });
+    return;
+  }
+
+  logger.auth('Logout initiated', {
+    requestId,
+    userId: user?.id,
+    steamId: user?.steam_id,
+  });
+
   req.logout(err => {
     if (err) {
-      return res.status(500).json({ error: 'Logout failed' });
+      logger.error('Logout failed', err, {
+        requestId,
+        userId: user?.id,
+      });
+
+      res.status(500).json(
+        formatErrorResponse(
+          new SessionError('Failed to log out', 'LOGOUT_FAILED', {
+            originalError: err.message,
+          }),
+          req,
+          config.isDevelopment
+        )
+      );
+      return;
     }
-    res.json({ success: true });
+
+    req.session.destroy(sessionErr => {
+      if (sessionErr) {
+        logger.warn('Session destruction failed but user logged out', {
+          requestId,
+          error: sessionErr.message,
+        });
+      }
+
+      logger.auth('Logout successful', {
+        requestId,
+        userId: user?.id,
+      });
+
+      res.json({ success: true, message: 'Logged out successfully' });
+    });
   });
 });
 
-app.get('/auth/me', (req: Request, res: Response) => {
-  if (req.isAuthenticated() && req.user) {
-    res.json(req.user);
-  } else {
-    res.status(401).json({ error: 'Not authenticated' });
+app.get('/auth/me', (req: Request, res: Response): void => {
+  const requestId = req.id || generateRequestId();
+
+  if (!req.isAuthenticated() || !req.user) {
+    logger.debug('User info requested without authentication', {
+      requestId,
+      hasSession: !!req.sessionID,
+    });
+
+    res
+      .status(401)
+      .json(
+        formatErrorResponse(
+          new UnauthorizedError('Not authenticated', 'NOT_AUTHENTICATED', {}),
+          req,
+          config.isDevelopment
+        )
+      );
+    return;
   }
+
+  const user = req.user as SteamUser;
+
+  logger.debug('User info retrieved', {
+    requestId,
+    userId: user.id,
+  });
+
+  res.json(user);
 });
 
 app.post(
@@ -1457,6 +1596,13 @@ app.get(
   }
 );
 
+// Global error handler (must be registered after all routes)
+app.use(errorHandler);
+
 app.listen(port, '0.0.0.0', () => {
-  console.log(`API server listening on port ${port}`);
+  logger.info(`API server started`, {
+    port,
+    environment: process.env.NODE_ENV || 'development',
+    frontendUrl: config.frontendUrl,
+  });
 });
