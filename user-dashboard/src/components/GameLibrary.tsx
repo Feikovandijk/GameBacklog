@@ -23,6 +23,9 @@ const GameLibrary: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [appending, setAppending] = useState(false);
 
+    // Sync state
+    const [syncing, setSyncing] = useState(false);
+
     // Modal state
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedGame, setSelectedGame] = useState<UserGame | null>(null);
@@ -101,6 +104,20 @@ const GameLibrary: React.FC = () => {
         }
     };
 
+    const handleSyncLibrary = async () => {
+        setSyncing(true);
+        try {
+            await api.userGamesAPI.syncSteamLibrary();
+            setTimeout(() => {
+                fetchGames(1, false);
+                setSyncing(false);
+            }, 3000);
+        } catch {
+            console.error('Failed to sync library');
+            setSyncing(false);
+        }
+    };
+
     return (
         <div className='flex flex-col h-full'>
             {/* Header */}
@@ -113,13 +130,27 @@ const GameLibrary: React.FC = () => {
                         </p>
                     </div>
 
-                    <button
-                        onClick={() => navigate('/add-game')}
-                        className='flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-background-dark text-sm font-bold shadow-lg shadow-primary/20 transition-all'
-                    >
-                        <span className='material-symbols-outlined font-bold'>add</span>
-                        Add Game
-                    </button>
+                    <div className='flex gap-3'>
+                        <button
+                            onClick={handleSyncLibrary}
+                            disabled={syncing}
+                            className='flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border-dark bg-surface-dark hover:bg-surface-hover text-white text-sm font-medium transition-colors disabled:opacity-50'
+                        >
+                            <span
+                                className={`material-symbols-outlined text-[18px] ${syncing ? 'animate-spin' : ''}`}
+                            >
+                                sync
+                            </span>
+                            {syncing ? 'Syncing...' : 'Sync Steam Library'}
+                        </button>
+                        <button
+                            onClick={() => navigate('/add-game')}
+                            className='flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-background-dark text-sm font-bold shadow-lg shadow-primary/20 transition-all'
+                        >
+                            <span className='material-symbols-outlined font-bold'>add</span>
+                            Add Game
+                        </button>
+                    </div>
                 </div>
 
                 {/* Toolbar */}

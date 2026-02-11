@@ -4,13 +4,7 @@ import path from 'path';
 // Load environment variables from the root .env file
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-// --- DEBUG: Check if .env variables are loaded ---
-console.log('SUPABASE_URL is defined:', !!process.env.SUPABASE_URL);
-console.log(
-  'SUPABASE_SERVICE_KEY is defined:',
-  !!process.env.SUPABASE_SERVICE_KEY
-);
-// --- END DEBUG ---
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface Config {
   port: number;
@@ -31,7 +25,16 @@ interface Config {
   supabaseAnonKey: string | undefined;
   supabaseServiceRoleKey: string | undefined;
   frontendUrl: string;
+  isDevelopment: boolean;
+  isProduction: boolean;
+  isTest: boolean;
+  logging: {
+    level: LogLevel;
+    prettyPrint: boolean;
+  };
 }
+
+const nodeEnv = process.env.NODE_ENV || 'development';
 
 const config: Config = {
   port: process.env.PORT ? parseInt(process.env.PORT, 10) : 6543,
@@ -54,6 +57,27 @@ const config: Config = {
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_KEY,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  isDevelopment: nodeEnv === 'development',
+  isProduction: nodeEnv === 'production',
+  isTest: nodeEnv === 'test',
+  logging: {
+    level:
+      (process.env.LOG_LEVEL as LogLevel) ||
+      (nodeEnv === 'production' ? 'info' : 'debug'),
+    prettyPrint: nodeEnv !== 'production',
+  },
 };
+
+// Validate required configuration in non-test environments
+if (!config.isTest) {
+  if (!config.steamApiKey) {
+    throw new Error('STEAM_API_KEY is required');
+  }
+  if (!config.supabaseUrl || !config.supabaseServiceRoleKey) {
+    throw new Error(
+      'Supabase configuration (SUPABASE_URL and SUPABASE_SERVICE_KEY) is required'
+    );
+  }
+}
 
 export default config;

@@ -124,7 +124,7 @@ const DashboardOverview: React.FC = () => {
           </div>
           <div>
             <p className='text-text-secondary text-sm font-medium'>
-              Total Games Analyzed
+              Games in Library
             </p>
             <h3 className='text-white text-3xl font-bold'>
               {stats?.totalGames || 0}
@@ -135,12 +135,12 @@ const DashboardOverview: React.FC = () => {
         <div className='bg-surface-dark rounded-2xl p-6 border border-border-dark flex items-center gap-4 hover:border-primary/30 transition-colors shadow-sm'>
           <div className='size-12 rounded-xl bg-accent-blue/10 flex items-center justify-center text-accent-blue'>
             <span className='material-symbols-outlined text-[28px]'>
-              schedule
+              sports_esports
             </span>
           </div>
           <div>
             <p className='text-text-secondary text-sm font-medium'>
-              Upcoming Playtests
+              Want to Play
             </p>
             <h3 className='text-white text-3xl font-bold'>
               {stats?.wantToPlay || 0}
@@ -203,9 +203,10 @@ const DashboardOverview: React.FC = () => {
                   className={`h-32 bg-gradient-to-br ${getGradient(index)} relative`}
                 >
                   <img
-                    src={userGame.game?.header_image}
+                    src={`https://cdn.akamai.steamstatic.com/steam/apps/${userGame.steam_appid}/header.jpg`}
                     alt={userGame.game?.name}
                     className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60 group-hover:opacity-80 transition-opacity"
+                    loading='lazy'
                   />
                   <div className='absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors'></div>
                   <div className='absolute bottom-3 left-4'>
@@ -305,19 +306,13 @@ const DashboardOverview: React.FC = () => {
                       <td className='px-6 py-4'>
                         <div className='flex items-center gap-3'>
                           <img
-                            src={game.header_image || (game.steam_appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg` : '')}
+                            src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
                             alt={game.name}
                             className="w-10 h-10 object-cover rounded"
+                            loading='lazy'
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              // Fallback to standard Steam header URL format if the specific one fails
-                              const fallbackUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
-                              if (target.src !== fallbackUrl) {
-                                target.src = fallbackUrl;
-                              } else {
-                                // If even the fallback fails, show a transparent placeholder or custom error
-                                target.style.display = 'none';
-                              }
+                              target.style.display = 'none';
                             }}
                           />
                           <span className='font-bold text-white group-hover:text-primary transition-colors line-clamp-1'>

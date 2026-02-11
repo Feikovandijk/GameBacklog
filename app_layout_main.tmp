@@ -104,7 +104,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
             </span>
             <span className='font-medium text-sm'>Library</span>
           </a>
-          {/* Board / Kanban */}
+          {/* Placeholders for other links */}
           <a
             href='#'
             onClick={() => navigate('/board')}
@@ -117,9 +117,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
               className={`material-symbols-outlined transition-transform ${!isActive('/board') ? 'group-hover:scale-110' : ''
                 }`}
             >
-              view_kanban
+              analytics
             </span>
-            <span className='font-medium text-sm'>Board</span>
+            <span className='font-medium text-sm'>Analysis</span>
           </a>
           <a
             href='#'

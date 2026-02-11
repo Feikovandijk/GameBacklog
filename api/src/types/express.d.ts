@@ -20,5 +20,9 @@ declare global {
       last_steam_sync?: string;
       last_active?: string;
     }
+
+    interface Request {
+      id: string; // Request correlation ID for logging
+    }
   }
 }

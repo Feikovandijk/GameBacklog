@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
 import StatusBadge from './StatusBadge';
 import type { UserGame } from '../../services/api';
 
@@ -19,10 +18,16 @@ const GameCard: React.FC<GameCardProps> = ({
     showProgress = false,
 }) => {
     const [imgError, setImgError] = useState(false);
+    const errorCountRef = useRef(0);
+    const currentGameIdRef = useRef(game.id);
 
     useEffect(() => {
-        setImgError(false);
-    }, [game.game?.header_image]);
+        if (currentGameIdRef.current !== game.id) {
+            setImgError(false);
+            errorCountRef.current = 0;
+            currentGameIdRef.current = game.id;
+        }
+    }, [game.id]);
 
     const formatPlaytime = (hours: number | undefined) => {
         if (!hours) return '0h';
@@ -34,40 +39,21 @@ const GameCard: React.FC<GameCardProps> = ({
     };
 
     return (
-        <motion.div
-            layoutId={game.id}
+        <div
             className={`group relative bg-surface-dark border border-border-dark rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 ${className}`}
             onClick={onClick}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            whileHover={{ scale: 1.02 }}
         >
             {/* Cover Image */}
             <div className='relative aspect-video bg-background-dark overflow-hidden'>
-                {!imgError && (game.game?.header_image || game.steam_appid) ? (
+                {!imgError && game.steam_appid ? (
                     <img
-                        src={game.game?.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
+                        src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
                         alt={game.game?.name}
                         className='w-full h-full object-cover transition-transform duration-500 group-hover:scale-110'
-                        onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            const headerUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
-                            const capsuleUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/capsule_616x353.jpg`;
-                            const libraryUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/library_600x900.jpg`;
-
-                            // Try multiple fallback URLs before giving up
-                            if (game.steam_appid) {
-                                if (target.src !== headerUrl && target.src !== capsuleUrl && target.src !== libraryUrl) {
-                                    target.src = headerUrl;
-                                } else if (target.src === headerUrl) {
-                                    target.src = capsuleUrl;
-                                } else if (target.src === capsuleUrl) {
-                                    target.src = libraryUrl;
-                                } else {
-                                    setImgError(true);
-                                }
-                            } else {
+                        loading='lazy'
+                        onError={() => {
+                            errorCountRef.current += 1;
+                            if (errorCountRef.current > 2) {
                                 setImgError(true);
                             }
                         }}
@@ -147,7 +133,7 @@ const GameCard: React.FC<GameCardProps> = ({
                         </div>
                     )}
             </div>
-        </motion.div>
+        </div>
     );
 };
 

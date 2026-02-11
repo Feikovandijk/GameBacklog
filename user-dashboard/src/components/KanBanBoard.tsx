@@ -17,6 +17,7 @@ import * as api from '../services/api';
 import GameCard from './shared/GameCard';
 import StatusBadge, { type GameStatus } from './shared/StatusBadge';
 import EditGameModal from './EditGameModal';
+import AddToBoardModal from './AddToBoardModal';
 import type { UserGame } from '../services/api';
 
 // Configuration for columns
@@ -35,9 +36,13 @@ const KanBanBoard: React.FC = () => {
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const [availableTags, setAvailableTags] = useState<string[]>([]);
 
-    // Modal
+    // Modals
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingGame, setEditingGame] = useState<UserGame | null>(null);
+    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [clearingColumn, setClearingColumn] = useState<GameStatus | null>(
+        null
+    );
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -143,41 +148,67 @@ const KanBanBoard: React.FC = () => {
         }
     };
 
+    const handleClearColumn = async (status: GameStatus) => {
+        const originalGames = [...games];
+        setGames(games.filter(g => g.status !== status));
+        setClearingColumn(null);
+        try {
+            await api.userGamesAPI.bulkUpdateStatus(status, null);
+        } catch (error) {
+            console.error('Clear column failed:', error);
+            setGames(originalGames);
+        }
+    };
+
     // Sub-component for Droppable Column
     const BoardColumn = ({
         id,
         title,
         children,
+        onClear,
     }: {
         id: string;
         title: string;
         children: React.ReactNode;
+        onClear: () => void;
     }) => {
         const { setNodeRef, isOver } = useDroppable({ id });
+        const count = React.Children.count(children);
 
         return (
             <div
                 ref={setNodeRef}
-                className={`flex-shrink-0 w-80 flex flex-col h-full rounded-2xl p-2 transition-colors duration-200 ${isOver ? 'bg-white/5' : 'bg-transparent'
+                className={`w-[272px] flex-shrink-0 flex flex-col h-full rounded-xl transition-colors duration-200 ${isOver ? 'bg-white/8 ring-1 ring-primary/30' : 'bg-white/[0.03]'
                     }`}
             >
-                <div className='flex items-center justify-between p-4 sticky top-0 z-10'>
+                <div className='flex items-center justify-between px-3 py-3 flex-shrink-0'>
                     <div className='flex items-center gap-2'>
                         <StatusBadge status={id} minimal className='w-2.5 h-2.5' />
-                        <span className='font-bold text-white text-lg'>{title}</span>
+                        <h2 className='font-bold text-white text-lg'>{title}</h2>
                         <span className='bg-primary/10 rounded-full px-2.5 py-0.5 text-xs text-primary font-bold'>
                             {React.Children.count(children)}
                         </span>
                     </div>
-                    {/* <button className='text-text-secondary hover:text-white transition-colors'>
-            <span className='material-symbols-outlined text-[20px]'>
-              more_horiz
-            </span>
-          </button> */}
+                    {count > 0 && (
+                        <button
+                            onClick={onClear}
+                            className='text-text-secondary/50 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-white/5'
+                            title={`Clear ${title}`}
+                        >
+                            <span className='material-symbols-outlined text-[18px]'>
+                                delete_sweep
+                            </span>
+                        </button>
+                    )}
                 </div>
 
-                <div className='flex-1 overflow-y-auto px-2 pb-4 flex flex-col gap-4'>
+                <div className='flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-2 min-h-[100px] kanban-scroll'>
                     {children}
+                    {count === 0 && (
+                        <div className='flex-1 flex items-center justify-center text-text-secondary/50 text-xs py-8'>
+                            Drop games here
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -214,7 +245,7 @@ const KanBanBoard: React.FC = () => {
     }
 
     return (
-        <div className='h-[calc(100vh-64px)] flex flex-col'>
+        <div className='-m-6 md:-m-8 lg:-mx-10 lg:-my-8 flex flex-col h-[calc(100vh-57px)]'>
             {/* Header */}
             <div className='px-8 pt-6 pb-2 flex items-center justify-between'>
                 <h1 className='text-3xl font-bold text-white'>Active Analysis</h1>
@@ -223,6 +254,13 @@ const KanBanBoard: React.FC = () => {
                         <span className='material-symbols-outlined'>sync</span>
                         Sync Steam
                     </button> */}
+                    <button
+                        onClick={() => setIsAddModalVisible(true)}
+                        className='px-4 py-2 bg-primary hover:bg-primary-hover text-background-dark font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2 text-sm'
+                    >
+                        <span className='material-symbols-outlined text-[18px]'>add</span>
+                        Add Game
+                    </button>
                 </div>
             </div>
 
@@ -260,7 +298,12 @@ const KanBanBoard: React.FC = () => {
                     onDragEnd={handleDragEnd}
                 >
                     {COLUMNS.map(col => (
-                        <BoardColumn key={col.id} id={col.id} title={col.title}>
+                        <BoardColumn
+                            key={col.id}
+                            id={col.id}
+                            title={col.title}
+                            onClear={() => setClearingColumn(col.id)}
+                        >
                             {filteredGames
                                 .filter(g => g.status === col.id)
                                 .map(game => (
@@ -273,7 +316,7 @@ const KanBanBoard: React.FC = () => {
                         {activeGame ? (
                             <div
                                 className='transform rotate-2 cursor-grabbing shadow-2xl'
-                                style={{ width: '100%', maxWidth: '300px' }}
+                                style={{ width: '272px' }}
                             >
                                 <GameCard
                                     game={activeGame}
@@ -293,6 +336,62 @@ const KanBanBoard: React.FC = () => {
                 onCancel={() => setIsModalVisible(false)}
                 onDelete={handleDeleteGame}
             />
+
+            <AddToBoardModal
+                open={isAddModalVisible}
+                onCancel={() => setIsAddModalVisible(false)}
+                onGameAdded={fetchGames}
+            />
+
+            {/* Clear Column Confirmation */}
+            {clearingColumn && (
+                <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'>
+                    <div className='bg-surface-dark border border-border-dark rounded-2xl w-full max-w-sm p-6 shadow-2xl'>
+                        <div className='flex items-center gap-3 mb-4'>
+                            <div className='p-2 bg-red-500/10 rounded-xl'>
+                                <span className='material-symbols-outlined text-red-400 text-[24px]'>
+                                    warning
+                                </span>
+                            </div>
+                            <h3 className='text-lg font-bold text-white'>
+                                Clear{' '}
+                                {
+                                    COLUMNS.find(c => c.id === clearingColumn)
+                                        ?.title
+                                }
+                            </h3>
+                        </div>
+                        <p className='text-text-secondary text-sm mb-6'>
+                            This will remove{' '}
+                            <span className='text-white font-semibold'>
+                                {
+                                    games.filter(
+                                        g => g.status === clearingColumn
+                                    ).length
+                                }{' '}
+                                games
+                            </span>{' '}
+                            from this column on your board. They will remain in your library.
+                        </p>
+                        <div className='flex gap-3 justify-end'>
+                            <button
+                                onClick={() => setClearingColumn(null)}
+                                className='px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-white font-medium transition-colors text-sm'
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() =>
+                                    handleClearColumn(clearingColumn)
+                                }
+                                className='px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm'
+                            >
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

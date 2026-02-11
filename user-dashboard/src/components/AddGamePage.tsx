@@ -86,9 +86,10 @@ const AddGamePage: React.FC = () => {
             >
               <div className='w-full sm:w-24 h-32 sm:h-24 flex-shrink-0 bg-black rounded-lg overflow-hidden border border-white/5'>
                 <img
-                  src={game.header_image}
+                  src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
                   alt={game.name}
                   className='w-full h-full object-cover'
+                  loading='lazy'
                 />
               </div>
 
