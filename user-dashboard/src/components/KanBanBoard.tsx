@@ -312,24 +312,21 @@ const KanBanBoard: React.FC = () => {
                         </BoardColumn>
                     ))}
 
-
-
-                        <DragOverlay>
-                            {activeGame ? (
-                                <div
-                                    className='transform rotate-2 cursor-grabbing shadow-2xl'
-                                    style={{ width: '272px' }}
-                                >
-                                    <GameCard
-                                        game={activeGame}
-                                        className='shadow-accent-purple/50'
-                                        showProgress
-                                    />
-                                </div>
-                            ) : null}
-                        </DragOverlay>
-                    </DndContext>
-                </div>
+                    <DragOverlay>
+                        {activeGame ? (
+                            <div
+                                className='transform rotate-2 cursor-grabbing shadow-2xl'
+                                style={{ width: '272px' }}
+                            >
+                                <GameCard
+                                    game={activeGame}
+                                    className='shadow-accent-purple/50'
+                                    showProgress
+                                />
+                            </div>
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
             </div>
 
             <EditGameModal
@@ -346,58 +343,56 @@ const KanBanBoard: React.FC = () => {
                 onGameAdded={fetchGames}
             />
 
-            {/* Clear Column Confirmation */ }
-    {
-        clearingColumn && (
-            <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'>
-                <div className='bg-surface-dark border border-border-dark rounded-2xl w-full max-w-sm p-6 shadow-2xl'>
-                    <div className='flex items-center gap-3 mb-4'>
-                        <div className='p-2 bg-red-500/10 rounded-xl'>
-                            <span className='material-symbols-outlined text-red-400 text-[24px]'>
-                                warning
-                            </span>
+            {/* Clear Column Confirmation */}
+            {clearingColumn && (
+                <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'>
+                    <div className='bg-surface-dark border border-border-dark rounded-2xl w-full max-w-sm p-6 shadow-2xl'>
+                        <div className='flex items-center gap-3 mb-4'>
+                            <div className='p-2 bg-red-500/10 rounded-xl'>
+                                <span className='material-symbols-outlined text-red-400 text-[24px]'>
+                                    warning
+                                </span>
+                            </div>
+                            <h3 className='text-lg font-bold text-white'>
+                                Clear{' '}
+                                {
+                                    COLUMNS.find(c => c.id === clearingColumn)
+                                        ?.title
+                                }
+                            </h3>
                         </div>
-                        <h3 className='text-lg font-bold text-white'>
-                            Clear{' '}
-                            {
-                                COLUMNS.find(c => c.id === clearingColumn)
-                                    ?.title
-                            }
-                        </h3>
-                    </div>
-                    <p className='text-text-secondary text-sm mb-6'>
-                        This will remove{' '}
-                        <span className='text-white font-semibold'>
-                            {
-                                games.filter(
-                                    g => g.status === clearingColumn
-                                ).length
-                            }{' '}
-                            games
-                        </span>{' '}
-                        from this column on your board. They will remain in your library.
-                    </p>
-                    <div className='flex gap-3 justify-end'>
-                        <button
-                            onClick={() => setClearingColumn(null)}
-                            className='px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-white font-medium transition-colors text-sm'
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() =>
-                                handleClearColumn(clearingColumn)
-                            }
-                            className='px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm'
-                        >
-                            Clear All
-                        </button>
+                        <p className='text-text-secondary text-sm mb-6'>
+                            This will remove{' '}
+                            <span className='text-white font-semibold'>
+                                {
+                                    games.filter(
+                                        g => g.status === clearingColumn
+                                    ).length
+                                }{' '}
+                                games
+                            </span>{' '}
+                            from this column on your board. They will remain in your library.
+                        </p>
+                        <div className='flex gap-3 justify-end'>
+                            <button
+                                onClick={() => setClearingColumn(null)}
+                                className='px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-white font-medium transition-colors text-sm'
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() =>
+                                    handleClearColumn(clearingColumn)
+                                }
+                                className='px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm'
+                            >
+                                Clear All
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        )
-    }
-        </div >
+            )}
+        </div>
     );
 };
 
