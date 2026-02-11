@@ -3,7 +3,7 @@
  * Catches unhandled errors and formats consistent responses
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { AuthError } from '../errors/AuthErrors';
 import { formatErrorResponse, getStatusCode } from '../utils/errorResponse';
 import { logger } from '../utils/logger';
@@ -22,7 +22,7 @@ export function errorHandler(
   error: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   const requestId = req.id || 'unknown';
   const user = req.user as User | undefined;

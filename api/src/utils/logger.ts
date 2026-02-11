@@ -58,7 +58,9 @@ class Logger {
    * Sanitize sensitive data from log context
    */
   private sanitizeContext(context?: LogContext): LogContext | undefined {
-    if (!context) return undefined;
+    if (!context) {
+      return undefined;
+    }
 
     const sanitized = { ...context };
 
@@ -91,7 +93,9 @@ class Logger {
     metadata?: Record<string, unknown>,
     error?: Error
   ): void {
-    if (!this.shouldLog(level)) return;
+    if (!this.shouldLog(level)) {
+      return;
+    }
 
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),

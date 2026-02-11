@@ -7,8 +7,8 @@ import { syncUserWithSteam } from '../services/user-steam-sync-service';
 import { User } from '../types/steam.types';
 import { logger } from '../utils/logger';
 import {
-  SteamAuthError,
   SessionError,
+  SteamAuthError,
   UserCreationError,
 } from '../errors/AuthErrors';
 
