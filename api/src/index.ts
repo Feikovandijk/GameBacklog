@@ -676,7 +676,7 @@ app.get(
       const userId = (req.user as SteamUser).id;
 
       // Get query parameters for filtering
-      const { status, priority, limit = 20, offset = 0 } = req.query;
+      const { status, priority, limit = 20, offset = 0, search } = req.query;
 
       let query = supabase
         .from('user_games')
@@ -699,6 +699,9 @@ app.get(
       }
       if (priority) {
         query = query.eq('priority', parseInt(priority as string));
+      }
+      if (search) {
+        query = query.ilike('game.name', `%${search}%`);
       }
 
       const { data: userGames, error, count } = await query;
@@ -971,6 +974,64 @@ app.put(
       res
         .status(500)
         .json({ error: 'Failed to update game', details: errorMessage });
+    }
+  }
+);
+
+// PUT /api/user/games/bulk-status - Update status for all games with a given status
+app.put(
+  '/api/user/games/bulk-status',
+  requireAuth,
+  doubleCsrfProtection,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = (req.user as SteamUser).id;
+      const { fromStatus, toStatus } = req.body;
+
+      if (!fromStatus) {
+        res.status(400).json({ error: 'fromStatus is required' });
+        return;
+      }
+
+      const validStatuses = [
+        'want_to_play',
+        'currently_playing',
+        'completed',
+        'completed_100',
+        'on_hold',
+        'dropped',
+        null,
+      ];
+      if (
+        !validStatuses.includes(fromStatus) ||
+        (toStatus !== undefined && !validStatuses.includes(toStatus))
+      ) {
+        res.status(400).json({ error: 'Invalid status value' });
+        return;
+      }
+
+      const { error, count } = await supabase
+        .from('user_games')
+        .update({
+          status: toStatus || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .eq('status', fromStatus);
+
+      if (error) {
+        throw error;
+      }
+
+      res.json({ success: true, updated: count });
+    } catch (error: unknown) {
+      console.error('Error bulk updating game statuses:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      res.status(500).json({
+        error: 'Failed to bulk update game statuses',
+        details: errorMessage,
+      });
     }
   }
 );

@@ -124,7 +124,7 @@ const DashboardOverview: React.FC = () => {
           </div>
           <div>
             <p className='text-text-secondary text-sm font-medium'>
-              Total Games Analyzed
+              Games in Library
             </p>
             <h3 className='text-white text-3xl font-bold'>
               {stats?.totalGames || 0}
@@ -135,12 +135,12 @@ const DashboardOverview: React.FC = () => {
         <div className='bg-surface-dark rounded-2xl p-6 border border-border-dark flex items-center gap-4 hover:border-primary/30 transition-colors shadow-sm'>
           <div className='size-12 rounded-xl bg-accent-blue/10 flex items-center justify-center text-accent-blue'>
             <span className='material-symbols-outlined text-[28px]'>
-              schedule
+              sports_esports
             </span>
           </div>
           <div>
             <p className='text-text-secondary text-sm font-medium'>
-              Upcoming Playtests
+              Want to Play
             </p>
             <h3 className='text-white text-3xl font-bold'>
               {stats?.wantToPlay || 0}

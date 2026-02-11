@@ -174,6 +174,12 @@ export const userGamesAPI = {
 
   removeGame: (gameId: string) => api.delete(`/api/user/games/${gameId}`),
 
+  bulkUpdateStatus: (fromStatus: string, toStatus: string | null = null) =>
+    api.put<{ success: boolean; updated: number }>(
+      '/api/user/games/bulk-status',
+      { fromStatus, toStatus }
+    ),
+
   getStats: () => api.get<UserStats>('/api/user/stats'),
 
   getExtendedStats: () =>
@@ -188,6 +194,8 @@ export const userGamesAPI = {
 
   getRecentlyPlayed: (limit = 5) =>
     api.get<UserGame[]>(`/api/user/games/recently-played?limit=${limit}`),
+
+  syncSteamLibrary: () => api.post<{ message: string }>('/api/user/sync'),
 };
 
 export interface PopularTag {
