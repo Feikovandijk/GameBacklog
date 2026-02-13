@@ -118,6 +118,16 @@ const GameLibrary: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        // Poll for games if we have 0 games (likely initial sync)
+        if (pagination.total === 0 && !loading) {
+            const interval = setInterval(() => {
+                fetchGames(1, false);
+            }, 3000);
+            return () => clearInterval(interval);
+        }
+    }, [pagination.total, loading]);
+
     return (
         <div className='flex flex-col h-full'>
             {/* Header */}
@@ -127,6 +137,11 @@ const GameLibrary: React.FC = () => {
                         <h1 className='text-white text-3xl font-bold mb-1'>My Library</h1>
                         <p className='text-text-secondary text-base'>
                             {pagination.total} games in your collection
+                            {pagination.total === 0 && (
+                                <span className='ml-2 text-primary animate-pulse'>
+                                    (Syncing might be in progress...)
+                                </span>
+                            )}
                         </p>
                     </div>
 
@@ -279,34 +294,74 @@ const GameLibrary: React.FC = () => {
                                                 <div className='flex items-center gap-4'>
                                                     <div className='relative w-12 h-12 rounded-lg border border-border-dark overflow-hidden bg-background-dark flex-shrink-0'>
                                                         <img
-                                                            src={game.game?.header_image || (game.steam_appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg` : undefined)}
+                                                            src={
+                                                                game.game?.header_image &&
+                                                                    game.game.header_image.startsWith('http')
+                                                                    ? game.game.header_image
+                                                                    : `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`
+                                                            }
                                                             alt={game.game?.name}
                                                             className='w-full h-full object-cover'
-                                                            onError={(e) => {
-                                                                const target = e.target as HTMLImageElement;
+                                                            onError={e => {
+                                                                const target =
+                                                                    e.target as HTMLImageElement;
                                                                 const headerUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
                                                                 const capsuleUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/capsule_616x353.jpg`;
 
-                                                                if (game.steam_appid) {
-                                                                    if (target.src !== headerUrl && target.src !== capsuleUrl) {
-                                                                        target.src = headerUrl;
-                                                                    } else if (target.src === headerUrl) {
-                                                                        target.src = capsuleUrl;
+                                                                if (
+                                                                    game.steam_appid
+                                                                ) {
+                                                                    if (
+                                                                        target.src !==
+                                                                        headerUrl &&
+                                                                        target.src !==
+                                                                        capsuleUrl
+                                                                    ) {
+                                                                        target.src =
+                                                                            headerUrl;
+                                                                    } else if (
+                                                                        target.src ===
+                                                                        headerUrl
+                                                                    ) {
+                                                                        target.src =
+                                                                            capsuleUrl;
                                                                     } else {
                                                                         // Replace with placeholder
-                                                                        target.style.display = 'none';
-                                                                        const placeholder = target.parentElement?.querySelector('.placeholder-icon');
-                                                                        if (placeholder) (placeholder as HTMLElement).style.display = 'flex';
+                                                                        target.style.display =
+                                                                            'none';
+                                                                        const placeholder =
+                                                                            target.parentElement?.querySelector(
+                                                                                '.placeholder-icon'
+                                                                            );
+                                                                        if (
+                                                                            placeholder
+                                                                        )
+                                                                            (
+                                                                                placeholder as HTMLElement
+                                                                            ).style.display =
+                                                                                'flex';
                                                                     }
                                                                 } else {
-                                                                    target.style.display = 'none';
-                                                                    const placeholder = target.parentElement?.querySelector('.placeholder-icon');
-                                                                    if (placeholder) (placeholder as HTMLElement).style.display = 'flex';
+                                                                    target.style.display =
+                                                                        'none';
+                                                                    const placeholder =
+                                                                        target.parentElement?.querySelector(
+                                                                            '.placeholder-icon'
+                                                                        );
+                                                                    if (
+                                                                        placeholder
+                                                                    )
+                                                                        (
+                                                                            placeholder as HTMLElement
+                                                                        ).style.display =
+                                                                            'flex';
                                                                 }
                                                             }}
                                                         />
                                                         <div className='placeholder-icon hidden absolute inset-0 items-center justify-center bg-gradient-to-br from-primary/20 to-accent-purple/20'>
-                                                            <span className='material-symbols-outlined text-primary/50 text-[20px]'>sports_esports</span>
+                                                            <span className='material-symbols-outlined text-primary/50 text-[20px]'>
+                                                                sports_esports
+                                                            </span>
                                                         </div>
                                                     </div>
                                                     <div>

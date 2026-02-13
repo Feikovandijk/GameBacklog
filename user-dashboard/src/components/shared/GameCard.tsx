@@ -47,7 +47,12 @@ const GameCard: React.FC<GameCardProps> = ({
             <div className='relative aspect-video bg-background-dark overflow-hidden'>
                 {!imgError && game.steam_appid ? (
                     <img
-                        src={`https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
+                        src={
+                            game.game?.header_image &&
+                                game.game.header_image.startsWith('http')
+                                ? game.game.header_image
+                                : `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`
+                        }
                         alt={game.game?.name}
                         className='w-full h-full object-cover transition-transform duration-500 group-hover:scale-110'
                         loading='lazy'

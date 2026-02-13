@@ -33,7 +33,9 @@ interface SteamProfile {
 /**
  * Express request with optional correlation ID override
  */
-type SteamCallbackRequest = Request;
+interface SteamCallbackRequest extends Request {
+  id?: string;
+}
 
 /**
  * Passport done callback function type
@@ -57,12 +59,15 @@ passport.use(
     },
     (
       req: Request,
+      req: Request,
       identifier: string,
       profile: SteamProfile,
       done: PassportDoneFunction
     ) => {
       // Handle async operations with proper error handling
       void (async () => {
+        const steamReq = req as SteamCallbackRequest;
+        const requestId = steamReq.id || 'unknown';
         const steamReq = req as SteamCallbackRequest;
         const requestId = steamReq.id || 'unknown';
 
