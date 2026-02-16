@@ -721,3 +721,82 @@ export const getUserActivity = async (
     });
   }
 };
+
+const VALID_STATUSES = [
+  'want_to_play',
+  'currently_playing',
+  'completed',
+  'completed_100',
+  'on_hold',
+  'dropped',
+];
+const VALID_VIEWS = ['grid', 'list'];
+
+export const updateUserProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = (req.user as SteamUser).id;
+    const {
+      auto_import_steam_games,
+      sync_steam_playtime,
+      default_game_status,
+      default_view,
+    } = req.body;
+
+    if (
+      default_game_status !== undefined &&
+      !VALID_STATUSES.includes(String(default_game_status))
+    ) {
+      res.status(400).json({ error: 'Invalid default_game_status value' });
+      return;
+    }
+
+    if (
+      default_view !== undefined &&
+      !VALID_VIEWS.includes(String(default_view))
+    ) {
+      res.status(400).json({ error: 'Invalid default_view value' });
+      return;
+    }
+
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (auto_import_steam_games !== undefined) {
+      updateData.auto_import_steam_games = auto_import_steam_games;
+    }
+    if (sync_steam_playtime !== undefined) {
+      updateData.sync_steam_playtime = sync_steam_playtime;
+    }
+    if (default_game_status !== undefined) {
+      updateData.default_game_status = default_game_status;
+    }
+    if (default_view !== undefined) {
+      updateData.default_view = default_view;
+    }
+
+    const { data: updatedUser, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.json(updatedUser);
+  } catch (error: unknown) {
+    console.error('Error updating user profile:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res.status(500).json({
+      error: 'Failed to update user profile',
+      details: errorMessage,
+    });
+  }
+};

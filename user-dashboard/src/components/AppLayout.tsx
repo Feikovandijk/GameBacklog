@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { gamesAPI, userGamesAPI } from '../services/api';
 import type { User, Game } from '../services/api';
@@ -9,13 +9,28 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
+const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Game[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -80,25 +95,30 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
           <a
             href='#'
             onClick={() => navigate('/dashboard')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/dashboard')
-              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
-              }`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              isActive('/dashboard')
+                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+            }`}
           >
-            <span className='material-symbols-outlined font-bold'>dashboard</span>
+            <span className='material-symbols-outlined font-bold'>
+              dashboard
+            </span>
             <span className='font-bold text-sm'>Dashboard</span>
           </a>
           <a
             href='#'
             onClick={() => navigate('/games')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/games')
-              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
-              }`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+              isActive('/games')
+                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+            }`}
           >
             <span
-              className={`material-symbols-outlined transition-transform ${!isActive('/games') ? 'group-hover:scale-110' : ''
-                }`}
+              className={`material-symbols-outlined transition-transform ${
+                !isActive('/games') ? 'group-hover:scale-110' : ''
+              }`}
             >
               library_books
             </span>
@@ -108,14 +128,16 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
           <a
             href='#'
             onClick={() => navigate('/board')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/board')
-              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
-              }`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+              isActive('/board')
+                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+            }`}
           >
             <span
-              className={`material-symbols-outlined transition-transform ${!isActive('/board') ? 'group-hover:scale-110' : ''
-                }`}
+              className={`material-symbols-outlined transition-transform ${
+                !isActive('/board') ? 'group-hover:scale-110' : ''
+              }`}
             >
               view_kanban
             </span>
@@ -139,8 +161,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
             </span>
             <span className='font-medium text-sm'>Reports</span>
           </a>
-
-
         </nav>
 
         <div className='p-4 border-t border-border-dark/50'>
@@ -156,7 +176,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
               <p className='text-sm font-bold text-white truncate'>
                 {user.display_name}
               </p>
-
             </div>
             <span className='material-symbols-outlined text-text-secondary text-[20px]'>
               settings
@@ -229,13 +248,94 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, children }) => {
             )}
           </div>
 
-          <div className='flex items-center gap-4 ml-6'>
+          <div className='flex items-center gap-3 ml-6'>
             <button className='size-10 rounded-full bg-surface-dark hover:bg-surface-hover text-white flex items-center justify-center transition-colors border border-border-dark relative'>
               <span className='material-symbols-outlined text-[20px]'>
                 notifications
               </span>
               <span className='absolute top-2 right-2 size-2 bg-primary rounded-full border border-surface-dark'></span>
             </button>
+
+            {/* User Avatar + Dropdown */}
+            <div className='relative' ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className='size-10 rounded-full bg-center bg-no-repeat bg-cover border-2 border-border-dark hover:border-primary/50 transition-colors cursor-pointer'
+                style={{
+                  backgroundImage: `url("${user.avatar_url}")`,
+                }}
+              />
+
+              {showUserMenu && (
+                <div className='absolute top-full right-0 mt-2 w-64 bg-surface-dark border border-border-dark rounded-xl shadow-xl overflow-hidden z-[100]'>
+                  {/* User Info */}
+                  <div className='p-4 flex items-center gap-3'>
+                    <div
+                      className='bg-center bg-no-repeat bg-cover rounded-full size-10 border border-border-dark shrink-0'
+                      style={{
+                        backgroundImage: `url("${user.avatar_url}")`,
+                      }}
+                    />
+                    <div className='flex-1 min-w-0'>
+                      <p className='text-sm font-bold text-white truncate'>
+                        {user.display_name}
+                      </p>
+                      <p className='text-xs text-text-secondary truncate'>
+                        {user.steam_id}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className='border-t border-border-dark' />
+
+                  {/* Menu Items */}
+                  <div className='py-1'>
+                    <button
+                      onClick={() => {
+                        navigate('/profile');
+                        setShowUserMenu(false);
+                      }}
+                      className='flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-surface-hover transition-colors text-left'
+                    >
+                      <span className='material-symbols-outlined text-[20px] text-text-secondary'>
+                        person
+                      </span>
+                      Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate('/profile');
+                        setShowUserMenu(false);
+                      }}
+                      className='flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white hover:bg-surface-hover transition-colors text-left'
+                    >
+                      <span className='material-symbols-outlined text-[20px] text-text-secondary'>
+                        settings
+                      </span>
+                      Settings
+                    </button>
+                  </div>
+
+                  <div className='border-t border-border-dark' />
+
+                  {/* Logout */}
+                  <div className='py-1'>
+                    <button
+                      onClick={() => {
+                        onLogout();
+                        setShowUserMenu(false);
+                      }}
+                      className='flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left'
+                    >
+                      <span className='material-symbols-outlined text-[20px]'>
+                        logout
+                      </span>
+                      Log out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

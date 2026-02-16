@@ -205,6 +205,16 @@ export interface PopularTag {
   totalPlayers: number;
 }
 
+// User Profile
+export const userProfileAPI = {
+  updateProfile: (data: {
+    auto_import_steam_games?: boolean;
+    sync_steam_playtime?: boolean;
+    default_game_status?: string;
+    default_view?: string;
+  }) => api.put<User>('/api/user/profile', data),
+};
+
 // Public Games (for search)
 export const gamesAPI = {
   searchGames: (query: string, limit = 20) =>
