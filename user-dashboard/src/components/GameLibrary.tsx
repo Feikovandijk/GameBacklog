@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as api from '../services/api';
@@ -6,6 +6,83 @@ import type { UserGame } from '../services/api';
 import EditGameModal from './EditGameModal';
 import StatusBadge from './shared/StatusBadge';
 import GameCard from './shared/GameCard';
+
+const gradients = [
+    'from-indigo-900 to-purple-900',
+    'from-slate-800 to-gray-700',
+    'from-emerald-900 to-teal-900',
+    'from-blue-900 to-cyan-900',
+    'from-red-900 to-orange-900',
+    'from-violet-900 to-fuchsia-900',
+    'from-sky-900 to-blue-900',
+    'from-amber-900 to-yellow-900',
+];
+
+const getGradient = (appid: number) => {
+    return gradients[appid % gradients.length];
+};
+
+const getImageSources = (game: UserGame): string[] => {
+    const seen = new Set<string>();
+    const sources: string[] = [];
+    const add = (url: string) => {
+        if (!seen.has(url)) {
+            seen.add(url);
+            sources.push(url);
+        }
+    };
+    if (game.game?.header_image && game.game.header_image.startsWith('http')) {
+        add(game.game.header_image);
+    }
+    if (game.steam_appid) {
+        add(
+            `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`
+        );
+        add(
+            `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/capsule_616x353.jpg`
+        );
+    }
+    return sources;
+};
+
+const ListRowImage: React.FC<{ game: UserGame }> = ({ game }) => {
+    const [sourceIndex, setSourceIndex] = useState(0);
+    const prevIdRef = useRef(game.id);
+    const sources = getImageSources(game);
+
+    useEffect(() => {
+        if (prevIdRef.current !== game.id) {
+            setSourceIndex(0);
+            prevIdRef.current = game.id;
+        }
+    }, [game.id]);
+
+    const allFailed = sourceIndex >= sources.length;
+    const url = !allFailed ? sources[sourceIndex] : null;
+
+    return (
+        <div
+            className={`relative w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br ${getGradient(game.steam_appid || 0)} flex-shrink-0`}
+        >
+            {url ? (
+                <img
+                    src={url}
+                    alt={game.game?.name}
+                    className='absolute inset-0 w-full h-full object-cover'
+                    loading='lazy'
+                    onError={() => setSourceIndex(prev => prev + 1)}
+                />
+            ) : null}
+            {allFailed && (
+                <div className='absolute inset-0 flex items-center justify-center'>
+                    <span className='material-symbols-outlined text-[20px] text-white/30'>
+                        sports_esports
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const GameLibrary: React.FC = () => {
     const navigate = useNavigate();
@@ -62,7 +139,6 @@ const GameLibrary: React.FC = () => {
             }));
         } catch (error) {
             console.error('Error fetching games:', error);
-            // alert('Failed to load library'); // Basic error handling
         } finally {
             setLoading(false);
             setAppending(false);
@@ -128,13 +204,22 @@ const GameLibrary: React.FC = () => {
         }
     }, [pagination.total, loading]);
 
+    const formatPlaytime = (hours: number | undefined) => {
+        if (!hours) return '-';
+        return hours < 1
+            ? `${Math.round(hours * 60)}m`
+            : `${hours.toFixed(1)}h`;
+    };
+
     return (
         <div className='flex flex-col h-full'>
             {/* Header */}
             <div className='mb-8'>
                 <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6'>
                     <div>
-                        <h1 className='text-white text-3xl font-bold mb-1'>My Library</h1>
+                        <h1 className='text-white text-3xl font-bold mb-1'>
+                            My Library
+                        </h1>
                         <p className='text-text-secondary text-base'>
                             {pagination.total} games in your collection
                             {pagination.total === 0 && (
@@ -162,7 +247,9 @@ const GameLibrary: React.FC = () => {
                             onClick={() => navigate('/add-game')}
                             className='flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-background-dark text-sm font-bold shadow-lg shadow-primary/20 transition-all'
                         >
-                            <span className='material-symbols-outlined font-bold'>add</span>
+                            <span className='material-symbols-outlined font-bold'>
+                                add
+                            </span>
                             Add Game
                         </button>
                     </div>
@@ -196,9 +283,13 @@ const GameLibrary: React.FC = () => {
                             >
                                 <option value=''>All Statuses</option>
                                 <option value='want_to_play'>Backlog</option>
-                                <option value='currently_playing'>Playing</option>
+                                <option value='currently_playing'>
+                                    Playing
+                                </option>
                                 <option value='completed'>Completed</option>
-                                <option value='completed_100'>100% Completed</option>
+                                <option value='completed_100'>
+                                    100% Completed
+                                </option>
                                 <option value='on_hold'>On Hold</option>
                                 <option value='dropped'>Dropped</option>
                             </select>
@@ -214,10 +305,11 @@ const GameLibrary: React.FC = () => {
                     <div className='flex bg-background-dark rounded-xl p-1 border border-border-dark'>
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
-                                ? 'bg-primary text-background-dark'
-                                : 'text-text-secondary hover:text-white'
-                                }`}
+                            className={`p-2 rounded-lg transition-colors ${
+                                viewMode === 'grid'
+                                    ? 'bg-primary text-background-dark'
+                                    : 'text-text-secondary hover:text-white'
+                            }`}
                         >
                             <span className='material-symbols-outlined text-[20px] block'>
                                 grid_view
@@ -225,10 +317,11 @@ const GameLibrary: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
-                                ? 'bg-primary text-background-dark'
-                                : 'text-text-secondary hover:text-white'
-                                }`}
+                            className={`p-2 rounded-lg transition-colors ${
+                                viewMode === 'list'
+                                    ? 'bg-primary text-background-dark'
+                                    : 'text-text-secondary hover:text-white'
+                            }`}
                         >
                             <span className='material-symbols-outlined text-[20px] block'>
                                 view_list
@@ -269,15 +362,23 @@ const GameLibrary: React.FC = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className='overflow-x-auto bg-surface-dark border border-border-dark rounded-2xl'
+                            className='bg-surface-dark border border-border-dark rounded-2xl overflow-hidden'
                         >
                             <table className='w-full text-left border-collapse'>
                                 <thead>
                                     <tr className='border-b border-border-dark text-xs text-text-secondary uppercase tracking-wider bg-background-dark/50'>
-                                        <th className='px-6 py-4 font-semibold'>Game</th>
-                                        <th className='px-6 py-4 font-semibold'>Status</th>
-                                        <th className='px-6 py-4 font-semibold'>Time Played</th>
-                                        <th className='px-6 py-4 font-semibold'>Added</th>
+                                        <th className='px-6 py-4 font-semibold'>
+                                            Game
+                                        </th>
+                                        <th className='px-6 py-4 font-semibold'>
+                                            Status
+                                        </th>
+                                        <th className='px-6 py-4 font-semibold'>
+                                            Time Played
+                                        </th>
+                                        <th className='px-6 py-4 font-semibold'>
+                                            Added
+                                        </th>
                                         <th className='px-6 py-4 font-semibold text-right'>
                                             Actions
                                         </th>
@@ -292,96 +393,33 @@ const GameLibrary: React.FC = () => {
                                         >
                                             <td className='px-6 py-4'>
                                                 <div className='flex items-center gap-4'>
-                                                    <div className='relative w-12 h-12 rounded-lg border border-border-dark overflow-hidden bg-background-dark flex-shrink-0'>
-                                                        <img
-                                                            src={
-                                                                game.game?.header_image &&
-                                                                    game.game.header_image.startsWith('http')
-                                                                    ? game.game.header_image
-                                                                    : `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`
-                                                            }
-                                                            alt={game.game?.name}
-                                                            className='w-full h-full object-cover'
-                                                            onError={e => {
-                                                                const target =
-                                                                    e.target as HTMLImageElement;
-                                                                const headerUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`;
-                                                                const capsuleUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/capsule_616x353.jpg`;
-
-                                                                if (
-                                                                    game.steam_appid
-                                                                ) {
-                                                                    if (
-                                                                        target.src !==
-                                                                        headerUrl &&
-                                                                        target.src !==
-                                                                        capsuleUrl
-                                                                    ) {
-                                                                        target.src =
-                                                                            headerUrl;
-                                                                    } else if (
-                                                                        target.src ===
-                                                                        headerUrl
-                                                                    ) {
-                                                                        target.src =
-                                                                            capsuleUrl;
-                                                                    } else {
-                                                                        // Replace with placeholder
-                                                                        target.style.display =
-                                                                            'none';
-                                                                        const placeholder =
-                                                                            target.parentElement?.querySelector(
-                                                                                '.placeholder-icon'
-                                                                            );
-                                                                        if (
-                                                                            placeholder
-                                                                        )
-                                                                            (
-                                                                                placeholder as HTMLElement
-                                                                            ).style.display =
-                                                                                'flex';
-                                                                    }
-                                                                } else {
-                                                                    target.style.display =
-                                                                        'none';
-                                                                    const placeholder =
-                                                                        target.parentElement?.querySelector(
-                                                                            '.placeholder-icon'
-                                                                        );
-                                                                    if (
-                                                                        placeholder
-                                                                    )
-                                                                        (
-                                                                            placeholder as HTMLElement
-                                                                        ).style.display =
-                                                                            'flex';
-                                                                }
-                                                            }}
-                                                        />
-                                                        <div className='placeholder-icon hidden absolute inset-0 items-center justify-center bg-gradient-to-br from-primary/20 to-accent-purple/20'>
-                                                            <span className='material-symbols-outlined text-primary/50 text-[20px]'>
-                                                                sports_esports
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                                                    <ListRowImage game={game} />
                                                     <div>
                                                         <div className='font-bold text-white group-hover:text-primary transition-colors'>
                                                             {game.game?.name}
                                                         </div>
                                                         <div className='text-xs text-text-secondary'>
-                                                            {game.game?.genres?.slice(0, 2).join(', ')}
+                                                            {game.game?.genres
+                                                                ?.slice(0, 2)
+                                                                .join(', ')}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4'>
-                                                <StatusBadge status={game.status} />
+                                                <StatusBadge
+                                                    status={game.status}
+                                                />
                                             </td>
                                             <td className='px-6 py-4 text-text-secondary'>
-                                                {game.hours_played ? `${game.hours_played.toFixed(1)}h` : '-'}
+                                                {formatPlaytime(
+                                                    game.hours_played
+                                                )}
                                             </td>
                                             <td className='px-6 py-4 text-text-secondary'>
-                                                {new Date(game.added_at).toLocaleDateString()}
+                                                {new Date(
+                                                    game.added_at
+                                                ).toLocaleDateString()}
                                             </td>
                                             <td className='px-6 py-4 text-right'>
                                                 <button
@@ -412,7 +450,9 @@ const GameLibrary: React.FC = () => {
                             disabled={appending}
                             className='px-6 py-3 rounded-xl border border-border-dark bg-surface-dark hover:bg-surface-hover text-white font-medium transition-colors disabled:opacity-50'
                         >
-                            {appending ? 'Loading...' : `Load next ${pagination.pageSize}`}
+                            {appending
+                                ? 'Loading...'
+                                : `Load next ${pagination.pageSize}`}
                         </button>
                     </div>
                 )}
