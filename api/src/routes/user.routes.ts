@@ -33,4 +33,6 @@ router.get(
 );
 router.get('/activity', asyncHandler(userController.getUserActivity));
 
+router.put('/profile', asyncHandler(userController.updateUserProfile));
+
 export default router;

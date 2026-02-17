@@ -15,6 +15,7 @@ import DashboardOverview from './components/DashboardOverview';
 import GameLibrary from './components/GameLibrary';
 import AddGamePage from './components/AddGamePage';
 import LoginPage from './components/LoginPage';
+import ProfilePage from './components/ProfilePage';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -46,8 +47,8 @@ const App = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background-dark">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-surface-dark border-t-primary" />
+      <div className='flex h-screen w-full items-center justify-center bg-background-dark'>
+        <div className='h-12 w-12 animate-spin rounded-full border-4 border-surface-dark border-t-primary' />
       </div>
     );
   }
@@ -61,7 +62,7 @@ const App = () => {
             <Route path='/board' element={<KanBanBoard />} />
             <Route path='/games' element={<GameLibrary />} />
             <Route path='/add-game' element={<AddGamePage />} />
-            <Route path='/profile' element={<div>Profile Page</div>} />
+            <Route path='/profile' element={<ProfilePage />} />
             <Route path='*' element={<Navigate to='/dashboard' />} />
           </Routes>
         </AppLayout>
