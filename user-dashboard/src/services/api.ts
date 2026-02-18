@@ -234,6 +234,8 @@ export const gamesAPI = {
   getTrendingGames: (limit = 10, days?: number) =>
     api.get<Game[]>('/api/games/trending', { params: { limit, days } }),
   getTopSellers: () => api.get<TopSellerGame[]>('/api/games/top-sellers'),
+  getUpcomingGames: (limit = 12) =>
+    api.get<Game[]>(`/api/games/upcoming?limit=${limit}`),
   getPopularTags: (limit = 5, days = 7) =>
     api.get<PopularTag[]>('/api/games/popular-tags', {
       params: { limit, days },

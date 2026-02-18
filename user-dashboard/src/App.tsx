@@ -17,6 +17,7 @@ import AddGamePage from './components/AddGamePage';
 import LoginPage from './components/LoginPage';
 import ProfilePage from './components/ProfilePage';
 import TrendsPage from './components/TrendsPage';
+import AnalysisPage from './components/AnalysisPage';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -68,6 +69,7 @@ const App = () => {
             <Route path='/add-game' element={<AddGamePage />} />
             <Route path='/profile' element={<ProfilePage />} />
             <Route path='/trends' element={<TrendsPage />} />
+            <Route path='/analysis' element={<AnalysisPage />} />
             <Route path='*' element={<Navigate to='/dashboard' />} />
           </Routes>
         </AppLayout>

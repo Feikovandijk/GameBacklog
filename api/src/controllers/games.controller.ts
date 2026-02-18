@@ -415,3 +415,37 @@ export const getTopSellers = async (
       .json({ error: 'Failed to fetch top sellers', details: errorMessage });
   }
 };
+
+export const getUpcomingGames = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 12;
+    const now = new Date().toISOString();
+    const future = new Date();
+    future.setDate(future.getDate() + 60);
+
+    const { data: games, error } = await supabase
+      .from('games')
+      .select(
+        'id, steam_appid, name, header_image, release_date, genres, developers, price_final, price_currency, total_reviews, positive_rating_percentage, short_description'
+      )
+      .eq('steam_app_type', 'game')
+      .gt('release_date', now)
+      .lte('release_date', future.toISOString())
+      .order('total_reviews', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    res.json(games || []);
+  } catch (error: unknown) {
+    console.error('Error fetching upcoming games:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({ error: 'Failed to fetch upcoming games', details: errorMessage });
+  }
+};

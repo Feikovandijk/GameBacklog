@@ -96,8 +96,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
             href='#'
             onClick={() => navigate('/dashboard')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/dashboard')
-                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
               }`}
           >
             <span className='material-symbols-outlined font-bold'>
@@ -109,8 +109,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
             href='#'
             onClick={() => navigate('/games')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/games')
-                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
               }`}
           >
             <span
@@ -126,8 +126,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
             href='#'
             onClick={() => navigate('/board')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/board')
-                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
               }`}
           >
             <span
@@ -142,8 +142,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
             href='#'
             onClick={() => navigate('/trends')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/trends')
-                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
-                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
               }`}
           >
             <span
@@ -156,12 +156,19 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
           </a>
           <a
             href='#'
-            className='flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white hover:bg-surface-hover rounded-xl transition-all group'
+            onClick={() => navigate('/analysis')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/analysis')
+              ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+              : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              }`}
           >
-            <span className='material-symbols-outlined group-hover:scale-110 transition-transform'>
-              description
+            <span
+              className={`material-symbols-outlined transition-transform ${!isActive('/analysis') ? 'group-hover:scale-110' : ''
+                }`}
+            >
+              analytics
             </span>
-            <span className='font-medium text-sm'>Reports</span>
+            <span className='font-medium text-sm'>Analysis</span>
           </a>
         </nav>
 

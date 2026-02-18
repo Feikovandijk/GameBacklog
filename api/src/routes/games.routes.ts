@@ -20,5 +20,6 @@ router.get(
   asyncHandler(gamesController.getLatestSyncedGames)
 );
 router.get('/latest-steam', asyncHandler(gamesController.getLatestSteamGames));
+router.get('/upcoming', asyncHandler(gamesController.getUpcomingGames));
 
 export default router;
