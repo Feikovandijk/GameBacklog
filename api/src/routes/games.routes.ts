@@ -21,5 +21,9 @@ router.get(
 );
 router.get('/latest-steam', asyncHandler(gamesController.getLatestSteamGames));
 router.get('/upcoming', asyncHandler(gamesController.getUpcomingGames));
+router.get(
+  '/releases-per-month',
+  asyncHandler(gamesController.getReleasesPerMonth)
+);
 
 export default router;

@@ -236,6 +236,11 @@ export const gamesAPI = {
   getTopSellers: () => api.get<TopSellerGame[]>('/api/games/top-sellers'),
   getUpcomingGames: (limit = 12) =>
     api.get<Game[]>(`/api/games/upcoming?limit=${limit}`),
+  getReleasesPerMonth: (months = 24) =>
+    api.get<{ month: string; count: number }[]>(
+      '/api/games/releases-per-month',
+      { params: { months } }
+    ),
   getPopularTags: (limit = 5, days = 7) =>
     api.get<PopularTag[]>('/api/games/popular-tags', {
       params: { limit, days },

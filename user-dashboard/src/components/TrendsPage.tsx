@@ -57,18 +57,22 @@ const GameCardGrid: React.FC<GameCardGridProps> = ({ games, loading, addingIds, 
                         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; }}
                     >
                         <div style={{ position: 'relative', height: 120 }}>
-                            <img
-                                src={game.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${game.steam_appid}/header.jpg`}
-                                alt={game.name}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                                onError={e => {
-                                    const el = e.target as HTMLImageElement;
-                                    el.style.display = 'none';
-                                    if (el.parentElement) {
-                                        el.parentElement.style.background = 'linear-gradient(135deg, #1F2943, #161E32)';
-                                    }
-                                }}
-                            />
+                            {game.header_image ? (
+                                <img
+                                    src={game.header_image}
+                                    alt={game.name}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                    onError={e => {
+                                        const el = e.target as HTMLImageElement;
+                                        el.style.display = 'none';
+                                        if (el.parentElement) {
+                                            el.parentElement.style.background = 'linear-gradient(135deg, #1F2943, #161E32)';
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1F2943, #161E32)' }} />
+                            )}
                             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 50%)' }} />
                             {b && <div style={{ position: 'absolute', top: 8, left: 8, ...b.style }}>{b.label}</div>}
                         </div>
@@ -115,6 +119,7 @@ const TrendsPage: React.FC = () => {
     } | null>(null);
     const [trendingGames, setTrendingGames] = useState<Game[]>([]);
     const [upcomingGames, setUpcomingGames] = useState<Game[]>([]);
+    const [releasesPerMonth, setReleasesPerMonth] = useState<{ month: string; count: number }[]>([]);
     const [addingIds, setAddingIds] = useState<Record<number, boolean>>({});
 
     useEffect(() => {
@@ -158,7 +163,16 @@ const TrendsPage: React.FC = () => {
                     }
                 };
 
-                await Promise.all([fetchTags(), fetchAnalytics(), fetchTrending(), fetchUpcoming()]);
+                const fetchReleasesPerMonth = async () => {
+                    try {
+                        const res = await gamesAPI.getReleasesPerMonth(24);
+                        setReleasesPerMonth(res.data);
+                    } catch (e) {
+                        console.error('Failed to fetch releases per month:', e);
+                    }
+                };
+
+                await Promise.all([fetchTags(), fetchAnalytics(), fetchTrending(), fetchUpcoming(), fetchReleasesPerMonth()]);
             } catch (error) {
                 console.error('Error fetching trends data:', error);
             } finally {
@@ -215,23 +229,23 @@ const TrendsPage: React.FC = () => {
     const maxTagPlayers = popularTags.length > 0 ? popularTags[0].totalPlayers : 1;
 
     const releaseAreaConfig = {
-        data: Object.entries(analytics?.releaseYearDistribution || {})
-            .map(([year, count]) => ({ year, count: count as number }))
-            .sort((a, b) => Number(a.year) - Number(b.year)),
-        xField: 'year',
+        data: releasesPerMonth,
+        xField: 'month',
         yField: 'count',
         theme: 'classicDark',
         smooth: true,
         style: {
-            fill: 'l(270) 0:#00D9FF22 1:#8B5CF655',
             stroke: '#00D9FF',
             lineWidth: 2,
+            fill: '#00D9FF',
+            fillOpacity: 0.12,
         },
         axis: {
             x: {
                 labelFill: 'rgba(255,255,255,0.6)',
-                labelFontSize: 11,
+                labelFontSize: 10,
                 gridStroke: 'rgba(255,255,255,0.05)',
+                labelAutoRotate: true,
             },
             y: {
                 labelFill: 'rgba(255,255,255,0.6)',
@@ -397,7 +411,7 @@ const TrendsPage: React.FC = () => {
                     <div className="dashboard-card-header">
                         <h3 className="dashboard-card-title">
                             <LineChartOutlined className="icon" style={{ color: '#00D9FF' }} />
-                            Historical Release Volume
+                            Release Volume per Month (last 24 months)
                         </h3>
                     </div>
                     <div style={{ height: 280, background: 'transparent' }}>

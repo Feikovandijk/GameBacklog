@@ -449,3 +449,47 @@ export const getUpcomingGames = async (
       .json({ error: 'Failed to fetch upcoming games', details: errorMessage });
   }
 };
+
+export const getReleasesPerMonth = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const months = parseInt(req.query.months as string) || 24;
+    const since = new Date();
+    since.setMonth(since.getMonth() - months);
+
+    const { data: games, error } = await supabase
+      .from('games')
+      .select('release_date')
+      .eq('steam_app_type', 'game')
+      .gte('release_date', since.toISOString())
+      .lte('release_date', new Date().toISOString())
+      .not('release_date', 'is', null);
+
+    if (error) throw error;
+
+    const counts: Record<string, number> = {};
+    for (const game of games || []) {
+      const d = new Date(game.release_date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+
+    const result = Object.entries(counts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, count]) => ({ month, count }));
+
+    res.json(result);
+  } catch (error: unknown) {
+    console.error('Error fetching releases per month:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({
+        error: 'Failed to fetch releases per month',
+        details: errorMessage,
+      });
+  }
+};
