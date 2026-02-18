@@ -21,6 +21,10 @@ export default {
         success: '#10B981',
         'trend-up': '#00E5BC',
         'trend-down': '#EF4444',
+        'accent-green': '#4ECB71',
+        'accent-orange': '#FFB347',
+        'status-error': '#EF4444',
+        'surface-light': '#1A2440',
       },
       fontFamily: {
         display: ['Manrope', 'sans-serif'],

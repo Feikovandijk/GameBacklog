@@ -8,6 +8,7 @@ interface GameCardProps {
     onEdit?: (e: React.MouseEvent) => void;
     className?: string;
     showProgress?: boolean;
+    showAnalysisIndicators?: boolean;
 }
 
 const gradients = [
@@ -60,6 +61,7 @@ const GameCard: React.FC<GameCardProps> = ({
     onClick,
     onEdit,
     className = '',
+    showAnalysisIndicators = false,
 }) => {
     const [sourceIndex, setSourceIndex] = useState(0);
     const currentGameIdRef = useRef(game.id);
@@ -174,6 +176,81 @@ const GameCard: React.FC<GameCardProps> = ({
                         ))}
                     </div>
                 </div>
+
+                {/* Analysis Indicators */}
+                {showAnalysisIndicators &&
+                    (game.priority > 0 ||
+                        (game.user_rating != null && game.user_rating > 0) ||
+                        game.is_favorite ||
+                        (game.user_tags && game.user_tags.length > 0) ||
+                        (game.user_notes && game.user_notes.trim())) && (
+                        <div className='flex items-center gap-1.5 flex-wrap mt-0.5'>
+                            {game.priority > 0 && (
+                                <span
+                                    className='inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent-purple/20 text-accent-purple text-[10px] font-bold'
+                                    title={`Priority ${game.priority}`}
+                                >
+                                    {game.priority}
+                                </span>
+                            )}
+                            {game.user_rating != null && game.user_rating > 0 && (
+                                <span
+                                    className='inline-flex items-center gap-px'
+                                    title={`Rated ${game.user_rating}/5`}
+                                >
+                                    {Array.from(
+                                        { length: game.user_rating },
+                                        (_, i) => (
+                                            <span
+                                                key={i}
+                                                className='material-symbols-outlined text-[10px] text-accent-yellow'
+                                                style={{
+                                                    fontVariationSettings:
+                                                        "'FILL' 1",
+                                                }}
+                                            >
+                                                star
+                                            </span>
+                                        )
+                                    )}
+                                </span>
+                            )}
+                            {game.is_favorite && (
+                                <span
+                                    className='material-symbols-outlined text-[12px] text-red-500'
+                                    style={{
+                                        fontVariationSettings: "'FILL' 1",
+                                    }}
+                                    title='Favorite'
+                                >
+                                    favorite
+                                </span>
+                            )}
+                            {game.user_tags &&
+                                game.user_tags.length > 0 &&
+                                game.user_tags.slice(0, 2).map((tag, i) => (
+                                    <span
+                                        key={i}
+                                        className='text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary'
+                                    >
+                                        {tag}
+                                    </span>
+                                ))}
+                            {game.user_tags && game.user_tags.length > 2 && (
+                                <span className='text-[8px] text-text-secondary'>
+                                    +{game.user_tags.length - 2}
+                                </span>
+                            )}
+                            {game.user_notes && game.user_notes.trim() && (
+                                <span
+                                    className='material-symbols-outlined text-[12px] text-text-secondary'
+                                    title='Has notes'
+                                >
+                                    description
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                 {/* Progress bar */}
                 {showProgressBar && (

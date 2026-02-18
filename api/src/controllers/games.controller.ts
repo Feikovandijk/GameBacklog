@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { supabase } from '../supabase/client';
+import { getSteamTopSellers } from '../services/steam-charts-service';
 
 // Steam tag ID to name mapping (most common tags)
 const steamTagIdToName: Record<string, string> = {
@@ -158,7 +159,7 @@ export const getPopularTags = async (
 ): Promise<void> => {
   try {
     const limit = parseInt(req.query.limit as string) || 5;
-    const days = parseInt(req.query.days as string) || 7;
+    const days = parseInt(req.query.days as string) || 30;
 
     // Get trending games from the past N days
     const date = new Date();
@@ -395,5 +396,22 @@ export const getLatestSteamGames = async (
       error: 'Failed to fetch latest steam games',
       details: errorMessage,
     });
+  }
+};
+
+export const getTopSellers = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const topSellers = await getSteamTopSellers();
+    res.json(topSellers);
+  } catch (error: unknown) {
+    console.error('Error fetching top sellers:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({ error: 'Failed to fetch top sellers', details: errorMessage });
   }
 };

@@ -95,11 +95,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
           <a
             href='#'
             onClick={() => navigate('/dashboard')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-              isActive('/dashboard')
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/dashboard')
                 ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
                 : 'text-text-secondary hover:text-white hover:bg-surface-hover'
-            }`}
+              }`}
           >
             <span className='material-symbols-outlined font-bold'>
               dashboard
@@ -109,16 +108,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
           <a
             href='#'
             onClick={() => navigate('/games')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
-              isActive('/games')
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/games')
                 ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
                 : 'text-text-secondary hover:text-white hover:bg-surface-hover'
-            }`}
+              }`}
           >
             <span
-              className={`material-symbols-outlined transition-transform ${
-                !isActive('/games') ? 'group-hover:scale-110' : ''
-              }`}
+              className={`material-symbols-outlined transition-transform ${!isActive('/games') ? 'group-hover:scale-110' : ''
+                }`}
             >
               library_books
             </span>
@@ -128,16 +125,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
           <a
             href='#'
             onClick={() => navigate('/board')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
-              isActive('/board')
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/board')
                 ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
                 : 'text-text-secondary hover:text-white hover:bg-surface-hover'
-            }`}
+              }`}
           >
             <span
-              className={`material-symbols-outlined transition-transform ${
-                !isActive('/board') ? 'group-hover:scale-110' : ''
-              }`}
+              className={`material-symbols-outlined transition-transform ${!isActive('/board') ? 'group-hover:scale-110' : ''
+                }`}
             >
               view_kanban
             </span>
@@ -145,9 +140,16 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, children }) => {
           </a>
           <a
             href='#'
-            className='flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white hover:bg-surface-hover rounded-xl transition-all group'
+            onClick={() => navigate('/trends')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${isActive('/trends')
+                ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
+                : 'text-text-secondary hover:text-white hover:bg-surface-hover'
+              }`}
           >
-            <span className='material-symbols-outlined group-hover:scale-110 transition-transform'>
+            <span
+              className={`material-symbols-outlined transition-transform ${!isActive('/trends') ? 'group-hover:scale-110' : ''
+                }`}
+            >
               trending_up
             </span>
             <span className='font-medium text-sm'>Trends</span>
