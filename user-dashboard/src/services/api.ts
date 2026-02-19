@@ -159,6 +159,7 @@ export const userGamesAPI = {
     limit?: number;
     offset?: number;
     search?: string;
+    has_notes?: boolean;
   }) =>
     api.get<{ documents: UserGame[]; total: number }>('/api/user/games', {
       params,

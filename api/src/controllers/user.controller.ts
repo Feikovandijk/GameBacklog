@@ -24,7 +24,7 @@ export const getUserGames = async (
     const userId = (req.user as SteamUser).id;
 
     // Get query parameters for filtering
-    const { status, priority, limit = 20, offset = 0 } = req.query;
+    const { status, priority, limit = 20, offset = 0, has_notes } = req.query;
 
     let query = supabase
       .from('user_games')
@@ -47,6 +47,9 @@ export const getUserGames = async (
     }
     if (priority) {
       query = query.eq('priority', parseInt(priority as string));
+    }
+    if (has_notes === 'true') {
+      query = query.not('user_notes', 'is', null).neq('user_notes', '');
     }
 
     const { data: userGames, error, count } = await query;
