@@ -218,6 +218,11 @@ export interface PopularTag {
   totalPlayers: number;
 }
 
+export interface AnalyticsData {
+  releaseYearDistribution: Record<string, number>;
+  genreDistribution: { name: string; count: number }[];
+}
+
 // User Profile
 export const userProfileAPI = {
   updateProfile: (data: {
@@ -246,7 +251,7 @@ export const gamesAPI = {
     api.get<PopularTag[]>('/api/games/popular-tags', {
       params: { limit, days },
     }),
-  getAnalytics: () => api.get<any>('/api/analytics'),
+  getAnalytics: () => api.get<AnalyticsData>('/api/analytics'),
 };
 
 export const getActivity = () => userGamesAPI.getActivity();
