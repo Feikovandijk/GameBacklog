@@ -48,6 +48,9 @@
     "passport-steam": "^1.0.18",
     "steam-user": "^5.2.3"
   },
+  "overrides": {
+    "minimatch": "^10.2.1"
+  },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",
