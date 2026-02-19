@@ -438,7 +438,7 @@ const TrendsPage: React.FC = () => {
                         loading={loading}
                         addingIds={addingIds}
                         onAdd={handleAddGame}
-                        badge={(game, i) => i < 3
+                        badge={(_game, i) => i < 3
                             ? { label: `#${i + 1}`, style: getRankStyle(i + 1) }
                             : null
                         }
