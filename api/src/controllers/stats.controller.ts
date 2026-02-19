@@ -87,7 +87,7 @@ export const getAnalytics = async (
       ) || {};
 
     const getTopN = (dist: Record<string, number>, n: number) => {
-      if (!dist || Object.keys(dist).length === 0) return [];
+      if (!dist || Object.keys(dist).length === 0) { return []; }
       return Object.entries(dist)
         .sort(([, a], [, b]) => b - a)
         .slice(0, n)
@@ -113,7 +113,7 @@ export const getAnalytics = async (
       ];
     }
 
-    if (Object.keys(analyticsData.releaseYearDistribution).length === 0) {
+    if (Object.keys(analyticsData.releaseYearDistribution as Record<string, number>).length === 0) {
       const currentYear = new Date().getFullYear();
       for (let i = 5; i >= 0; i--) {
         analyticsData.releaseYearDistribution[currentYear - i] =

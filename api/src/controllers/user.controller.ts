@@ -381,7 +381,7 @@ export const bulkDeleteByStatus = async (
       .eq('user_id', userId)
       .eq('status', status);
 
-    if (error) throw error;
+    if (error) { throw error; }
 
     res.json({ success: true });
   } catch (error: unknown) {

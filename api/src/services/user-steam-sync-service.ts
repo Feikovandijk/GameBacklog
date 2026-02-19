@@ -322,7 +322,7 @@ export async function syncUserWithSteam(user: any): Promise<void> {
         .in('steam_appid', chunk);
 
       masterGames?.forEach((mg: any) => {
-        if (mg.steam_appid) masterGameMap.set(mg.steam_appid, mg.id);
+        if (mg.steam_appid) { masterGameMap.set(mg.steam_appid as number, mg.id as string); }
       });
     }
 

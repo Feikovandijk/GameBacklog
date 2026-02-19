@@ -437,7 +437,7 @@ export const getUpcomingGames = async (
       .order('total_reviews', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (error) { throw error; }
 
     res.json(games || []);
   } catch (error: unknown) {
@@ -467,11 +467,11 @@ export const getReleasesPerMonth = async (
       .lte('release_date', new Date().toISOString())
       .not('release_date', 'is', null);
 
-    if (error) throw error;
+    if (error) { throw error; }
 
     const counts: Record<string, number> = {};
     for (const game of games || []) {
-      const d = new Date(game.release_date);
+      const d = new Date(game.release_date as string);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       counts[key] = (counts[key] || 0) + 1;
     }
