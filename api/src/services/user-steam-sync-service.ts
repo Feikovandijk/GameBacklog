@@ -224,206 +224,237 @@ export async function syncUserWithSteam(user: any): Promise<void> {
   const userBacklog = await getUserBacklog(String(user.id));
   console.log(`User has ${userBacklog.size} games in their backlog.`);
 
-  // 3. Process each game
-  // 3. Process each game
-  // 3. Process each game
   const gamesToSyncDetails: { gameId: string; appId: number }[] = [];
   const gamesToEnrich: { gameId: string; appId: number; name: string }[] = [];
+  const newGames: OwnedGame[] = [];
 
-  console.log('Phase 1: Syncing basic game info...');
+  // 3. Separate existing vs new games
   for (const game of ownedGames) {
     const existingGame = userBacklog.get(game.appid);
-    const hoursPlayed = Math.round((game.playtime_forever / 60) * 100) / 100;
-    const playtime2Weeks = game.playtime_2weeks || 0;
-
-    let gameId: string | undefined;
 
     if (existingGame) {
-      gameId = existingGame.id;
-      // Game is already in backlog
+      // Existing Game Logic (Updates)
+      const hoursPlayed = Math.round((game.playtime_forever / 60) * 100) / 100;
+      const playtime2Weeks = game.playtime_2weeks || 0;
+      const gameId = existingGame.id;
 
-      const updatePayload: {
-        hours_played: number;
-        playtime_2weeks: number;
-        updated_at: string;
-        last_played?: string;
-        img_icon_url?: string;
-        img_logo_url?: string;
-      } = {
-        hours_played: hoursPlayed,
-        playtime_2weeks: playtime2Weeks,
-        updated_at: new Date().toISOString(),
-        img_icon_url: game.img_icon_url,
-        img_logo_url: game.img_logo_url,
-      };
+      const updatePayload: any = {};
+      let needsUpdate = false;
 
+      // Check if playtime stats updated
+      if (existingGame.hours_played !== hoursPlayed) {
+        updatePayload.hours_played = hoursPlayed;
+        needsUpdate = true;
+        // If playtime changed, queue for detail sync (stats/achievements)
+        gamesToSyncDetails.push({ gameId, appId: game.appid });
+      }
+      if (existingGame.playtime_2weeks !== playtime2Weeks) {
+        updatePayload.playtime_2weeks = playtime2Weeks;
+        needsUpdate = true;
+      }
       if (playtime2Weeks > 0) {
         updatePayload.last_played = new Date().toISOString();
+        needsUpdate = true;
       }
 
+      // Update icon/logo if they changed or were missing
       if (
-        existingGame.hours_played !== hoursPlayed ||
-        existingGame.playtime_2weeks !== playtime2Weeks
+        game.img_icon_url &&
+        existingGame.img_icon_url !== game.img_icon_url
       ) {
-        await supabase
+        updatePayload.img_icon_url = game.img_icon_url;
+        needsUpdate = true;
+      }
+      if (
+        game.img_logo_url &&
+        existingGame.img_logo_url !== game.img_logo_url
+      ) {
+        updatePayload.img_logo_url = game.img_logo_url;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        updatePayload.updated_at = new Date().toISOString();
+        // Fire and forget individual updates to not block main flow, or collect?
+        // For now, fire and forget to keep it simple, or we could batch updates if supabase supported it easily.
+        // Given existing games are usually few relative to initial import, invalidating "fast sync" isn't as big of a deal.
+        // But for massive updates, parallel is better.
+        void supabase
           .from('user_games')
           .update(updatePayload)
-          .eq('id', existingGame.id);
+          .eq('id', gameId)
+          .then();
+      }
 
-        // Check if master game needs enrichment (no header image or last_updated is null)
-        if (
-          existingGame.game &&
-          (!existingGame.game.header_image || !existingGame.game.last_updated)
-        ) {
-          gamesToEnrich.push({
-            gameId: existingGame.game.id,
-            appId: game.appid,
-            name: game.name,
-          });
-        }
-
-        // If playtime changed, we should sync details
-
-        if (existingGame.hours_played !== hoursPlayed && gameId) {
-          gamesToSyncDetails.push({ gameId, appId: game.appid });
-        }
+      // Check enrichment
+      if (
+        existingGame.game &&
+        (!existingGame.game.header_image || !existingGame.game.last_updated)
+      ) {
+        gamesToEnrich.push({
+          gameId: existingGame.game.id,
+          appId: game.appid,
+          name: game.name,
+        });
       }
     } else {
-      // Game is not in backlog, add it
-      try {
-        // First, find the master game document to link to
-        const { data: masterGameResponse, error } = await supabase
-          .from('games')
-          .select('id')
-          .eq('steam_appid', game.appid)
-          .maybeSingle();
-        if (masterGameResponse) {
-          const masterGameId = masterGameResponse.id;
-          const { data: newGame, error: insertError } = await supabase
-            .from('user_games')
-            .insert({
-              user_id: user.id,
-              game_id: masterGameId,
-              steam_appid: game.appid,
-              status: 'want_to_play', // Assuming a default status
-              hours_played: hoursPlayed,
-              playtime_2weeks: playtime2Weeks,
-              added_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              last_played:
-                playtime2Weeks > 0 ? new Date().toISOString() : undefined,
-              img_icon_url: game.img_icon_url,
-              img_logo_url: game.img_logo_url,
-            })
-            .select('id')
-            .single();
-
-          if (insertError) {
-            console.error(
-              `Error inserting new game ${game.name}:`,
-              insertError
-            );
-          } else if (newGame) {
-            console.log(`Added new game to backlog: ${game.name}`);
-            gameId = newGame.id;
-            if (gameId) {
-              gamesToSyncDetails.push({ gameId, appId: game.appid });
-              // NEW: Also mark for enrichment if newly added
-              gamesToEnrich.push({
-                gameId: masterGameId,
-                appId: game.appid,
-                name: game.name,
-              });
-            }
-          }
-        } else {
-          // Master game not found logic (unchanged)
-          // console.log(`Master game not found for ${game.name} (AppID: ${game.appid})`);
-        }
-        if (error) {
-          console.error(`Error finding master game for ${game.name}:`, error);
-        }
-      } catch (error) {
-        console.error(`Error adding new game ${game.name} to backlog:`, error);
-      }
+      newGames.push(game);
     }
   }
+
+  // 4. Batch Process New Games
+  if (newGames.length > 0) {
+    console.log(
+      `Found ${newGames.length} new games to add. Processing batch...`
+    );
+
+    // Batch fetch master games for new games
+    const newAppIds = newGames.map(g => g.appid);
+    const masterGameMap = new Map<number, string>(); // appId -> gameId
+
+    // Supabase .in() limit is usually high (e.g. 65535 parameters), but let's chunk to be safe
+    const LOOKUP_CHUNK_SIZE = 500;
+    for (let i = 0; i < newAppIds.length; i += LOOKUP_CHUNK_SIZE) {
+      const chunk = newAppIds.slice(i, i + LOOKUP_CHUNK_SIZE);
+      const { data: masterGames } = await supabase
+        .from('games')
+        .select('id, steam_appid')
+        .in('steam_appid', chunk);
+
+      masterGames?.forEach((mg: any) => {
+        if (mg.steam_appid) { masterGameMap.set(mg.steam_appid as number, mg.id as string); }
+      });
+    }
+
+    const userGamesToInsert: any[] = [];
+
+    for (const game of newGames) {
+      const masterGameId = masterGameMap.get(game.appid);
+      // Only add if master game exists (or we could separate logic to create master games, but that's what steam refresh service is for)
+      if (masterGameId) {
+        const hoursPlayed =
+          Math.round((game.playtime_forever / 60) * 100) / 100;
+        const playtime2Weeks = game.playtime_2weeks || 0;
+
+        userGamesToInsert.push({
+          user_id: user.id,
+          game_id: masterGameId,
+          steam_appid: game.appid,
+          status: 'want_to_play', // Default
+          hours_played: hoursPlayed,
+          playtime_2weeks: playtime2Weeks,
+          added_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_played:
+            playtime2Weeks > 0 ? new Date().toISOString() : undefined,
+          img_icon_url: game.img_icon_url,
+          img_logo_url: game.img_logo_url,
+        });
+
+        // Queue for enrichment since it's new
+        gamesToEnrich.push({
+          gameId: masterGameId,
+          appId: game.appid,
+          name: game.name,
+        });
+      } else {
+        // Optional: Log missing master game
+        // console.log(`Skipping ${game.name} - Master game not found`);
+      }
+    }
+
+    if (userGamesToInsert.length > 0) {
+      // Bulk insert user games
+      const INSERT_CHUNK_SIZE = 100;
+      for (let i = 0; i < userGamesToInsert.length; i += INSERT_CHUNK_SIZE) {
+        const chunk = userGamesToInsert.slice(i, i + INSERT_CHUNK_SIZE);
+        const { data: inserted, error } = await supabase
+          .from('user_games')
+          .insert(chunk)
+          .select('id, steam_appid');
+
+        if (error) {
+          console.error('Error batch inserting user games', error);
+        } else if (inserted) {
+          // Queue for detailed sync
+          inserted.forEach((ig: any) => {
+            gamesToSyncDetails.push({ gameId: ig.id, appId: ig.steam_appid });
+          });
+        }
+      }
+      console.log(
+        `Successfully batch inserted ${userGamesToInsert.length} games.`
+      );
+    }
+  }
+
   console.log(
     `Phase 1 completed. ${gamesToSyncDetails.length} games need detail sync.`
   );
 
-  // 4. Sync Achievements & Stats for the game (can be done in parallel)
-  console.log('Phase 2: Syncing details...');
-  // Process in chunks to avoid overwhelming the API or database
-  const CHUNK_SIZE = 5;
-  for (let i = 0; i < gamesToSyncDetails.length; i += CHUNK_SIZE) {
-    const chunk = gamesToSyncDetails.slice(i, i + CHUNK_SIZE);
-    await Promise.all(
-      chunk.map(item =>
-        Promise.all([
-          syncGameAchievements(
-            String(user.steam_id),
-            String(user.id),
-            item.appId,
-            config.steamApiKey!
-          ),
-          syncGameStats(
-            String(user.steam_id),
-            String(user.id),
-            item.gameId,
-            item.appId,
-            config.steamApiKey!
-          ),
-        ])
-      )
-    );
-  }
-
-  // 4a. NEW Phase 3: Enrich Game Data
-  if (gamesToEnrich.length > 0) {
-    console.log(
-      `Phase 3: Enriching metadata for ${gamesToEnrich.length} games...`
-    );
-    const ENRICH_CHUNK_SIZE = 5; // Conservative limit to avoid rate limits
-    const DELAY_MS = 1000;
-
-    for (let i = 0; i < gamesToEnrich.length; i += ENRICH_CHUNK_SIZE) {
-      const chunk = gamesToEnrich.slice(i, i + ENRICH_CHUNK_SIZE);
-      console.log(
-        `Processing enrichment chunk ${i / ENRICH_CHUNK_SIZE + 1}/${Math.ceil(
-          gamesToEnrich.length / ENRICH_CHUNK_SIZE
-        )}`
-      );
-
-      await Promise.all(
-        chunk.map(async item => {
-          try {
-            console.log(`Enriching game: ${item.name} (${item.appId})...`);
-            const steamData = await fetchGameDetailsFromSteam(item.appId);
-            if (steamData) {
-              await updateGameInSupabase(item.gameId, steamData);
-            }
-          } catch (e) {
-            console.error(
-              `Failed to enrich game ${item.name} (${item.appId}):`,
-              e
-            );
-          }
-        })
-      );
-
-      if (i + ENRICH_CHUNK_SIZE < gamesToEnrich.length) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
-      }
-    }
-    console.log('Phase 3 completed.');
-  }
-
-  // 5. Update the user's `last_steam_sync` timestamp
+  // 5. Update the user's `last_steam_sync` timestamp immediately
   await supabase
     .from('users')
     .update({ last_steam_sync: new Date().toISOString() })
     .eq('id', user.id);
 
-  console.log(`Sync for user ${user.display_name} completed.`);
+  // 6. Background: Sync Achievements & Stats & Enrichment
+  // We do NOT await this, effectively allowing the "main" sync to "complete" regarding the list view
+  void (async () => {
+    console.log('Starting background detail sync...');
+
+    // Sync Details
+    const CHUNK_SIZE = 5;
+    for (let i = 0; i < gamesToSyncDetails.length; i += CHUNK_SIZE) {
+      const chunk = gamesToSyncDetails.slice(i, i + CHUNK_SIZE);
+      await Promise.all(
+        chunk.map(item =>
+          Promise.all([
+            syncGameAchievements(
+              String(user.steam_id),
+              String(user.id),
+              item.appId,
+              config.steamApiKey!
+            ),
+            syncGameStats(
+              String(user.steam_id),
+              String(user.id),
+              item.gameId,
+              item.appId,
+              config.steamApiKey!
+            ),
+          ])
+        )
+      );
+    }
+
+    // Enrich Data
+    if (gamesToEnrich.length > 0) {
+      console.log(`Enriching metadata for ${gamesToEnrich.length} games...`);
+      const ENRICH_CHUNK_SIZE = 5;
+      const DELAY_MS = 1000;
+
+      for (let i = 0; i < gamesToEnrich.length; i += ENRICH_CHUNK_SIZE) {
+        const chunk = gamesToEnrich.slice(i, i + ENRICH_CHUNK_SIZE);
+        await Promise.all(
+          chunk.map(async item => {
+            try {
+              const steamData = await fetchGameDetailsFromSteam(item.appId);
+              if (steamData) {
+                await updateGameInSupabase(item.gameId, steamData);
+              }
+            } catch (e) {
+              console.error(`Failed to enrich game ${item.name}:`, e);
+            }
+          })
+        );
+        if (i + ENRICH_CHUNK_SIZE < gamesToEnrich.length) {
+          await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+        }
+      }
+    }
+    console.log('Background detail sync completed.');
+  })();
+
+  console.log(`Main sync for user ${user.display_name} completed.`);
 }

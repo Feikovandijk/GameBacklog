@@ -16,6 +16,8 @@ import GameLibrary from './components/GameLibrary';
 import AddGamePage from './components/AddGamePage';
 import LoginPage from './components/LoginPage';
 import ProfilePage from './components/ProfilePage';
+import TrendsPage from './components/TrendsPage';
+import AnalysisPage from './components/AnalysisPage';
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -24,9 +26,12 @@ const App = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        await authAPI.fetchCsrfToken();
         const currentUser = await authAPI.getCurrentUser();
         setUser(currentUser.data);
+        // Fetch CSRF token after auth so it's generated with the authenticated
+        // session identifier — otherwise it's generated as 'anon' and all
+        // state-changing requests will fail with 403 invalid csrf token.
+        await authAPI.fetchCsrfToken();
       } catch {
         console.log('No user logged in');
       } finally {
@@ -63,6 +68,8 @@ const App = () => {
             <Route path='/games' element={<GameLibrary />} />
             <Route path='/add-game' element={<AddGamePage />} />
             <Route path='/profile' element={<ProfilePage />} />
+            <Route path='/trends' element={<TrendsPage />} />
+            <Route path='/analysis' element={<AnalysisPage />} />
             <Route path='*' element={<Navigate to='/dashboard' />} />
           </Routes>
         </AppLayout>

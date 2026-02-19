@@ -33,7 +33,7 @@ interface SteamProfile {
 /**
  * Express request with optional correlation ID override
  */
-type SteamCallbackRequest = Request;
+type SteamCallbackRequest = Request & { id?: string };
 
 /**
  * Passport done callback function type

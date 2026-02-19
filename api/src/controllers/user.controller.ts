@@ -24,7 +24,7 @@ export const getUserGames = async (
     const userId = (req.user as SteamUser).id;
 
     // Get query parameters for filtering
-    const { status, priority, limit = 20, offset = 0 } = req.query;
+    const { status, priority, limit = 20, offset = 0, has_notes } = req.query;
 
     let query = supabase
       .from('user_games')
@@ -47,6 +47,9 @@ export const getUserGames = async (
     }
     if (priority) {
       query = query.eq('priority', parseInt(priority as string));
+    }
+    if (has_notes === 'true') {
+      query = query.not('user_notes', 'is', null).neq('user_notes', '');
     }
 
     const { data: userGames, error, count } = await query;
@@ -116,7 +119,7 @@ export const addUserGame = async (
 ): Promise<void> => {
   try {
     const userId = (req.user as SteamUser).id;
-    const { steam_appid, status, priority, user_notes, user_tags } = req.body;
+    const { steam_appid, status } = req.body;
 
     if (!steam_appid || !status) {
       res.status(400).json({ error: 'steam_appid and status are required' });
@@ -155,9 +158,6 @@ export const addUserGame = async (
         game_id: gameExists.id,
         steam_appid,
         status,
-        priority: priority || 0,
-        user_notes,
-        user_tags,
         added_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -359,6 +359,38 @@ export const deleteUserGame = async (
       error: 'Failed to remove game from backlog',
       details: errorMessage,
     });
+  }
+};
+
+export const bulkDeleteByStatus = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = (req.user as SteamUser).id;
+    const { status } = req.body as { status: string };
+
+    if (!status) {
+      res.status(400).json({ error: 'status is required' });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('user_games')
+      .delete()
+      .eq('user_id', userId)
+      .eq('status', status);
+
+    if (error) { throw error; }
+
+    res.json({ success: true });
+  } catch (error: unknown) {
+    console.error('Error bulk-deleting games by status:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({ error: 'Bulk delete failed', details: errorMessage });
   }
 };
 

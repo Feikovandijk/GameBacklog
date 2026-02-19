@@ -4,11 +4,12 @@ import * as authController from '../controllers/auth.controller';
 import { rateLimit } from '../middleware/rate-limit';
 const router = Router();
 
-// Apply rate limiting (20 requests per hour for auth)
-router.use(rateLimit(60 * 60 * 1000, 20));
+// Rate limit login initiation only (10 per 15 minutes)
+const loginRateLimit = rateLimit(15 * 60 * 1000, 10);
 
 router.get(
   '/steam',
+  loginRateLimit,
   authController.login as unknown as import('express').RequestHandler
 );
 router.get('/steam/return', ...authController.returnAuth);

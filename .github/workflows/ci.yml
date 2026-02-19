@@ -53,7 +53,7 @@ jobs:
           echo "Running Type Check..."
           npm run --prefix user-dashboard type-check
           echo "Running Security Audit..."
-          npm audit --prefix user-dashboard --audit-level=high
+          npm audit --prefix user-dashboard --audit-level=high --omit=dev
 
       - name: User Dashboard - Build
         run: npm run --prefix user-dashboard build

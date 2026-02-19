@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { supabase } from '../supabase/client';
+import { getSteamTopSellers } from '../services/steam-charts-service';
 
 // Steam tag ID to name mapping (most common tags)
 const steamTagIdToName: Record<string, string> = {
@@ -158,7 +159,7 @@ export const getPopularTags = async (
 ): Promise<void> => {
   try {
     const limit = parseInt(req.query.limit as string) || 5;
-    const days = parseInt(req.query.days as string) || 7;
+    const days = parseInt(req.query.days as string) || 30;
 
     // Get trending games from the past N days
     const date = new Date();
@@ -395,5 +396,100 @@ export const getLatestSteamGames = async (
       error: 'Failed to fetch latest steam games',
       details: errorMessage,
     });
+  }
+};
+
+export const getTopSellers = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const topSellers = await getSteamTopSellers();
+    res.json(topSellers);
+  } catch (error: unknown) {
+    console.error('Error fetching top sellers:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({ error: 'Failed to fetch top sellers', details: errorMessage });
+  }
+};
+
+export const getUpcomingGames = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 12;
+    const now = new Date().toISOString();
+    const future = new Date();
+    future.setDate(future.getDate() + 60);
+
+    const { data: games, error } = await supabase
+      .from('games')
+      .select(
+        'id, steam_appid, name, header_image, release_date, genres, developers, price_final, price_currency, total_reviews, positive_rating_percentage, short_description'
+      )
+      .eq('steam_app_type', 'game')
+      .gt('release_date', now)
+      .lte('release_date', future.toISOString())
+      .order('total_reviews', { ascending: false })
+      .limit(limit);
+
+    if (error) { throw error; }
+
+    res.json(games || []);
+  } catch (error: unknown) {
+    console.error('Error fetching upcoming games:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({ error: 'Failed to fetch upcoming games', details: errorMessage });
+  }
+};
+
+export const getReleasesPerMonth = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const months = parseInt(req.query.months as string) || 24;
+    const since = new Date();
+    since.setMonth(since.getMonth() - months);
+
+    const { data: games, error } = await supabase
+      .from('games')
+      .select('release_date')
+      .eq('steam_app_type', 'game')
+      .gte('release_date', since.toISOString())
+      .lte('release_date', new Date().toISOString())
+      .not('release_date', 'is', null);
+
+    if (error) { throw error; }
+
+    const counts: Record<string, number> = {};
+    for (const game of games || []) {
+      const d = new Date(game.release_date as string);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+
+    const result = Object.entries(counts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, count]) => ({ month, count }));
+
+    res.json(result);
+  } catch (error: unknown) {
+    console.error('Error fetching releases per month:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    res
+      .status(500)
+      .json({
+        error: 'Failed to fetch releases per month',
+        details: errorMessage,
+      });
   }
 };

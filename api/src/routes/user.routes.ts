@@ -6,8 +6,10 @@ import { rateLimit } from '../middleware/rate-limit';
 
 const router = Router();
 
-// Apply rate limiting (100 requests per 15 minutes)
-router.use(rateLimit(15 * 60 * 1000, 100));
+// Rate limiting: disabled in development, 100 req / 15 min in production
+if (process.env.NODE_ENV === 'production') {
+  router.use(rateLimit(15 * 60 * 1000, 100));
+}
 
 // Apply auth middleware to all routes in this router
 router.use(requireAuth);
@@ -20,6 +22,7 @@ router.get(
   asyncHandler(userController.getRecentlyPlayed)
 );
 router.post('/games', asyncHandler(userController.addUserGame));
+router.delete('/games/bulk', asyncHandler(userController.bulkDeleteByStatus));
 router.put('/games/:id', asyncHandler(userController.updateUserGame));
 router.delete('/games/:id', asyncHandler(userController.deleteUserGame));
 

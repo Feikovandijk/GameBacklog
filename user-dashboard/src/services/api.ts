@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -157,6 +159,7 @@ export const userGamesAPI = {
     limit?: number;
     offset?: number;
     search?: string;
+    has_notes?: boolean;
   }) =>
     api.get<{ documents: UserGame[]; total: number }>('/api/user/games', {
       params,
@@ -175,11 +178,10 @@ export const userGamesAPI = {
 
   removeGame: (gameId: string) => api.delete(`/api/user/games/${gameId}`),
 
-  bulkUpdateStatus: (fromStatus: string, toStatus: string | null = null) =>
-    api.put<{ success: boolean; updated: number }>(
-      '/api/user/games/bulk-status',
-      { fromStatus, toStatus }
-    ),
+  bulkDeleteByStatus: (status: string) =>
+    api.delete<{ success: boolean }>('/api/user/games/bulk', {
+      data: { status },
+    }),
 
   getStats: () => api.get<UserStats>('/api/user/stats'),
 
@@ -199,10 +201,26 @@ export const userGamesAPI = {
   syncSteamLibrary: () => api.post<{ message: string }>('/api/user/sync'),
 };
 
+export interface TopSellerGame {
+  steam_appid: number;
+  name: string;
+  header_image: string;
+  price_final: number;
+  price_currency: string;
+  developers: string[];
+  genres: string[];
+  rank: number;
+}
+
 export interface PopularTag {
   name: string;
   count: number;
   totalPlayers: number;
+}
+
+export interface AnalyticsData {
+  releaseYearDistribution: Record<string, number>;
+  genreDistribution: { name: string; count: number }[];
 }
 
 // User Profile
@@ -221,10 +239,19 @@ export const gamesAPI = {
     api.get<Game[]>('/api/games/search', { params: { q: query, limit } }),
   getTrendingGames: (limit = 10, days?: number) =>
     api.get<Game[]>('/api/games/trending', { params: { limit, days } }),
+  getTopSellers: () => api.get<TopSellerGame[]>('/api/games/top-sellers'),
+  getUpcomingGames: (limit = 12) =>
+    api.get<Game[]>(`/api/games/upcoming?limit=${limit}`),
+  getReleasesPerMonth: (months = 24) =>
+    api.get<{ month: string; count: number }[]>(
+      '/api/games/releases-per-month',
+      { params: { months } }
+    ),
   getPopularTags: (limit = 5, days = 7) =>
     api.get<PopularTag[]>('/api/games/popular-tags', {
       params: { limit, days },
     }),
+  getAnalytics: () => api.get<AnalyticsData>('/api/analytics'),
 };
 
 export const getActivity = () => userGamesAPI.getActivity();
