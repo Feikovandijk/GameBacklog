@@ -98,6 +98,7 @@ const GameLibrary: React.FC = () => {
     // Filters
     const [searchText, setSearchText] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('');
+    const [backlogFilter, setBacklogFilter] = useState<'all' | 'backlog'>('all');
     const [appending, setAppending] = useState(false);
 
     // Sync state
@@ -123,6 +124,7 @@ const GameLibrary: React.FC = () => {
                 limit: pageSize,
                 search: searchText,
                 status: statusFilter || undefined,
+                in_backlog: backlogFilter === 'backlog' ? true : undefined,
             });
 
             if (append) {
@@ -147,7 +149,7 @@ const GameLibrary: React.FC = () => {
 
     useEffect(() => {
         fetchGames(1, false);
-    }, [searchText, statusFilter]);
+    }, [searchText, statusFilter, backlogFilter]);
 
     const handleLoadMore = () => {
         fetchGames(pagination.current + 1, true);
@@ -221,7 +223,7 @@ const GameLibrary: React.FC = () => {
                             My Library
                         </h1>
                         <p className='text-text-secondary text-base'>
-                            {pagination.total} games in your collection
+                            {pagination.total} games {backlogFilter === 'backlog' ? 'in your backlog' : 'in your collection'}
                             {pagination.total === 0 && (
                                 <span className='ml-2 text-primary animate-pulse'>
                                     (Syncing might be in progress...)
@@ -255,6 +257,30 @@ const GameLibrary: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Library / Backlog Tabs */}
+                <div className='bg-surface-dark border border-border-dark rounded-2xl p-1.5 flex gap-1 mb-4 w-fit'>
+                    <button
+                        onClick={() => setBacklogFilter('all')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${backlogFilter === 'all'
+                                ? 'bg-primary text-background-dark'
+                                : 'text-text-secondary hover:text-white'
+                            }`}
+                    >
+                        <span className='material-symbols-outlined text-[18px]'>library_books</span>
+                        All Games
+                    </button>
+                    <button
+                        onClick={() => setBacklogFilter('backlog')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${backlogFilter === 'backlog'
+                                ? 'bg-primary text-background-dark'
+                                : 'text-text-secondary hover:text-white'
+                            }`}
+                    >
+                        <span className='material-symbols-outlined text-[18px]'>bookmark</span>
+                        Backlog Only
+                    </button>
+                </div>
+
                 {/* Toolbar */}
                 <div className='bg-surface-dark border border-border-dark rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between'>
                     <div className='flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1'>
@@ -282,7 +308,8 @@ const GameLibrary: React.FC = () => {
                                 onChange={e => setStatusFilter(e.target.value)}
                             >
                                 <option value=''>All Statuses</option>
-                                <option value='want_to_play'>Backlog</option>
+                                <option value='unplayed'>Unplayed</option>
+                                <option value='want_to_play'>Want to Play</option>
                                 <option value='currently_playing'>
                                     Playing
                                 </option>
@@ -305,11 +332,10 @@ const GameLibrary: React.FC = () => {
                     <div className='flex bg-background-dark rounded-xl p-1 border border-border-dark'>
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-lg transition-colors ${
-                                viewMode === 'grid'
+                            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
                                     ? 'bg-primary text-background-dark'
                                     : 'text-text-secondary hover:text-white'
-                            }`}
+                                }`}
                         >
                             <span className='material-symbols-outlined text-[20px] block'>
                                 grid_view
@@ -317,11 +343,10 @@ const GameLibrary: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`p-2 rounded-lg transition-colors ${
-                                viewMode === 'list'
+                            className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
                                     ? 'bg-primary text-background-dark'
                                     : 'text-text-secondary hover:text-white'
-                            }`}
+                                }`}
                         >
                             <span className='material-symbols-outlined text-[20px] block'>
                                 view_list

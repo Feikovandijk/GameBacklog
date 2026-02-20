@@ -151,7 +151,8 @@ CREATE TABLE IF NOT EXISTS "public"."user_games" (
     "last_played" TIMESTAMPTZ,
     "img_icon_url" TEXT,
     "img_logo_url" TEXT,
-    "stats_json" JSONB
+    "stats_json" JSONB,
+    "in_backlog" BOOLEAN DEFAULT false
 );
 
 -- Achievements Table (Master Achievement List)

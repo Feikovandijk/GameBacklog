@@ -54,9 +54,9 @@ const DraggableCard = ({
 
   const style = transform
     ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        opacity: isDragging ? 0 : 1,
-      }
+      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      opacity: isDragging ? 0 : 1,
+    }
     : undefined;
 
   return (
@@ -105,7 +105,7 @@ const KanBanBoard: React.FC = () => {
   const fetchGames = async () => {
     setLoading(true);
     try {
-      const response = await api.getUserGames({ limit: 500 });
+      const response = await api.getUserGames({ limit: 500, in_backlog: true });
       const allGames = response.data.documents;
       setGames(allGames);
 
@@ -216,9 +216,9 @@ const KanBanBoard: React.FC = () => {
       const avgRating =
         rated.length > 0
           ? rated.reduce(
-              (sum, g) => sum + (g.user_rating || 0),
-              0
-            ) / rated.length
+            (sum, g) => sum + (g.user_rating || 0),
+            0
+          ) / rated.length
           : 0;
       const favoriteCount = colGames.filter(
         g => g.is_favorite

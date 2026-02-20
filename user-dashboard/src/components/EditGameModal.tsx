@@ -27,6 +27,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     hours_played: number;
     completion_percentage: number;
     is_favorite: boolean;
+    in_backlog: boolean;
   }>({
     status: '',
     priority: 0,
@@ -36,6 +37,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     hours_played: 0,
     completion_percentage: 0,
     is_favorite: false,
+    in_backlog: false,
   });
 
   const [descExpanded, setDescExpanded] = useState(false);
@@ -51,6 +53,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         hours_played: game.hours_played || 0,
         completion_percentage: game.completion_percentage || 0,
         is_favorite: game.is_favorite || false,
+        in_backlog: game.in_backlog || false,
       });
       setDescExpanded(false);
     }
@@ -125,39 +128,39 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     bg: string;
     border: string;
   }[] = [
-    {
-      status: 'analysis_needed',
-      label: 'Analyze',
-      icon: 'science',
-      color: 'text-accent-orange',
-      bg: 'bg-accent-orange/10',
-      border: 'border-accent-orange/20',
-    },
-    {
-      status: 'currently_playing',
-      label: 'Playing',
-      icon: 'play_circle',
-      color: 'text-accent-purple',
-      bg: 'bg-accent-purple/10',
-      border: 'border-accent-purple/20',
-    },
-    {
-      status: 'completed',
-      label: 'Complete',
-      icon: 'check_circle',
-      color: 'text-accent-green',
-      bg: 'bg-accent-green/10',
-      border: 'border-accent-green/20',
-    },
-    {
-      status: 'on_hold',
-      label: 'Hold',
-      icon: 'pause_circle',
-      color: 'text-accent-orange',
-      bg: 'bg-accent-orange/10',
-      border: 'border-accent-orange/20',
-    },
-  ];
+      {
+        status: 'analysis_needed',
+        label: 'Analyze',
+        icon: 'science',
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        border: 'border-accent-orange/20',
+      },
+      {
+        status: 'currently_playing',
+        label: 'Playing',
+        icon: 'play_circle',
+        color: 'text-accent-purple',
+        bg: 'bg-accent-purple/10',
+        border: 'border-accent-purple/20',
+      },
+      {
+        status: 'completed',
+        label: 'Complete',
+        icon: 'check_circle',
+        color: 'text-accent-green',
+        bg: 'bg-accent-green/10',
+        border: 'border-accent-green/20',
+      },
+      {
+        status: 'on_hold',
+        label: 'Hold',
+        icon: 'pause_circle',
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        border: 'border-accent-orange/20',
+      },
+    ];
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'>
@@ -529,6 +532,43 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                 </div>
               </div>
 
+              {/* Backlog Toggle */}
+              <div>
+                <div className='flex items-center gap-1.5 mb-3'>
+                  <span className='material-symbols-outlined text-[16px] text-text-secondary'>
+                    bookmark
+                  </span>
+                  <span className='text-xs uppercase tracking-wider text-text-secondary font-semibold'>
+                    Backlog
+                  </span>
+                </div>
+                <button
+                  type='button'
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${formData.in_backlog
+                      ? 'bg-primary/10 border-primary/30 text-primary'
+                      : 'bg-background-dark border-border-dark text-text-secondary hover:text-white hover:border-white/20'
+                    }`}
+                  onClick={() =>
+                    setFormData(prev => ({
+                      ...prev,
+                      in_backlog: !prev.in_backlog,
+                    }))
+                  }
+                >
+                  <span
+                    className='material-symbols-outlined text-[18px]'
+                    style={{
+                      fontVariationSettings: formData.in_backlog
+                        ? "'FILL' 1"
+                        : "'FILL' 0",
+                    }}
+                  >
+                    bookmark
+                  </span>
+                  {formData.in_backlog ? 'In Backlog' : 'Not in Backlog'}
+                </button>
+              </div>
+
               {/* Section: Analysis Status */}
               <div>
                 <div className='flex items-center gap-1.5 mb-4'>
@@ -567,6 +607,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         <option value='completed_100'>100% Completed</option>
                         <option value='on_hold'>On Hold</option>
                         <option value='dropped'>Dropped</option>
+                        <option value='unplayed'>Unplayed</option>
                       </select>
                       <div className='absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none'>
                         <span className='material-symbols-outlined text-text-secondary text-[20px]'>
@@ -584,11 +625,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     <div className='flex gap-1.5'>
                       <button
                         type='button'
-                        className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                          formData.priority === 0
-                            ? 'bg-primary text-background-dark'
-                            : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
-                        }`}
+                        className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${formData.priority === 0
+                          ? 'bg-primary text-background-dark'
+                          : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
+                          }`}
                         onClick={() =>
                           setFormData(prev => ({ ...prev, priority: 0 }))
                         }
@@ -599,11 +639,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         <button
                           key={n}
                           type='button'
-                          className={`w-10 py-2 rounded-xl text-sm font-bold transition-colors ${
-                            formData.priority === n
-                              ? 'bg-primary text-background-dark'
-                              : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
-                          }`}
+                          className={`w-10 py-2 rounded-xl text-sm font-bold transition-colors ${formData.priority === n
+                            ? 'bg-primary text-background-dark'
+                            : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
+                            }`}
                           onClick={() =>
                             setFormData(prev => ({ ...prev, priority: n }))
                           }

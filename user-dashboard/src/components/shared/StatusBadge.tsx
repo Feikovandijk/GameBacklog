@@ -7,7 +7,8 @@ export type GameStatus =
     | 'completed'
     | 'completed_100'
     | 'on_hold'
-    | 'dropped';
+    | 'dropped'
+    | 'unplayed';
 
 interface StatusBadgeProps {
     status: GameStatus | string;
@@ -68,6 +69,13 @@ const statusConfig: Record<
         bg: 'bg-status-error/10',
         border: 'border-status-error/20',
         icon: 'cancel',
+    },
+    unplayed: {
+        label: 'Unplayed',
+        color: 'text-text-secondary',
+        bg: 'bg-white/5',
+        border: 'border-white/10',
+        icon: 'library_books',
     },
 };
 
