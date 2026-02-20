@@ -16,7 +16,7 @@ export const getAnalysisTemplate = (): string[] => {
                 return parsed.analysis_template;
             }
         }
-    } catch (e) {
+    } catch {
         // Ignore parse errors
     }
     return defaultTemplate;

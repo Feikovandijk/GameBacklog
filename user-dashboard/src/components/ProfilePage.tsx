@@ -76,7 +76,7 @@ const ProfilePage: React.FC = () => {
 
     const handleSaveSettings = async () => {
         try {
-            await authAPI.updateProfile({
+            await userProfileAPI.updateProfile({
                 analysis_template: analysisTemplate
             });
             setSaveMessage({ text: 'Settings saved successfully!', type: 'success' });

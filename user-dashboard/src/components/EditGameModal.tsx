@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { UserGame } from '../services/api';
 import StarRating from './shared/StarRating';
 import TagInput from './shared/TagInput';
+import { getAnalysisTemplate } from '../utils/preferences';
 
 interface EditGameModalProps {
   open: boolean;
@@ -803,20 +804,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                   {isAnalysisFlow ? (
                     <div className='space-y-4 pt-2'>
                       {(() => {
-                        let analysisTemplate = [
-                          'What worked well (To Steal)',
-                          "What didn't work (To Avoid)",
-                          'Takeaways for our game',
-                        ];
-                        try {
-                          const userStr = localStorage.getItem('user');
-                          if (userStr) {
-                            const parsed = JSON.parse(userStr);
-                            if (parsed?.analysis_template && Array.isArray(parsed.analysis_template) && parsed.analysis_template.length > 0) {
-                              analysisTemplate = parsed.analysis_template;
-                            }
-                          }
-                        } catch (e) { }
+                        const analysisTemplate = getAnalysisTemplate();
 
                         return analysisTemplate.map((question, index) => {
                           const borderColors = [
