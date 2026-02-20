@@ -109,6 +109,7 @@ export interface DashboardStats {
   recentAchievementCount: number;
   collectionValueEstimate: number;
   completionPercentage: number;
+  backlogGames: number;
 }
 
 export interface Achievement {
@@ -164,6 +165,7 @@ export const userGamesAPI = {
     offset?: number;
     search?: string;
     has_notes?: boolean;
+    in_backlog?: boolean;
   }) =>
     api.get<{ documents: UserGame[]; total: number }>('/api/user/games', {
       params,
