@@ -212,6 +212,7 @@ export const updateUserGame = async (
       hours_played,
       completion_percentage,
       is_favorite,
+      analysis,
     } = req.body;
 
     // Verify ownership
@@ -284,6 +285,9 @@ export const updateUserGame = async (
     }
     if (is_favorite !== undefined) {
       updateData.is_favorite = is_favorite;
+    }
+    if (analysis !== undefined) {
+      updateData.analysis = analysis;
     }
 
     // Set completion date if marking as completed
@@ -381,7 +385,9 @@ export const bulkDeleteByStatus = async (
       .eq('user_id', userId)
       .eq('status', status);
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     res.json({ success: true });
   } catch (error: unknown) {

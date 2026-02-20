@@ -67,10 +67,12 @@ export interface UserGame {
   playtime_2weeks?: number;
   completion_percentage: number;
   is_favorite: boolean;
+  in_backlog: boolean;
   added_at: string;
   updated_at: string;
   completed_at?: string;
   last_played?: string;
+  analysis?: Record<string, string>;
   game?: Game;
 }
 

@@ -9,6 +9,7 @@ interface EditGameModalProps {
   onOk: (values: Partial<UserGame>) => void;
   onDelete: () => void;
   game: UserGame | null;
+  isAnalysisFlow?: boolean;
 }
 
 const EditGameModal: React.FC<EditGameModalProps> = ({
@@ -17,6 +18,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   onOk,
   onDelete,
   game,
+  isAnalysisFlow = false,
 }) => {
   const [formData, setFormData] = useState<{
     status: string;
@@ -28,6 +30,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     completion_percentage: number;
     is_favorite: boolean;
     in_backlog: boolean;
+    analysis: Record<string, string>;
   }>({
     status: '',
     priority: 0,
@@ -38,6 +41,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     completion_percentage: 0,
     is_favorite: false,
     in_backlog: false,
+    analysis: {},
   });
 
   const [descExpanded, setDescExpanded] = useState(false);
@@ -54,6 +58,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         completion_percentage: game.completion_percentage || 0,
         is_favorite: game.is_favorite || false,
         in_backlog: game.in_backlog || false,
+        analysis: game.analysis || {},
       });
       setDescExpanded(false);
     }
@@ -545,8 +550,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                 <button
                   type='button'
                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${formData.in_backlog
-                      ? 'bg-primary/10 border-primary/30 text-primary'
-                      : 'bg-background-dark border-border-dark text-text-secondary hover:text-white hover:border-white/20'
+                    ? 'bg-primary/10 border-primary/30 text-primary'
+                    : 'bg-background-dark border-border-dark text-text-secondary hover:text-white hover:border-white/20'
                     }`}
                   onClick={() =>
                     setFormData(prev => ({
@@ -656,115 +661,117 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               </div>
 
               {/* Section: Progress Tracking */}
-              <div>
-                <div className='flex items-center gap-1.5 mb-4'>
-                  <span className='material-symbols-outlined text-[16px] text-text-secondary'>
-                    trending_up
-                  </span>
-                  <span className='text-xs uppercase tracking-wider text-text-secondary font-semibold'>
-                    Progress Tracking
-                  </span>
-                </div>
-
-                <div className='space-y-4'>
-                  {/* Completion Percentage */}
-                  <div>
-                    <label className='block text-sm font-medium text-text-secondary mb-2'>
-                      Completion
-                    </label>
-                    <div className='flex items-center gap-3'>
-                      <input
-                        type='range'
-                        min='0'
-                        max='100'
-                        className='flex-1 accent-primary h-1.5'
-                        value={formData.completion_percentage}
-                        onChange={e =>
-                          setFormData(prev => ({
-                            ...prev,
-                            completion_percentage: parseInt(e.target.value),
-                          }))
-                        }
-                      />
-                      <div className='flex items-center'>
-                        <input
-                          type='number'
-                          min='0'
-                          max='100'
-                          className='w-16 px-2 py-1.5 bg-background-dark border border-border-dark rounded-lg text-white text-sm text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
-                          value={formData.completion_percentage}
-                          onChange={e => {
-                            const val = Math.min(
-                              100,
-                              Math.max(0, parseInt(e.target.value) || 0)
-                            );
-                            setFormData(prev => ({
-                              ...prev,
-                              completion_percentage: val,
-                            }));
-                          }}
-                        />
-                        <span className='text-text-secondary text-sm ml-1'>
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className='h-1 w-full bg-border-dark rounded-full overflow-hidden mt-2'>
-                      <div
-                        className='h-full bg-primary rounded-full shadow-[0_0_6px_rgba(0,229,188,0.4)] transition-all'
-                        style={{
-                          width: `${formData.completion_percentage}%`,
-                        }}
-                      />
-                    </div>
+              {!isAnalysisFlow && (
+                <div>
+                  <div className='flex items-center gap-1.5 mb-4'>
+                    <span className='material-symbols-outlined text-[16px] text-text-secondary'>
+                      trending_up
+                    </span>
+                    <span className='text-xs uppercase tracking-wider text-text-secondary font-semibold'>
+                      Progress Tracking
+                    </span>
                   </div>
 
-                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                    {/* Hours Played */}
+                  <div className='space-y-4'>
+                    {/* Completion Percentage */}
                     <div>
                       <label className='block text-sm font-medium text-text-secondary mb-2'>
-                        Hours Played
+                        Completion
                       </label>
-                      <div className='relative'>
-                        <span className='absolute left-3 top-1/2 -translate-y-1/2'>
-                          <span className='material-symbols-outlined text-[16px] text-text-secondary'>
-                            schedule
-                          </span>
-                        </span>
+                      <div className='flex items-center gap-3'>
                         <input
-                          type='number'
+                          type='range'
                           min='0'
-                          step='0.1'
-                          className='block w-full pl-10 pr-4 py-2.5 bg-background-dark border border-border-dark rounded-xl text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm'
-                          value={formData.hours_played}
+                          max='100'
+                          className='flex-1 accent-primary h-1.5'
+                          value={formData.completion_percentage}
                           onChange={e =>
                             setFormData(prev => ({
                               ...prev,
-                              hours_played: parseFloat(e.target.value) || 0,
+                              completion_percentage: parseInt(e.target.value),
+                            }))
+                          }
+                        />
+                        <div className='flex items-center'>
+                          <input
+                            type='number'
+                            min='0'
+                            max='100'
+                            className='w-16 px-2 py-1.5 bg-background-dark border border-border-dark rounded-lg text-white text-sm text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
+                            value={formData.completion_percentage}
+                            onChange={e => {
+                              const val = Math.min(
+                                100,
+                                Math.max(0, parseInt(e.target.value) || 0)
+                              );
+                              setFormData(prev => ({
+                                ...prev,
+                                completion_percentage: val,
+                              }));
+                            }}
+                          />
+                          <span className='text-text-secondary text-sm ml-1'>
+                            %
+                          </span>
+                        </div>
+                      </div>
+                      <div className='h-1 w-full bg-border-dark rounded-full overflow-hidden mt-2'>
+                        <div
+                          className='h-full bg-primary rounded-full shadow-[0_0_6px_rgba(0,229,188,0.4)] transition-all'
+                          style={{
+                            width: `${formData.completion_percentage}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                      {/* Hours Played */}
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          Hours Played
+                        </label>
+                        <div className='relative'>
+                          <span className='absolute left-3 top-1/2 -translate-y-1/2'>
+                            <span className='material-symbols-outlined text-[16px] text-text-secondary'>
+                              schedule
+                            </span>
+                          </span>
+                          <input
+                            type='number'
+                            min='0'
+                            step='0.1'
+                            className='block w-full pl-10 pr-4 py-2.5 bg-background-dark border border-border-dark rounded-xl text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm'
+                            value={formData.hours_played}
+                            onChange={e =>
+                              setFormData(prev => ({
+                                ...prev,
+                                hours_played: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* User Rating */}
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          Your Rating
+                        </label>
+                        <StarRating
+                          value={formData.user_rating}
+                          onChange={val =>
+                            setFormData(prev => ({
+                              ...prev,
+                              user_rating: val,
                             }))
                           }
                         />
                       </div>
                     </div>
-
-                    {/* User Rating */}
-                    <div>
-                      <label className='block text-sm font-medium text-text-secondary mb-2'>
-                        Your Rating
-                      </label>
-                      <StarRating
-                        value={formData.user_rating}
-                        onChange={val =>
-                          setFormData(prev => ({
-                            ...prev,
-                            user_rating: val,
-                          }))
-                        }
-                      />
-                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Section: Research Tags & Notes */}
               <div>
@@ -792,24 +799,104 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     />
                   </div>
 
-                  {/* Notes */}
-                  <div>
-                    <label className='block text-sm font-medium text-text-secondary mb-2'>
-                      Analysis Notes
-                    </label>
-                    <textarea
-                      rows={4}
-                      className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none'
-                      placeholder='Document competitive analysis, design patterns, mechanics worth studying...'
-                      value={formData.user_notes}
-                      onChange={e =>
-                        setFormData(prev => ({
-                          ...prev,
-                          user_notes: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
+                  {/* Guided Deconstruction or Generic Notes */}
+                  {isAnalysisFlow ? (
+                    <div className='space-y-4 pt-2'>
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          What worked well (To Steal)
+                        </label>
+                        <textarea
+                          rows={3}
+                          className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 text-sm resize-none'
+                          placeholder='e.g. The first 15 minutes hook, the UI responsiveness...'
+                          value={formData.analysis?.what_worked_well || ''}
+                          onChange={e =>
+                            setFormData(prev => ({
+                              ...prev,
+                              analysis: { ...prev.analysis, what_worked_well: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          What didn't work (To Avoid)
+                        </label>
+                        <textarea
+                          rows={3}
+                          className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 text-sm resize-none'
+                          placeholder='e.g. Frustrating inventory management, slow tutorials...'
+                          value={formData.analysis?.what_didnt_work || ''}
+                          onChange={e =>
+                            setFormData(prev => ({
+                              ...prev,
+                              analysis: { ...prev.analysis, what_didnt_work: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          Takeaways for our game
+                        </label>
+                        <textarea
+                          rows={3}
+                          className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none'
+                          placeholder='e.g. We should adopt their fast-travel unlock pacing...'
+                          value={formData.analysis?.takeaways || ''}
+                          onChange={e =>
+                            setFormData(prev => ({
+                              ...prev,
+                              analysis: { ...prev.analysis, takeaways: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          External Document Link (Optional)
+                        </label>
+                        <div className='relative'>
+                          <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                            <span className='material-symbols-outlined text-text-secondary text-[16px]'>
+                              link
+                            </span>
+                          </div>
+                          <input
+                            type='url'
+                            className='block w-full pl-9 pr-4 py-2 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm'
+                            placeholder='e.g. Google Docs, Notion, Miro board...'
+                            value={formData.analysis?.document_link || ''}
+                            onChange={e =>
+                              setFormData(prev => ({
+                                ...prev,
+                                analysis: { ...prev.analysis, document_link: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className='block text-sm font-medium text-text-secondary mb-2'>
+                        Analysis Notes
+                      </label>
+                      <textarea
+                        rows={4}
+                        className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none'
+                        placeholder='Document competitive analysis, design patterns, mechanics worth studying...'
+                        value={formData.user_notes}
+                        onChange={e =>
+                          setFormData(prev => ({
+                            ...prev,
+                            user_notes: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </form>

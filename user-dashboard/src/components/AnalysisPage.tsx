@@ -229,7 +229,7 @@ const AnalysisPage: React.FC = () => {
   const avgRating =
     ratedGames.length > 0
       ? ratedGames.reduce((s, g) => s + (g.user_rating ?? 0), 0) /
-        ratedGames.length
+      ratedGames.length
       : 0;
 
   const allTags = Array.from(
@@ -583,6 +583,7 @@ const AnalysisPage: React.FC = () => {
         onCancel={() => setIsModalOpen(false)}
         onOk={handleUpdateGame}
         onDelete={handleDeleteGame}
+        isAnalysisFlow={true}
       />
 
       {/* ── Add game modal ────────────────────────────────────────── */}

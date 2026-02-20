@@ -159,7 +159,8 @@ CREATE TABLE IF NOT EXISTS "public"."user_games" (
     "priority" INTEGER DEFAULT 0,
     "completion_percentage" NUMERIC DEFAULT 0,
     "is_favorite" BOOLEAN DEFAULT false,
-    "completed_at" TIMESTAMPTZ
+    "completed_at" TIMESTAMPTZ,
+    "analysis" JSONB DEFAULT '{}'::jsonb
 );
 
 -- Achievements Table (Master Achievement List)

@@ -9,6 +9,7 @@ ALTER TABLE user_games ADD COLUMN IF NOT EXISTS priority INTEGER DEFAULT 0;
 ALTER TABLE user_games ADD COLUMN IF NOT EXISTS completion_percentage NUMERIC DEFAULT 0;
 ALTER TABLE user_games ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT false;
 ALTER TABLE user_games ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE user_games ADD COLUMN IF NOT EXISTS analysis JSONB DEFAULT '{}'::jsonb;
 
 COMMENT ON COLUMN user_games.user_notes IS 'Free-form personal analysis/research notes written by the user';
 COMMENT ON COLUMN user_games.user_rating IS '1–5 star rating assigned by the user';
