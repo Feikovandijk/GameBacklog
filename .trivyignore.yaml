@@ -1,0 +1,3 @@
+misconfigurations:
+  - id: DS-0017
+  - id: DS-0002
