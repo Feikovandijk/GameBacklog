@@ -292,7 +292,12 @@ export const updateUserGame = async (
       updateData.is_favorite = is_favorite;
     }
     if (analysis !== undefined) {
-      updateData.analysis = analysis;
+      if (typeof analysis === 'object' && analysis !== null && !Array.isArray(analysis)) {
+        updateData.analysis = analysis;
+      } else {
+        res.status(400).json({ error: 'analysis must be an object' });
+        return;
+      }
     }
 
     // Set completion date if marking as completed
@@ -616,10 +621,10 @@ export const getDashboardStats = async (
     const avgHoursPerCompletion =
       completedGames.length > 0
         ? Math.round(
-            (completedGames.reduce((sum, g) => sum + (g.hours_played || 0), 0) /
-              completedGames.length) *
-              10
-          ) / 10
+          (completedGames.reduce((sum, g) => sum + (g.hours_played || 0), 0) /
+            completedGames.length) *
+          10
+        ) / 10
         : 0;
 
     // Calculate genre distribution
@@ -677,11 +682,11 @@ export const getDashboardStats = async (
       completionPercentage:
         totalGames > 0
           ? Math.round(
-              (((statusCounts['completed'] || 0) +
-                (statusCounts['completed_100'] || 0)) /
-                totalGames) *
-                100
-            )
+            (((statusCounts['completed'] || 0) +
+              (statusCounts['completed_100'] || 0)) /
+              totalGames) *
+            100
+          )
           : 0,
     };
 
@@ -768,10 +773,12 @@ export const getUserActivity = async (
 const VALID_STATUSES = [
   'want_to_play',
   'currently_playing',
+  'analysis_needed',
   'completed',
   'completed_100',
   'on_hold',
   'dropped',
+  'unplayed',
 ];
 const VALID_VIEWS = ['grid', 'list'];
 

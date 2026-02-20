@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import * as api from '../services/api';
 import type { Game } from '../services/api';
 import StatusBadge, { type GameStatus } from './shared/StatusBadge';
@@ -76,9 +77,9 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
       });
       setAdded(prev => ({ ...prev, [game.steam_appid]: true }));
       onGameAdded();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 409 = already in library
-      if (error?.response?.status === 409) {
+      if (axios.isAxiosError(error) && error?.response?.status === 409) {
         const existingGameId = error.response.data?.existing_game_id;
         if (existingGameId) {
           try {

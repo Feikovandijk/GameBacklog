@@ -5,6 +5,7 @@ import AddToBoardModal from './AddToBoardModal';
 import StatusBadge from './shared/StatusBadge';
 import StarRating from './shared/StarRating';
 import TagInput from './shared/TagInput';
+import { getAnalysisTemplate } from '../utils/preferences';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -109,20 +110,7 @@ const AnalysisDetailEditor: React.FC<AnalysisDetailEditorProps> = ({ game, onSav
     'focus:border-primary focus:ring-primary',
   ];
 
-  let analysisTemplate = [
-    'What worked well (To Steal)',
-    "What didn't work (To Avoid)",
-    'Takeaways for our game',
-  ];
-  try {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const parsed = JSON.parse(userStr);
-      if (parsed?.analysis_template && Array.isArray(parsed.analysis_template) && parsed.analysis_template.length > 0) {
-        analysisTemplate = parsed.analysis_template;
-      }
-    }
-  } catch (e) { }
+  const analysisTemplate = getAnalysisTemplate();
 
   return (
     <div className='h-full flex flex-col'>
@@ -353,7 +341,7 @@ const AnalysisPage: React.FC = () => {
 
       const allGames = Array.from(mergedMap.values());
       // Sort newest added/updated first
-      allGames.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      allGames.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
       setAnalyzedGames(allGames);
       hasLoadedOnce.current = true;

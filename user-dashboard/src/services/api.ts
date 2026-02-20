@@ -53,13 +53,14 @@ export interface UserGame {
   game_id: string;
   steam_appid: number;
   status:
-    | 'want_to_play'
-    | 'currently_playing'
-    | 'analysis_needed'
-    | 'completed'
-    | 'completed_100'
-    | 'on_hold'
-    | 'dropped';
+  | 'want_to_play'
+  | 'currently_playing'
+  | 'analysis_needed'
+  | 'completed'
+  | 'completed_100'
+  | 'on_hold'
+  | 'dropped'
+  | 'unplayed';
   priority: number;
   user_rating?: number;
   user_notes: string;
