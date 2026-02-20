@@ -23,6 +23,7 @@ export interface User {
   default_game_status: string;
   theme: string;
   default_view: string;
+  analysis_template?: string[];
   created_at: string;
   last_steam_sync?: string;
   last_active?: string;
@@ -52,13 +53,14 @@ export interface UserGame {
   game_id: string;
   steam_appid: number;
   status:
-    | 'want_to_play'
-    | 'currently_playing'
-    | 'analysis_needed'
-    | 'completed'
-    | 'completed_100'
-    | 'on_hold'
-    | 'dropped';
+  | 'want_to_play'
+  | 'currently_playing'
+  | 'analysis_needed'
+  | 'completed'
+  | 'completed_100'
+  | 'on_hold'
+  | 'dropped'
+  | 'unplayed';
   priority: number;
   user_rating?: number;
   user_notes: string;
@@ -67,10 +69,12 @@ export interface UserGame {
   playtime_2weeks?: number;
   completion_percentage: number;
   is_favorite: boolean;
+  in_backlog: boolean;
   added_at: string;
   updated_at: string;
   completed_at?: string;
   last_played?: string;
+  analysis?: Record<string, string>;
   game?: Game;
 }
 
@@ -105,6 +109,7 @@ export interface DashboardStats {
   recentAchievementCount: number;
   collectionValueEstimate: number;
   completionPercentage: number;
+  backlogGames: number;
 }
 
 export interface Achievement {
@@ -160,6 +165,7 @@ export const userGamesAPI = {
     offset?: number;
     search?: string;
     has_notes?: boolean;
+    in_backlog?: boolean;
   }) =>
     api.get<{ documents: UserGame[]; total: number }>('/api/user/games', {
       params,
@@ -230,6 +236,7 @@ export const userProfileAPI = {
     sync_steam_playtime?: boolean;
     default_game_status?: string;
     default_view?: string;
+    analysis_template?: string[];
   }) => api.put<User>('/api/user/profile', data),
 };
 

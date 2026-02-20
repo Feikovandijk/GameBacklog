@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS "public"."users" (
     "sync_steam_playtime" BOOLEAN DEFAULT TRUE,
     "default_game_status" TEXT DEFAULT 'want_to_play',
     "theme" TEXT DEFAULT 'dark',
-    "default_view" TEXT DEFAULT 'grid'
+    "default_view" TEXT DEFAULT 'grid',
+    "analysis_template" JSONB DEFAULT '["What worked well (To Steal)", "What didn''t work (To Avoid)", "Takeaways for our game"]'::jsonb
 );
 
 -- Ensure user columns exist if table was already created
@@ -50,6 +51,7 @@ ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "sync_steam_playtime" BOOL
 ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "default_game_status" TEXT DEFAULT 'want_to_play';
 ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "theme" TEXT DEFAULT 'dark';
 ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "default_view" TEXT DEFAULT 'grid';
+ALTER TABLE "public"."users" ADD COLUMN IF NOT EXISTS "analysis_template" JSONB DEFAULT '["What worked well (To Steal)", "What didn''t work (To Avoid)", "Takeaways for our game"]'::jsonb;
 
 -- Fix ID column to auto-generate UUIDs and remove FK to auth.users if it exists
 DO $$
@@ -151,7 +153,16 @@ CREATE TABLE IF NOT EXISTS "public"."user_games" (
     "last_played" TIMESTAMPTZ,
     "img_icon_url" TEXT,
     "img_logo_url" TEXT,
-    "stats_json" JSONB
+    "stats_json" JSONB,
+    "in_backlog" BOOLEAN DEFAULT false,
+    "user_notes" TEXT,
+    "user_rating" INTEGER,
+    "user_tags" TEXT[] DEFAULT '{}',
+    "priority" INTEGER DEFAULT 0,
+    "completion_percentage" NUMERIC DEFAULT 0,
+    "is_favorite" BOOLEAN DEFAULT false,
+    "completed_at" TIMESTAMPTZ,
+    "analysis" JSONB DEFAULT '{}'::jsonb
 );
 
 -- Achievements Table (Master Achievement List)

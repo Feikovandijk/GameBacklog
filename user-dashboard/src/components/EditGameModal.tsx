@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { UserGame } from '../services/api';
 import StarRating from './shared/StarRating';
 import TagInput from './shared/TagInput';
+import { getAnalysisTemplate } from '../utils/preferences';
 
 interface EditGameModalProps {
   open: boolean;
@@ -9,6 +10,7 @@ interface EditGameModalProps {
   onOk: (values: Partial<UserGame>) => void;
   onDelete: () => void;
   game: UserGame | null;
+  isAnalysisFlow?: boolean;
 }
 
 const EditGameModal: React.FC<EditGameModalProps> = ({
@@ -17,6 +19,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   onOk,
   onDelete,
   game,
+  isAnalysisFlow = false,
 }) => {
   const [formData, setFormData] = useState<{
     status: string;
@@ -27,6 +30,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     hours_played: number;
     completion_percentage: number;
     is_favorite: boolean;
+    in_backlog: boolean;
+    analysis: Record<string, string>;
   }>({
     status: '',
     priority: 0,
@@ -36,6 +41,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     hours_played: 0,
     completion_percentage: 0,
     is_favorite: false,
+    in_backlog: false,
+    analysis: {},
   });
 
   const [descExpanded, setDescExpanded] = useState(false);
@@ -51,6 +58,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         hours_played: game.hours_played || 0,
         completion_percentage: game.completion_percentage || 0,
         is_favorite: game.is_favorite || false,
+        in_backlog: game.in_backlog || false,
+        analysis: game.analysis || {},
       });
       setDescExpanded(false);
     }
@@ -125,39 +134,39 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     bg: string;
     border: string;
   }[] = [
-    {
-      status: 'analysis_needed',
-      label: 'Analyze',
-      icon: 'science',
-      color: 'text-accent-orange',
-      bg: 'bg-accent-orange/10',
-      border: 'border-accent-orange/20',
-    },
-    {
-      status: 'currently_playing',
-      label: 'Playing',
-      icon: 'play_circle',
-      color: 'text-accent-purple',
-      bg: 'bg-accent-purple/10',
-      border: 'border-accent-purple/20',
-    },
-    {
-      status: 'completed',
-      label: 'Complete',
-      icon: 'check_circle',
-      color: 'text-accent-green',
-      bg: 'bg-accent-green/10',
-      border: 'border-accent-green/20',
-    },
-    {
-      status: 'on_hold',
-      label: 'Hold',
-      icon: 'pause_circle',
-      color: 'text-accent-orange',
-      bg: 'bg-accent-orange/10',
-      border: 'border-accent-orange/20',
-    },
-  ];
+      {
+        status: 'analysis_needed',
+        label: 'Analyze',
+        icon: 'science',
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        border: 'border-accent-orange/20',
+      },
+      {
+        status: 'currently_playing',
+        label: 'Playing',
+        icon: 'play_circle',
+        color: 'text-accent-purple',
+        bg: 'bg-accent-purple/10',
+        border: 'border-accent-purple/20',
+      },
+      {
+        status: 'completed',
+        label: 'Complete',
+        icon: 'check_circle',
+        color: 'text-accent-green',
+        bg: 'bg-accent-green/10',
+        border: 'border-accent-green/20',
+      },
+      {
+        status: 'on_hold',
+        label: 'Hold',
+        icon: 'pause_circle',
+        color: 'text-accent-orange',
+        bg: 'bg-accent-orange/10',
+        border: 'border-accent-orange/20',
+      },
+    ];
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm'>
@@ -529,6 +538,43 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                 </div>
               </div>
 
+              {/* Backlog Toggle */}
+              <div>
+                <div className='flex items-center gap-1.5 mb-3'>
+                  <span className='material-symbols-outlined text-[16px] text-text-secondary'>
+                    bookmark
+                  </span>
+                  <span className='text-xs uppercase tracking-wider text-text-secondary font-semibold'>
+                    Backlog
+                  </span>
+                </div>
+                <button
+                  type='button'
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${formData.in_backlog
+                    ? 'bg-primary/10 border-primary/30 text-primary'
+                    : 'bg-background-dark border-border-dark text-text-secondary hover:text-white hover:border-white/20'
+                    }`}
+                  onClick={() =>
+                    setFormData(prev => ({
+                      ...prev,
+                      in_backlog: !prev.in_backlog,
+                    }))
+                  }
+                >
+                  <span
+                    className='material-symbols-outlined text-[18px]'
+                    style={{
+                      fontVariationSettings: formData.in_backlog
+                        ? "'FILL' 1"
+                        : "'FILL' 0",
+                    }}
+                  >
+                    bookmark
+                  </span>
+                  {formData.in_backlog ? 'In Backlog' : 'Not in Backlog'}
+                </button>
+              </div>
+
               {/* Section: Analysis Status */}
               <div>
                 <div className='flex items-center gap-1.5 mb-4'>
@@ -567,6 +613,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         <option value='completed_100'>100% Completed</option>
                         <option value='on_hold'>On Hold</option>
                         <option value='dropped'>Dropped</option>
+                        <option value='unplayed'>Unplayed</option>
                       </select>
                       <div className='absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none'>
                         <span className='material-symbols-outlined text-text-secondary text-[20px]'>
@@ -584,11 +631,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     <div className='flex gap-1.5'>
                       <button
                         type='button'
-                        className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                          formData.priority === 0
-                            ? 'bg-primary text-background-dark'
-                            : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
-                        }`}
+                        className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${formData.priority === 0
+                          ? 'bg-primary text-background-dark'
+                          : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
+                          }`}
                         onClick={() =>
                           setFormData(prev => ({ ...prev, priority: 0 }))
                         }
@@ -599,11 +645,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         <button
                           key={n}
                           type='button'
-                          className={`w-10 py-2 rounded-xl text-sm font-bold transition-colors ${
-                            formData.priority === n
-                              ? 'bg-primary text-background-dark'
-                              : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
-                          }`}
+                          className={`w-10 py-2 rounded-xl text-sm font-bold transition-colors ${formData.priority === n
+                            ? 'bg-primary text-background-dark'
+                            : 'bg-background-dark border border-border-dark text-text-secondary hover:text-white hover:border-white/20'
+                            }`}
                           onClick={() =>
                             setFormData(prev => ({ ...prev, priority: n }))
                           }
@@ -617,115 +662,117 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               </div>
 
               {/* Section: Progress Tracking */}
-              <div>
-                <div className='flex items-center gap-1.5 mb-4'>
-                  <span className='material-symbols-outlined text-[16px] text-text-secondary'>
-                    trending_up
-                  </span>
-                  <span className='text-xs uppercase tracking-wider text-text-secondary font-semibold'>
-                    Progress Tracking
-                  </span>
-                </div>
-
-                <div className='space-y-4'>
-                  {/* Completion Percentage */}
-                  <div>
-                    <label className='block text-sm font-medium text-text-secondary mb-2'>
-                      Completion
-                    </label>
-                    <div className='flex items-center gap-3'>
-                      <input
-                        type='range'
-                        min='0'
-                        max='100'
-                        className='flex-1 accent-primary h-1.5'
-                        value={formData.completion_percentage}
-                        onChange={e =>
-                          setFormData(prev => ({
-                            ...prev,
-                            completion_percentage: parseInt(e.target.value),
-                          }))
-                        }
-                      />
-                      <div className='flex items-center'>
-                        <input
-                          type='number'
-                          min='0'
-                          max='100'
-                          className='w-16 px-2 py-1.5 bg-background-dark border border-border-dark rounded-lg text-white text-sm text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
-                          value={formData.completion_percentage}
-                          onChange={e => {
-                            const val = Math.min(
-                              100,
-                              Math.max(0, parseInt(e.target.value) || 0)
-                            );
-                            setFormData(prev => ({
-                              ...prev,
-                              completion_percentage: val,
-                            }));
-                          }}
-                        />
-                        <span className='text-text-secondary text-sm ml-1'>
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className='h-1 w-full bg-border-dark rounded-full overflow-hidden mt-2'>
-                      <div
-                        className='h-full bg-primary rounded-full shadow-[0_0_6px_rgba(0,229,188,0.4)] transition-all'
-                        style={{
-                          width: `${formData.completion_percentage}%`,
-                        }}
-                      />
-                    </div>
+              {!isAnalysisFlow && (
+                <div>
+                  <div className='flex items-center gap-1.5 mb-4'>
+                    <span className='material-symbols-outlined text-[16px] text-text-secondary'>
+                      trending_up
+                    </span>
+                    <span className='text-xs uppercase tracking-wider text-text-secondary font-semibold'>
+                      Progress Tracking
+                    </span>
                   </div>
 
-                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                    {/* Hours Played */}
+                  <div className='space-y-4'>
+                    {/* Completion Percentage */}
                     <div>
                       <label className='block text-sm font-medium text-text-secondary mb-2'>
-                        Hours Played
+                        Completion
                       </label>
-                      <div className='relative'>
-                        <span className='absolute left-3 top-1/2 -translate-y-1/2'>
-                          <span className='material-symbols-outlined text-[16px] text-text-secondary'>
-                            schedule
-                          </span>
-                        </span>
+                      <div className='flex items-center gap-3'>
                         <input
-                          type='number'
+                          type='range'
                           min='0'
-                          step='0.1'
-                          className='block w-full pl-10 pr-4 py-2.5 bg-background-dark border border-border-dark rounded-xl text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm'
-                          value={formData.hours_played}
+                          max='100'
+                          className='flex-1 accent-primary h-1.5'
+                          value={formData.completion_percentage}
                           onChange={e =>
                             setFormData(prev => ({
                               ...prev,
-                              hours_played: parseFloat(e.target.value) || 0,
+                              completion_percentage: parseInt(e.target.value),
+                            }))
+                          }
+                        />
+                        <div className='flex items-center'>
+                          <input
+                            type='number'
+                            min='0'
+                            max='100'
+                            className='w-16 px-2 py-1.5 bg-background-dark border border-border-dark rounded-lg text-white text-sm text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
+                            value={formData.completion_percentage}
+                            onChange={e => {
+                              const val = Math.min(
+                                100,
+                                Math.max(0, parseInt(e.target.value) || 0)
+                              );
+                              setFormData(prev => ({
+                                ...prev,
+                                completion_percentage: val,
+                              }));
+                            }}
+                          />
+                          <span className='text-text-secondary text-sm ml-1'>
+                            %
+                          </span>
+                        </div>
+                      </div>
+                      <div className='h-1 w-full bg-border-dark rounded-full overflow-hidden mt-2'>
+                        <div
+                          className='h-full bg-primary rounded-full shadow-[0_0_6px_rgba(0,229,188,0.4)] transition-all'
+                          style={{
+                            width: `${formData.completion_percentage}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                      {/* Hours Played */}
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          Hours Played
+                        </label>
+                        <div className='relative'>
+                          <span className='absolute left-3 top-1/2 -translate-y-1/2'>
+                            <span className='material-symbols-outlined text-[16px] text-text-secondary'>
+                              schedule
+                            </span>
+                          </span>
+                          <input
+                            type='number'
+                            min='0'
+                            step='0.1'
+                            className='block w-full pl-10 pr-4 py-2.5 bg-background-dark border border-border-dark rounded-xl text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm'
+                            value={formData.hours_played}
+                            onChange={e =>
+                              setFormData(prev => ({
+                                ...prev,
+                                hours_played: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* User Rating */}
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          Your Rating
+                        </label>
+                        <StarRating
+                          value={formData.user_rating}
+                          onChange={val =>
+                            setFormData(prev => ({
+                              ...prev,
+                              user_rating: val,
                             }))
                           }
                         />
                       </div>
                     </div>
-
-                    {/* User Rating */}
-                    <div>
-                      <label className='block text-sm font-medium text-text-secondary mb-2'>
-                        Your Rating
-                      </label>
-                      <StarRating
-                        value={formData.user_rating}
-                        onChange={val =>
-                          setFormData(prev => ({
-                            ...prev,
-                            user_rating: val,
-                          }))
-                        }
-                      />
-                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Section: Research Tags & Notes */}
               <div>
@@ -753,24 +800,85 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     />
                   </div>
 
-                  {/* Notes */}
-                  <div>
-                    <label className='block text-sm font-medium text-text-secondary mb-2'>
-                      Analysis Notes
-                    </label>
-                    <textarea
-                      rows={4}
-                      className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none'
-                      placeholder='Document competitive analysis, design patterns, mechanics worth studying...'
-                      value={formData.user_notes}
-                      onChange={e =>
-                        setFormData(prev => ({
-                          ...prev,
-                          user_notes: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
+                  {/* Guided Deconstruction or Generic Notes */}
+                  {isAnalysisFlow ? (
+                    <div className='space-y-4 pt-2'>
+                      {(() => {
+                        const analysisTemplate = getAnalysisTemplate();
+
+                        return analysisTemplate.map((question, index) => {
+                          const borderColors = [
+                            'focus:border-green-500/50 focus:ring-green-500/50',
+                            'focus:border-red-500/50 focus:ring-red-500/50',
+                            'focus:border-primary focus:ring-primary',
+                          ];
+                          const colorClass = borderColors[index % borderColors.length];
+
+                          return (
+                            <div key={`${index}-${question}`}>
+                              <label className='block text-sm font-medium text-text-secondary mb-2'>
+                                {question}
+                              </label>
+                              <textarea
+                                rows={6}
+                                className={`block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:ring-1 text-sm resize-y min-h-[120px] ${colorClass}`}
+                                placeholder='Your thoughts...'
+                                value={formData.analysis?.[question] || ''}
+                                onChange={e =>
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    analysis: { ...prev.analysis, [question]: e.target.value },
+                                  }))
+                                }
+                              />
+                            </div>
+                          );
+                        })
+                      })()}
+                      <div>
+                        <label className='block text-sm font-medium text-text-secondary mb-2'>
+                          External Document Link (Optional)
+                        </label>
+                        <div className='relative'>
+                          <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                            <span className='material-symbols-outlined text-text-secondary text-[16px]'>
+                              link
+                            </span>
+                          </div>
+                          <input
+                            type='url'
+                            className='block w-full pl-9 pr-4 py-2 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm'
+                            placeholder='e.g. Google Docs, Notion, Miro board...'
+                            value={formData.analysis?.document_link || ''}
+                            onChange={e =>
+                              setFormData(prev => ({
+                                ...prev,
+                                analysis: { ...prev.analysis, document_link: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className='block text-sm font-medium text-text-secondary mb-2'>
+                        Analysis Notes
+                      </label>
+                      <textarea
+                        rows={8}
+                        className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-y min-h-[160px]'
+                        placeholder='Document competitive analysis, design patterns, mechanics worth studying...'
+                        value={formData.user_notes}
+                        onChange={e =>
+                          setFormData(prev => ({
+                            ...prev,
+                            user_notes: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </form>
@@ -804,8 +912,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

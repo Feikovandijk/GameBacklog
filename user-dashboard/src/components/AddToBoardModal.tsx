@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import * as api from '../services/api';
 import type { Game } from '../services/api';
 import StatusBadge, { type GameStatus } from './shared/StatusBadge';
@@ -7,6 +8,9 @@ interface AddToBoardModalProps {
   open: boolean;
   onCancel: () => void;
   onGameAdded: () => void;
+  defaultStatus?: GameStatus;
+  hideColumnSelect?: boolean;
+  modalTitle?: string;
 }
 
 const STATUS_OPTIONS: { id: GameStatus; label: string }[] = [
@@ -22,6 +26,9 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
   open,
   onCancel,
   onGameAdded,
+  defaultStatus = 'want_to_play',
+  hideColumnSelect = false,
+  modalTitle = 'Add Game to Board',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Game[]>([]);
@@ -30,7 +37,13 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
   const [added, setAdded] = useState<{ [key: number]: boolean }>({});
   const [alreadyIn, setAlreadyIn] = useState<{ [key: number]: boolean }>({});
   const [selectedStatus, setSelectedStatus] =
-    useState<GameStatus>('want_to_play');
+    useState<GameStatus>(defaultStatus);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedStatus(defaultStatus);
+    }
+  }, [open, defaultStatus]);
 
   useEffect(() => {
     const fetchSearchResults = async () => {
@@ -66,13 +79,20 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
       onGameAdded();
     } catch (error: unknown) {
       // 409 = already in library
-      if (
-        error &&
-        typeof error === 'object' &&
-        'response' in error &&
-        (error as { response?: { status?: number } }).response?.status === 409
-      ) {
-        setAlreadyIn(prev => ({ ...prev, [game.steam_appid]: true }));
+      if (axios.isAxiosError(error) && error?.response?.status === 409) {
+        const existingGameId = error.response.data?.existing_game_id;
+        if (existingGameId) {
+          try {
+            await api.userGamesAPI.updateGame(existingGameId, { status: selectedStatus });
+            setAdded(prev => ({ ...prev, [game.steam_appid]: true }));
+            onGameAdded();
+          } catch (updateErr) {
+            console.error('Error updating existing game to new status:', updateErr);
+            setAlreadyIn(prev => ({ ...prev, [game.steam_appid]: true }));
+          }
+        } else {
+          setAlreadyIn(prev => ({ ...prev, [game.steam_appid]: true }));
+        }
       } else {
         console.error('Error adding game:', error);
       }
@@ -84,7 +104,7 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
   const handleClose = () => {
     setSearchQuery('');
     setSearchResults([]);
-    setSelectedStatus('want_to_play');
+    setSelectedStatus(defaultStatus);
     setAdded({});
     setAlreadyIn({});
     onCancel();
@@ -106,7 +126,7 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
                 add_circle
               </span>
             </div>
-            <h2 className='text-xl font-bold text-white'>Add Game to Board</h2>
+            <h2 className='text-xl font-bold text-white'>{modalTitle}</h2>
           </div>
           <button
             onClick={handleClose}
@@ -119,31 +139,32 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
         {/* Content */}
         <div className='p-6 max-h-[70vh] overflow-y-auto'>
           {/* Target column selector */}
-          <div className='mb-5'>
-            <label className='block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2'>
-              Add to Column
-            </label>
-            <div className='flex flex-wrap gap-2'>
-              {STATUS_OPTIONS.map(status => (
-                <button
-                  key={status.id}
-                  onClick={() => setSelectedStatus(status.id)}
-                  className={`px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 text-sm ${
-                    selectedStatus === status.id
+          {!hideColumnSelect && (
+            <div className='mb-5'>
+              <label className='block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2'>
+                Add to Column
+              </label>
+              <div className='flex flex-wrap gap-2'>
+                {STATUS_OPTIONS.map(status => (
+                  <button
+                    key={status.id}
+                    onClick={() => setSelectedStatus(status.id)}
+                    className={`px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 text-sm ${selectedStatus === status.id
                       ? 'bg-primary text-background-dark shadow-lg shadow-primary/20'
                       : 'bg-background-dark text-text-secondary hover:bg-white/5 border border-white/10'
-                  }`}
-                >
-                  <StatusBadge
-                    status={status.id}
-                    minimal
-                    className='w-2 h-2'
-                  />
-                  {status.label}
-                </button>
-              ))}
+                      }`}
+                  >
+                    <StatusBadge
+                      status={status.id}
+                      minimal
+                      className='w-2 h-2'
+                    />
+                    {status.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Search */}
           <div className='relative mb-5'>

@@ -16,6 +16,19 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/steam-img': {
+        target: 'https://cdn.akamai.steamstatic.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: path => path.replace(/^\/steam-img/, '/steam'),
+      },
+      '/steam-shared': {
+        target: 'https://shared.akamai.steamstatic.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: path =>
+          path.replace(/^\/steam-shared/, '/store_item_assets/steam'),
+      },
     },
   },
 });
