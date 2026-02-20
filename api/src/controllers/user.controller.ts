@@ -147,7 +147,12 @@ export const addUserGame = async (
       .single();
 
     if (existingUserGame) {
-      res.status(409).json({ error: 'Game already in backlog' });
+      res
+        .status(409)
+        .json({
+          error: 'Game already in library',
+          existing_game_id: existingUserGame.id,
+        });
       return;
     }
 

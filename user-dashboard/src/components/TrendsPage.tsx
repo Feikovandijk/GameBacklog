@@ -21,6 +21,20 @@ import './dashboard/dashboard.css';
 interface GameCardBadge { label: string; style: React.CSSProperties }
 interface GameCardSubline { icon: React.ReactNode; text: string; color: string }
 
+// Route Steam images through local Vite proxy to avoid CORS/OpaqueResponseBlocking.
+// Two CDN formats exist:
+//   cdn.akamai  → /steam/apps/{id}/header.jpg           (older games)
+//   shared.akamai → /store_item_assets/steam/apps/{id}/{hash}/header.jpg (newer games)
+const steamImg = (appid: number, dbUrl?: string): string => {
+    if (dbUrl) {
+        const hashMatch = dbUrl.match(/\/apps\/\d+\/([a-f0-9]{40})\/header\.jpg/);
+        if (hashMatch) {
+            return `/steam-shared/apps/${appid}/${hashMatch[1]}/header.jpg`;
+        }
+    }
+    return `/steam-img/apps/${appid}/header.jpg`;
+};
+
 interface GameCardGridProps {
     games: Game[];
     loading: boolean;
@@ -28,9 +42,10 @@ interface GameCardGridProps {
     onAdd: (game: Game) => void;
     badge: (game: Game, index: number) => GameCardBadge | null;
     subline: (game: Game) => GameCardSubline | null;
+    extra?: (game: Game) => React.ReactNode;
 }
 
-const GameCardGrid: React.FC<GameCardGridProps> = ({ games, loading, addingIds, onAdd, badge, subline }) => {
+const GameCardGrid: React.FC<GameCardGridProps> = ({ games, loading, addingIds, onAdd, badge, subline, extra }) => {
     const skeletons = Array.from({ length: 6 });
     if (loading) {
         return (
@@ -57,22 +72,18 @@ const GameCardGrid: React.FC<GameCardGridProps> = ({ games, loading, addingIds, 
                         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; }}
                     >
                         <div style={{ position: 'relative', height: 120 }}>
-                            {game.header_image ? (
-                                <img
-                                    src={game.header_image}
-                                    alt={game.name}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                                    onError={e => {
-                                        const el = e.target as HTMLImageElement;
-                                        el.style.display = 'none';
-                                        if (el.parentElement) {
-                                            el.parentElement.style.background = 'linear-gradient(135deg, #1F2943, #161E32)';
-                                        }
-                                    }}
-                                />
-                            ) : (
-                                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1F2943, #161E32)' }} />
-                            )}
+                            <img
+                                src={steamImg(game.steam_appid, game.header_image)}
+                                alt={game.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                onError={e => {
+                                    const el = e.target as HTMLImageElement;
+                                    el.style.display = 'none';
+                                    if (el.parentElement) {
+                                        el.parentElement.style.background = 'linear-gradient(135deg, #1F2943, #161E32)';
+                                    }
+                                }}
+                            />
                             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 50%)' }} />
                             {b && <div style={{ position: 'absolute', top: 8, left: 8, ...b.style }}>{b.label}</div>}
                         </div>
@@ -89,10 +100,11 @@ const GameCardGrid: React.FC<GameCardGridProps> = ({ games, loading, addingIds, 
                                 ))}
                             </div>
                             {s && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: s.color, marginBottom: 10 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: s.color, marginBottom: 6 }}>
                                     {s.icon}<span>{s.text}</span>
                                 </div>
                             )}
+                            {extra && extra(game)}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ fontWeight: 700, fontSize: 13, color: '#4ECB71' }}>
                                     {game.price_final === 0 ? 'Free' : `$${(game.price_final / 100).toFixed(2)}`}
@@ -446,6 +458,33 @@ const TrendsPage: React.FC = () => {
                             ? { icon: <TeamOutlined />, text: `${formatPlayerCount(game.current_players)} playing`, color: '#00E5BC' }
                             : null
                         }
+                        extra={game => (
+                            <div style={{ marginBottom: 8 }}>
+                                {game.release_date && (
+                                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 3 }}>
+                                        Released {new Date(game.release_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                )}
+                                {game.total_reviews > 0 && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <div style={{
+                                            width: 28, height: 4, borderRadius: 2, overflow: 'hidden',
+                                            background: 'rgba(255,255,255,0.08)',
+                                        }}>
+                                            <div style={{
+                                                width: `${game.positive_rating_percentage}%`,
+                                                height: '100%',
+                                                background: game.positive_rating_percentage >= 80 ? '#4ECB71' : game.positive_rating_percentage >= 60 ? '#FFB347' : '#ff4d4f',
+                                                borderRadius: 2,
+                                            }} />
+                                        </div>
+                                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+                                            {game.positive_rating_percentage}% ({(game.total_reviews / 1000).toFixed(1)}K reviews)
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     />
                 </div>
             </motion.div>

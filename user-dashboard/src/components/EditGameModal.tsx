@@ -832,8 +832,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                                 {question}
                               </label>
                               <textarea
-                                rows={3}
-                                className={`block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:ring-1 text-sm resize-none ${colorClass}`}
+                                rows={6}
+                                className={`block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:ring-1 text-sm resize-y min-h-[120px] ${colorClass}`}
                                 placeholder='Your thoughts...'
                                 value={formData.analysis?.[question] || ''}
                                 onChange={e =>
@@ -878,8 +878,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         Analysis Notes
                       </label>
                       <textarea
-                        rows={4}
-                        className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none'
+                        rows={8}
+                        className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-y min-h-[160px]'
                         placeholder='Document competitive analysis, design patterns, mechanics worth studying...'
                         value={formData.user_notes}
                         onChange={e =>
