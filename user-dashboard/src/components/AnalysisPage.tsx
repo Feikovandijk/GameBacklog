@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { userGamesAPI } from '../services/api';
 import type { UserGame } from '../services/api';
 import EditGameModal from './EditGameModal';
+import AddToBoardModal from './AddToBoardModal';
 import StatusBadge from './shared/StatusBadge';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
@@ -194,9 +195,14 @@ const AnalysisPage: React.FC = () => {
 
   const [selectedGame, setSelectedGame] = useState<UserGame | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const hasLoadedOnce = useRef(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedOnce.current) {
+      setLoading(true);
+    }
     try {
       const [queueRes, notesRes] = await Promise.all([
         userGamesAPI.get({ status: 'analysis_needed', limit: 50 }),
@@ -205,6 +211,7 @@ const AnalysisPage: React.FC = () => {
 
       setAnalysisQueue(queueRes.data.documents);
       setAnalyzedGames(notesRes.data.documents);
+      hasLoadedOnce.current = true;
     } catch (error) {
       console.error('Error fetching analysis data:', error);
     } finally {
@@ -397,10 +404,20 @@ const AnalysisPage: React.FC = () => {
             </span>
             Analysis Queue
           </h2>
-          <span className='text-xs text-text-secondary bg-background-dark px-2.5 py-1 rounded-lg border border-border-dark'>
-            {analysisQueue.length} game{analysisQueue.length !== 1 ? 's' : ''}{' '}
-            waiting
-          </span>
+          <div className='flex items-center gap-3'>
+            <span className='text-xs text-text-secondary bg-background-dark px-2.5 py-1 rounded-lg border border-border-dark'>
+              {analysisQueue.length} game
+              {analysisQueue.length !== 1 ? 's' : ''} waiting
+            </span>
+            <button
+              type='button'
+              onClick={() => setShowAddModal(true)}
+              className='flex items-center gap-1.5 px-3 py-1.5 bg-accent-orange hover:bg-accent-orange/80 text-background-dark font-medium rounded-xl transition-all text-sm shadow-lg shadow-accent-orange/20'
+            >
+              <span className='material-symbols-outlined text-[16px]'>add</span>
+              Add Game
+            </button>
+          </div>
         </div>
 
         {analysisQueue.length > 0 ? (
@@ -419,9 +436,14 @@ const AnalysisPage: React.FC = () => {
               check_circle
             </span>
             <p className='text-sm'>Queue is empty — no games awaiting analysis.</p>
-            <p className='text-xs mt-1 text-text-secondary/60'>
-              Mark a game as "Analysis Needed" in your library to add it here.
-            </p>
+            <button
+              type='button'
+              onClick={() => setShowAddModal(true)}
+              className='mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-accent-orange/10 hover:bg-accent-orange/20 text-accent-orange font-medium rounded-xl transition-all text-sm border border-accent-orange/20'
+            >
+              <span className='material-symbols-outlined text-[16px]'>add</span>
+              Add a game for analysis
+            </button>
           </div>
         )}
       </div>
@@ -561,6 +583,14 @@ const AnalysisPage: React.FC = () => {
         onCancel={() => setIsModalOpen(false)}
         onOk={handleUpdateGame}
         onDelete={handleDeleteGame}
+      />
+
+      {/* ── Add game modal ────────────────────────────────────────── */}
+      <AddToBoardModal
+        open={showAddModal}
+        onCancel={() => setShowAddModal(false)}
+        onGameAdded={fetchData}
+        defaultStatus='analysis_needed'
       />
     </div>
   );

@@ -7,6 +7,7 @@ interface AddToBoardModalProps {
   open: boolean;
   onCancel: () => void;
   onGameAdded: () => void;
+  defaultStatus?: GameStatus;
 }
 
 const STATUS_OPTIONS: { id: GameStatus; label: string }[] = [
@@ -22,6 +23,7 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
   open,
   onCancel,
   onGameAdded,
+  defaultStatus = 'want_to_play',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Game[]>([]);
@@ -30,7 +32,7 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
   const [added, setAdded] = useState<{ [key: number]: boolean }>({});
   const [alreadyIn, setAlreadyIn] = useState<{ [key: number]: boolean }>({});
   const [selectedStatus, setSelectedStatus] =
-    useState<GameStatus>('want_to_play');
+    useState<GameStatus>(defaultStatus);
 
   useEffect(() => {
     const fetchSearchResults = async () => {
@@ -84,7 +86,7 @@ const AddToBoardModal: React.FC<AddToBoardModalProps> = ({
   const handleClose = () => {
     setSearchQuery('');
     setSearchResults([]);
-    setSelectedStatus('want_to_play');
+    setSelectedStatus(defaultStatus);
     setAdded({});
     setAlreadyIn({});
     onCancel();
