@@ -781,6 +781,7 @@ export const updateUserProfile = async (
       sync_steam_playtime,
       default_game_status,
       default_view,
+      analysis_template,
     } = req.body;
 
     if (
@@ -814,6 +815,21 @@ export const updateUserProfile = async (
     }
     if (default_view !== undefined) {
       updateData.default_view = default_view;
+    }
+
+    if (analysis_template !== undefined) {
+      // Basic validation: ensure it's an array of strings
+      if (
+        Array.isArray(analysis_template) &&
+        analysis_template.every(item => typeof item === 'string')
+      ) {
+        updateData.analysis_template = analysis_template;
+      } else {
+        res
+          .status(400)
+          .json({ error: 'analysis_template must be an array of strings' });
+        return;
+      }
     }
 
     const { data: updatedUser, error } = await supabase

@@ -802,57 +802,51 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                   {/* Guided Deconstruction or Generic Notes */}
                   {isAnalysisFlow ? (
                     <div className='space-y-4 pt-2'>
-                      <div>
-                        <label className='block text-sm font-medium text-text-secondary mb-2'>
-                          What worked well (To Steal)
-                        </label>
-                        <textarea
-                          rows={3}
-                          className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 text-sm resize-none'
-                          placeholder='e.g. The first 15 minutes hook, the UI responsiveness...'
-                          value={formData.analysis?.what_worked_well || ''}
-                          onChange={e =>
-                            setFormData(prev => ({
-                              ...prev,
-                              analysis: { ...prev.analysis, what_worked_well: e.target.value },
-                            }))
+                      {(() => {
+                        let analysisTemplate = [
+                          'What worked well (To Steal)',
+                          "What didn't work (To Avoid)",
+                          'Takeaways for our game',
+                        ];
+                        try {
+                          const userStr = localStorage.getItem('user');
+                          if (userStr) {
+                            const parsed = JSON.parse(userStr);
+                            if (parsed?.analysis_template && Array.isArray(parsed.analysis_template) && parsed.analysis_template.length > 0) {
+                              analysisTemplate = parsed.analysis_template;
+                            }
                           }
-                        />
-                      </div>
-                      <div>
-                        <label className='block text-sm font-medium text-text-secondary mb-2'>
-                          What didn't work (To Avoid)
-                        </label>
-                        <textarea
-                          rows={3}
-                          className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 text-sm resize-none'
-                          placeholder='e.g. Frustrating inventory management, slow tutorials...'
-                          value={formData.analysis?.what_didnt_work || ''}
-                          onChange={e =>
-                            setFormData(prev => ({
-                              ...prev,
-                              analysis: { ...prev.analysis, what_didnt_work: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className='block text-sm font-medium text-text-secondary mb-2'>
-                          Takeaways for our game
-                        </label>
-                        <textarea
-                          rows={3}
-                          className='block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm resize-none'
-                          placeholder='e.g. We should adopt their fast-travel unlock pacing...'
-                          value={formData.analysis?.takeaways || ''}
-                          onChange={e =>
-                            setFormData(prev => ({
-                              ...prev,
-                              analysis: { ...prev.analysis, takeaways: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
+                        } catch (e) { }
+
+                        return analysisTemplate.map((question, index) => {
+                          const borderColors = [
+                            'focus:border-green-500/50 focus:ring-green-500/50',
+                            'focus:border-red-500/50 focus:ring-red-500/50',
+                            'focus:border-primary focus:ring-primary',
+                          ];
+                          const colorClass = borderColors[index % borderColors.length];
+
+                          return (
+                            <div key={`${index}-${question}`}>
+                              <label className='block text-sm font-medium text-text-secondary mb-2'>
+                                {question}
+                              </label>
+                              <textarea
+                                rows={3}
+                                className={`block w-full px-4 py-3 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:ring-1 text-sm resize-none ${colorClass}`}
+                                placeholder='Your thoughts...'
+                                value={formData.analysis?.[question] || ''}
+                                onChange={e =>
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    analysis: { ...prev.analysis, [question]: e.target.value },
+                                  }))
+                                }
+                              />
+                            </div>
+                          );
+                        })
+                      })()}
                       <div>
                         <label className='block text-sm font-medium text-text-secondary mb-2'>
                           External Document Link (Optional)
@@ -930,8 +924,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

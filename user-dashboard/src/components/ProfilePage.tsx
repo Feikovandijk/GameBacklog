@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { authAPI, userGamesAPI } from '../services/api';
+import { authAPI, userGamesAPI, userProfileAPI } from '../services/api';
 import type { User } from '../services/api';
 
 const ProfilePage: React.FC = () => {
@@ -14,6 +14,8 @@ const ProfilePage: React.FC = () => {
 
     // Settings state
     const [autoImport, setAutoImport] = useState(false);
+    const [analysisTemplate, setAnalysisTemplate] = useState<string[]>([]);
+    const [newQuestion, setNewQuestion] = useState('');
 
     useEffect(() => {
         fetchUser();
@@ -33,6 +35,13 @@ const ProfilePage: React.FC = () => {
             const response = await authAPI.getCurrentUser();
             setUser(response.data);
             setAutoImport(response.data.auto_import_steam_games);
+            setAnalysisTemplate(
+                response.data.analysis_template || [
+                    'What worked well (To Steal)',
+                    "What didn't work (To Avoid)",
+                    'Takeaways for our game',
+                ]
+            );
         } catch (error) {
             console.error('Error fetching user:', error);
         } finally {
@@ -66,10 +75,25 @@ const ProfilePage: React.FC = () => {
     };
 
     const handleSaveSettings = async () => {
-        // Placeholder for saving settings since the API endpoint wasn't strictly provided in context, 
-        // but assuming there's a way to update user settings.
-        setSaveMessage({ text: 'Settings saved successfully!', type: 'success' });
+        try {
+            await authAPI.updateProfile({
+                analysis_template: analysisTemplate
+            });
+            setSaveMessage({ text: 'Settings saved successfully!', type: 'success' });
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            setSaveMessage({ text: 'Failed to save settings.', type: 'error' });
+        }
+    };
 
+    const handleAddQuestion = () => {
+        if (!newQuestion.trim()) return;
+        setAnalysisTemplate([...analysisTemplate, newQuestion.trim()]);
+        setNewQuestion('');
+    };
+
+    const handleRemoveQuestion = (index: number) => {
+        setAnalysisTemplate(analysisTemplate.filter((_, i) => i !== index));
     };
 
     if (loading) {
@@ -198,6 +222,59 @@ const ProfilePage: React.FC = () => {
                             <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                         </div>
                     </label>
+                </div>
+
+                {/* Analysis Template Settings */}
+                <div className="mt-8 border-t border-border-dark pt-8">
+                    <h4 className="text-lg font-bold text-white mb-4">Analysis Template</h4>
+                    <p className="text-text-secondary text-sm mb-4">
+                        Customize the specific questions you want to answer when deconstructing games in your Analysis Queue.
+                    </p>
+
+                    <div className="space-y-3 mb-4">
+                        <AnimatePresence>
+                            {analysisTemplate.map((question, index) => (
+                                <motion.div
+                                    key={`${index}-${question}`}
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="flex items-center justify-between p-3 bg-background-dark rounded-xl border border-border-dark"
+                                >
+                                    <span className="text-white text-sm">{question}</span>
+                                    <button
+                                        onClick={() => handleRemoveQuestion(index)}
+                                        className="text-text-secondary hover:text-red-500 transition-colors p-1"
+                                        title="Remove question"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">close</span>
+                                    </button>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                        {analysisTemplate.length === 0 && (
+                            <p className="text-text-secondary text-sm italic">No custom questions defined. Add some below!</p>
+                        )}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={newQuestion}
+                            onChange={(e) => setNewQuestion(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddQuestion()}
+                            placeholder="Add a new custom question..."
+                            className="flex-1 px-4 py-2 bg-background-dark border border-border-dark rounded-xl text-white placeholder-text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm"
+                        />
+                        <button
+                            onClick={handleAddQuestion}
+                            disabled={!newQuestion.trim()}
+                            className="px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center gap-1 text-sm"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">add</span>
+                            Add
+                        </button>
+                    </div>
                 </div>
 
                 <div className="mt-8 flex items-center justify-between">

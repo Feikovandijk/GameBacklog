@@ -23,6 +23,7 @@ export interface User {
   default_game_status: string;
   theme: string;
   default_view: string;
+  analysis_template?: string[];
   created_at: string;
   last_steam_sync?: string;
   last_active?: string;
@@ -232,6 +233,7 @@ export const userProfileAPI = {
     sync_steam_playtime?: boolean;
     default_game_status?: string;
     default_view?: string;
+    analysis_template?: string[];
   }) => api.put<User>('/api/user/profile', data),
 };
 
