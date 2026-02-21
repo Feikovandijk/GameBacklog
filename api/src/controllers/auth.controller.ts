@@ -30,37 +30,28 @@ export const logout = (req: Request, res: Response) => {
         console.error('Session destruction failed:', sessionErr);
       }
 
-      const isProduction = process.env.NODE_ENV === 'production';
-
-      // Clear host-only cookie (when domain is not specified)
-      res.clearCookie('connect.sid', {
+      const cookieOptions = {
         path: '/',
-        secure: isProduction,
+        secure: config.isProduction,
         httpOnly: true,
-        sameSite: 'lax',
-      });
+        sameSite: 'lax' as const,
+      };
+      const cookieName = 'connect.sid';
 
-      // Clear cookie explicitly for the configured domain
-      if (process.env.COOKIE_DOMAIN) {
-        res.clearCookie('connect.sid', {
-          domain: process.env.COOKIE_DOMAIN,
-          path: '/',
-          secure: isProduction,
-          httpOnly: true,
-          sameSite: 'lax',
-        });
+      // Clear host-only cookie
+      res.clearCookie(cookieName, cookieOptions);
 
-        // Also clear domain without leading dot if it has one (or with dot if it doesn't)
-        // just to be completely sure we remove any duplicate cookies.
-        if (process.env.COOKIE_DOMAIN.startsWith('.')) {
-          res.clearCookie('connect.sid', {
-            domain: process.env.COOKIE_DOMAIN.substring(1),
-            path: '/',
-            secure: isProduction,
-            httpOnly: true,
-            sameSite: 'lax',
-          });
+      // Clear domain-specific cookies to handle potential duplicates
+      const cookieDomain = process.env.COOKIE_DOMAIN;
+      if (cookieDomain) {
+        const domains = [cookieDomain];
+        if (cookieDomain.startsWith('.')) {
+          domains.push(cookieDomain.substring(1));
         }
+
+        domains.forEach(domain => {
+          res.clearCookie(cookieName, { ...cookieOptions, domain });
+        });
       }
 
       res.json({ success: true });
