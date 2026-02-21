@@ -23,7 +23,39 @@ export const logout = (req: Request, res: Response) => {
     if (err) {
       return res.status(500).json({ error: 'Logout failed' });
     }
-    res.json({ success: true });
+
+    // Destroy the session completely from the store
+    req.session.destroy(sessionErr => {
+      if (sessionErr) {
+        console.error('Session destruction failed:', sessionErr);
+      }
+
+      const cookieOptions = {
+        path: '/',
+        secure: config.isProduction,
+        httpOnly: true,
+        sameSite: 'lax' as const,
+      };
+      const cookieName = 'connect.sid';
+
+      // Clear host-only cookie
+      res.clearCookie(cookieName, cookieOptions);
+
+      // Clear domain-specific cookies to handle potential duplicates
+      const cookieDomain = process.env.COOKIE_DOMAIN;
+      if (cookieDomain) {
+        const domains = [cookieDomain];
+        if (cookieDomain.startsWith('.')) {
+          domains.push(cookieDomain.substring(1));
+        }
+
+        domains.forEach(domain => {
+          res.clearCookie(cookieName, { ...cookieOptions, domain });
+        });
+      }
+
+      res.json({ success: true });
+    });
   });
 };
 
