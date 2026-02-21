@@ -23,7 +23,48 @@ export const logout = (req: Request, res: Response) => {
     if (err) {
       return res.status(500).json({ error: 'Logout failed' });
     }
-    res.json({ success: true });
+
+    // Destroy the session completely from the store
+    req.session.destroy(sessionErr => {
+      if (sessionErr) {
+        console.error('Session destruction failed:', sessionErr);
+      }
+
+      const isProduction = process.env.NODE_ENV === 'production';
+
+      // Clear host-only cookie (when domain is not specified)
+      res.clearCookie('connect.sid', {
+        path: '/',
+        secure: isProduction,
+        httpOnly: true,
+        sameSite: 'lax',
+      });
+
+      // Clear cookie explicitly for the configured domain
+      if (process.env.COOKIE_DOMAIN) {
+        res.clearCookie('connect.sid', {
+          domain: process.env.COOKIE_DOMAIN,
+          path: '/',
+          secure: isProduction,
+          httpOnly: true,
+          sameSite: 'lax',
+        });
+
+        // Also clear domain without leading dot if it has one (or with dot if it doesn't)
+        // just to be completely sure we remove any duplicate cookies.
+        if (process.env.COOKIE_DOMAIN.startsWith('.')) {
+          res.clearCookie('connect.sid', {
+            domain: process.env.COOKIE_DOMAIN.substring(1),
+            path: '/',
+            secure: isProduction,
+            httpOnly: true,
+            sameSite: 'lax',
+          });
+        }
+      }
+
+      res.json({ success: true });
+    });
   });
 };
 
