@@ -2,33 +2,42 @@ services:
   api:
     image: feikovd/gamebacklog-api:latest
     restart: unless-stopped
-    env_file:
-      - .env
     ports:
-      - '6543:6543'
+      - '${PORT:-6543}:6543'
+    environment: &common-environment
+      PORT: ${PORT:-6543}
+      API_URL: ${API_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+
+      SESSION_SECRET: ${SESSION_SECRET}
+
+      STEAM_API_KEY: ${STEAM_API_KEY}
+      STEAM_API_KEY_0: ${STEAM_API_KEY_0}
+      STEAM_API_KEY_1: ${STEAM_API_KEY_1}
+
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      WORKER_ID: ${WORKER_ID:-0}
+      TOTAL_WORKERS: ${TOTAL_WORKERS:-1}
+
   worker:
     image: feikovd/gamebacklog-api:latest
     restart: unless-stopped
-    env_file:
-      - .env
     command: ['node', 'dist/scripts/worker.js']
     depends_on:
       - api
+    environment: *common-environment
 
   user-dashboard:
     image: feikovd/gamebacklog-userdash:latest
     restart: unless-stopped
+    ports:
+      - '8012:80'
+    depends_on:
+      - api
     environment:
-      - BACKEND_URL=http://api:6543
-    ports:
-      - '80:80'
-    depends_on:
-      - api
-
-  dev-dashboard:
-    image: feikovd/gamebacklog-devdash:latest
-    restart: unless-stopped
-    ports:
-      - '81:80'
-    depends_on:
-      - api
+      BACKEND_URL: http://api:6543
+      API_URL: ${API_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
