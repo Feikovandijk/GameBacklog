@@ -64,9 +64,21 @@ app.use(passport.session());
 // CSRF protection middleware (must run after session & auth)
 app.use(doubleCsrfProtection);
 
-// Routes
+// Health routes (keep both for compatibility with infra probes)
+const getHealthPayload = () => ({
+  status: 'ok',
+  service: process.env.SERVICE_NAME || 'api',
+  timestamp: new Date().toISOString(),
+  version: process.env.npm_package_version || 'unknown',
+  commit: process.env.GIT_SHA || 'unknown',
+});
+
 app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json(getHealthPayload());
+});
+
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json(getHealthPayload());
 });
 
 // CSRF Token Endpoint
