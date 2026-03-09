@@ -67,7 +67,7 @@ app.use(doubleCsrfProtection);
 // Health routes (keep both for compatibility with infra probes)
 const getHealthPayload = () => ({
   status: 'ok',
-  service: 'api',
+  service: process.env.SERVICE_NAME || 'api',
   timestamp: new Date().toISOString(),
   version: process.env.npm_package_version || 'unknown',
   commit: process.env.GIT_SHA || 'unknown',
