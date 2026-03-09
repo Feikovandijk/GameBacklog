@@ -107,6 +107,7 @@ git status
 # run PR-style checks locally
 npm run --prefix api lint:ci && npm run --prefix api type-check && npm run --prefix api build && npm run --prefix api test
 npm run --prefix user-dashboard lint:ci && npm run --prefix user-dashboard type-check && npm run --prefix user-dashboard build
+npm run --prefix devdashboard lint:ci && npm run --prefix devdashboard type-check && npm run --prefix devdashboard build
 
 # inspect workflows
 ls .github/workflows
