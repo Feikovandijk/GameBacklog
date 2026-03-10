@@ -13,6 +13,7 @@ import {
     CalendarOutlined,
 } from '@ant-design/icons';
 import { Area } from '@ant-design/charts';
+import type { AreaConfig } from '@ant-design/charts';
 import { motion } from 'framer-motion';
 import type { PopularTag, Game } from '../services/api';
 import { gamesAPI, userGamesAPI } from '../services/api';
@@ -240,7 +241,7 @@ const TrendsPage: React.FC = () => {
 
     const maxTagPlayers = popularTags.length > 0 ? popularTags[0].totalPlayers : 1;
 
-    const releaseAreaConfig = {
+    const releaseAreaConfig: AreaConfig = {
         data: releasesPerMonth,
         xField: 'month',
         yField: 'count',
@@ -427,8 +428,7 @@ const TrendsPage: React.FC = () => {
                         </h3>
                     </div>
                     <div style={{ height: 280, background: 'transparent' }}>
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                        <Area {...(releaseAreaConfig as any)} />
+                        <Area {...releaseAreaConfig} />
                     </div>
                 </div>
             </motion.div>

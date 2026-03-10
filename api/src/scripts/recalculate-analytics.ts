@@ -48,7 +48,7 @@ async function updateStat(key: string, value: any) {
     }
     console.log(`Successfully updated stat: ${key}`);
   } catch (e) {
-    console.error(`Failed to update stat ${key}:`, e);
+    console.log(`Failed to update stat ${key}:`, e);
   }
 }
 
@@ -102,4 +102,4 @@ async function run() {
   console.log('Analytics recalculation finished successfully.');
 }
 
-run().catch(console.error);
+run().catch(console.log);

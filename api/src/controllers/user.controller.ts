@@ -630,8 +630,8 @@ export const getDashboardStats = async (
     // Calculate genre distribution
     const genreCounts: Record<string, number> = {};
     (genreDataResult.data || []).forEach(ug => {
-      const game = ug.game as any;
-      if (game?.genres && Array.isArray(game.genres)) {
+      const game = ug.game as { genres?: string[] | null } | null;
+      if (Array.isArray(game?.genres)) {
         game.genres.forEach((genre: string) => {
           genreCounts[genre] = (genreCounts[genre] || 0) + 1;
         });
@@ -646,7 +646,7 @@ export const getDashboardStats = async (
     // Calculate collection value estimate (sum of game prices in cents, then convert to dollars)
     const collectionValueCents = (collectionValueResult.data || []).reduce(
       (sum, ug) => {
-        const game = ug.game as any;
+        const game = ug.game as { price_final?: number | null } | null;
         return sum + (game?.price_final || 0);
       },
       0

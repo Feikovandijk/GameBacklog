@@ -12,6 +12,8 @@ export interface ErrorResponse {
   details?: string; // Technical details (dev mode only)
   requestId?: string; // For correlation
   timestamp: string; // ISO timestamp
+  metadata?: Record<string, unknown>; // Extra metadata for development/debugging
+  stack?: string; // Stack trace in development mode
 }
 
 /**
@@ -49,7 +51,7 @@ export function formatErrorResponse(
 
       // Include metadata if present
       if (error.metadata && Object.keys(error.metadata).length > 0) {
-        (response as any).metadata = error.metadata;
+        response.metadata = error.metadata as Record<string, unknown>;
       }
     }
   } else {
@@ -61,7 +63,7 @@ export function formatErrorResponse(
 
     if (isDevelopment) {
       response.details = error.message;
-      (response as any).stack = error.stack;
+      response.stack = error.stack;
     }
   }
 

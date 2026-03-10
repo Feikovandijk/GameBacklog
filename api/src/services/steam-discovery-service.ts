@@ -3,6 +3,11 @@ import {
   fetchGameDetailsFromSteam,
   updateGameInSupabase,
 } from './steam-refresh-service';
+
+interface PopularNewItem {
+  logo: string;
+  name: string;
+}
 export async function syncTrendingGames() {
   console.log('Starting Trending Games Sync...');
 
@@ -115,7 +120,7 @@ export async function syncPopularNewReleases() {
       );
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { items?: PopularNewItem[] };
     const items = data.items || [];
 
     if (items.length === 0) {
@@ -127,8 +132,8 @@ export async function syncPopularNewReleases() {
 
     let updatedCount = 0;
 
-    for (const item of items as any[]) {
-      const logoUrl = String(item.logo);
+    for (const item of items) {
+      const logoUrl = item.logo;
       const appIdMatch = logoUrl?.match(/\/apps\/(\d+)\//);
 
       if (!appIdMatch) {
@@ -136,8 +141,8 @@ export async function syncPopularNewReleases() {
         continue;
       }
 
-      const appId = parseInt(appIdMatch[1]);
-      const name = String(item.name);
+      const appId = parseInt(appIdMatch[1], 10);
+      const name = item.name;
 
       console.log(`Processing Popular New Game: ${name} (ID ${appId})`);
       let currentPlayers = 0;
