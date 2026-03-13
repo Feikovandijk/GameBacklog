@@ -23,7 +23,7 @@ const SteamTopSellers: React.FC = () => {
 
   // Mock data for now - will be replaced with actual API call
   useEffect(() => {
-    const fetchTopSellers = async () => {
+    const fetchTopSellers = () => {
       setLoading(true);
       // TODO: Replace with actual API call to /api/steam/top-sellers
       // For now, using mock data
