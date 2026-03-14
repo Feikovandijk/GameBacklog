@@ -27,7 +27,7 @@ export const logout = (req: Request, res: Response) => {
     // Destroy the session completely from the store
     req.session.destroy(sessionErr => {
       if (sessionErr) {
-        console.error('Session destruction failed:', sessionErr);
+        console.warn('Session destruction failed:', sessionErr);
       }
 
       const cookieOptions = {

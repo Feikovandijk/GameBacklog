@@ -109,7 +109,7 @@ export const getMostReviewed = async (
 
     res.json(games || []);
   } catch (error: unknown) {
-    console.error('Error fetching most reviewed games:', error);
+    console.warn('Error fetching most reviewed games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -144,7 +144,7 @@ export const searchGames = async (
 
     res.json(games || []);
   } catch (error: unknown) {
-    console.error('Error searching games:', error);
+    console.warn('Error searching games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -212,7 +212,7 @@ export const getPopularTags = async (
 
     res.json(sortedTags);
   } catch (error: unknown) {
-    console.error('Error fetching popular tags:', error);
+    console.warn('Error fetching popular tags:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -252,7 +252,7 @@ export const getTrendingGames = async (
 
     res.json(games || []);
   } catch (error: unknown) {
-    console.error('Error fetching trending games:', error);
+    console.warn('Error fetching trending games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -289,7 +289,7 @@ export const getLatestGamesWithAchievements = async (
           .limit(500); // Assuming a game won't have more than 500 achievements
 
         if (achievementsError) {
-          console.error(
+          console.warn(
             `Error fetching achievements for game ${game.steam_appid}:`,
             achievementsError
           );
@@ -304,7 +304,7 @@ export const getLatestGamesWithAchievements = async (
 
     res.json(gamesWithAchievements);
   } catch (error: unknown) {
-    console.error('Error fetching latest games with achievements:', error);
+    console.warn('Error fetching latest games with achievements:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -344,7 +344,7 @@ export const getLatestSyncedGames = async (
               .limit(1000); // Generous limit for achievements
 
           if (achievementsError) {
-            console.error(
+            console.warn(
               `Error fetching achievements for game ${game.steam_appid}:`,
               achievementsError
             );
@@ -362,7 +362,7 @@ export const getLatestSyncedGames = async (
 
     res.json(gamesWithDetails);
   } catch (error: unknown) {
-    console.error('Error fetching latest synced games:', error);
+    console.warn('Error fetching latest synced games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -389,7 +389,7 @@ export const getLatestSteamGames = async (
 
     res.json(games || []);
   } catch (error: unknown) {
-    console.error('Error fetching latest steam games:', error);
+    console.warn('Error fetching latest steam games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -407,7 +407,7 @@ export const getTopSellers = async (
     const topSellers = await getSteamTopSellers();
     res.json(topSellers);
   } catch (error: unknown) {
-    console.error('Error fetching top sellers:', error);
+    console.warn('Error fetching top sellers:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -441,7 +441,7 @@ export const getUpcomingGames = async (
 
     res.json(games || []);
   } catch (error: unknown) {
-    console.error('Error fetching upcoming games:', error);
+    console.warn('Error fetching upcoming games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -482,7 +482,7 @@ export const getReleasesPerMonth = async (
 
     res.json(result);
   } catch (error: unknown) {
-    console.error('Error fetching releases per month:', error);
+    console.warn('Error fetching releases per month:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res

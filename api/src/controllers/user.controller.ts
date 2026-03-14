@@ -11,7 +11,7 @@ export const syncUser = (req: Request, res: Response): void => {
       .status(202)
       .json({ message: 'Sync process started in the background.' });
   } catch (error: unknown) {
-    console.error('Failed to start user sync:', error);
+    console.warn('Failed to start user sync:', error);
     res.status(500).json({ error: 'Failed to start sync process.' });
   }
 };
@@ -63,7 +63,7 @@ export const getUserGames = async (
       total: count || 0,
     });
   } catch (error: unknown) {
-    console.error('Error fetching user games:', error);
+    console.warn('Error fetching user games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -103,7 +103,7 @@ export const getRecentlyPlayed = async (req: Request, res: Response) => {
 
     res.json(userGames || []);
   } catch (error: unknown) {
-    console.error('Error fetching recently played games:', error);
+    console.warn('Error fetching recently played games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -175,7 +175,7 @@ export const addUserGame = async (
 
     res.status(201).json(newUserGame);
   } catch (error: unknown) {
-    console.error('Error adding user game:', error);
+    console.warn('Error adding user game:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -194,7 +194,7 @@ async function logUserActivity(userId: string, type: string, metadata: object) {
       created_at: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    console.error(
+    console.warn(
       `Failed to log user activity of type ${type} for user ${userId}:`,
       error
     );
@@ -321,7 +321,7 @@ export const updateUserGame = async (
 
     res.json(result);
   } catch (error: unknown) {
-    console.error('Error updating user game:', error);
+    console.warn('Error updating user game:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -366,7 +366,7 @@ export const deleteUserGame = async (
 
     res.json({ success: true });
   } catch (error: unknown) {
-    console.error('Error removing game from backlog:', error);
+    console.warn('Error removing game from backlog:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -401,7 +401,7 @@ export const bulkDeleteByStatus = async (
 
     res.json({ success: true });
   } catch (error: unknown) {
-    console.error('Error bulk-deleting games by status:', error);
+    console.warn('Error bulk-deleting games by status:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -472,7 +472,7 @@ export const getUserStats = async (
 
     res.json(stats);
   } catch (error: unknown) {
-    console.error('Error fetching user stats:', error);
+    console.warn('Error fetching user stats:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -507,7 +507,7 @@ export const getExtendedStats = async (
       totalHoursPlayed: Math.round(totalHoursPlayed * 100) / 100, // Round to 2 decimal places
     });
   } catch (error: unknown) {
-    console.error('Error fetching user extended stats:', error);
+    console.warn('Error fetching user extended stats:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -692,7 +692,7 @@ export const getDashboardStats = async (
 
     res.json(dashboardStats);
   } catch (error: unknown) {
-    console.error('Error fetching dashboard stats:', error);
+    console.warn('Error fetching dashboard stats:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -731,7 +731,7 @@ export const getRecentAchievements = async (
 
     res.json(recentUserAchievements || []);
   } catch (error: unknown) {
-    console.error('Error fetching recent achievements:', error);
+    console.warn('Error fetching recent achievements:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -760,7 +760,7 @@ export const getUserActivity = async (
 
     res.json(activities || []);
   } catch (error: unknown) {
-    console.error('Error fetching user activity:', error);
+    console.warn('Error fetching user activity:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
@@ -857,7 +857,7 @@ export const updateUserProfile = async (
 
     res.json(updatedUser);
   } catch (error: unknown) {
-    console.error('Error updating user profile:', error);
+    console.warn('Error updating user profile:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({
