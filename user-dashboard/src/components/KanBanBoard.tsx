@@ -114,7 +114,11 @@ const KanBanBoard: React.FC = () => {
       allGames.forEach(g => {
         g.game?.genres?.forEach(genre => tags.add(genre));
       });
-      setAvailableTags(Array.from(tags).sort().slice(0, 12));
+      setAvailableTags(
+        Array.from(tags)
+          .sort((a, b) => a.localeCompare(b))
+          .slice(0, 12)
+      );
     } catch (error) {
       console.error('Error fetching board:', error);
     } finally {
