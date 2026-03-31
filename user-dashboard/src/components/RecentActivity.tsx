@@ -7,16 +7,10 @@ import {
   PlayCircleOutlined,
 } from '@ant-design/icons';
 import { userGamesAPI } from '../services/api';
+import type { UserActivity } from '../services/api';
 import moment from 'moment';
 
 const { Text } = Typography;
-
-interface Activity {
-  id: string;
-  type: string;
-  timestamp: string;
-  metadata_json: string;
-}
 
 const iconMap: { [key: string]: React.ReactNode } = {
   'game.completed': <CheckCircleOutlined style={{ color: 'green' }} />,
@@ -34,14 +28,14 @@ const textMap: { [key: string]: (metadata: { gameName?: string }) => string } =
   };
 
 const RecentActivity = () => {
-  const [activity, setActivity] = useState<Activity[]>([]);
+  const [activity, setActivity] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchActivity = async () => {
       try {
         const response = await userGamesAPI.getActivity();
-        setActivity(response.data as Activity[]);
+        setActivity(response.data);
       } catch (error) {
         console.error('Error fetching activity:', error);
       } finally {
@@ -64,7 +58,7 @@ const RecentActivity = () => {
       <List
         itemLayout='horizontal'
         dataSource={activity}
-        renderItem={(item: Activity) => {
+        renderItem={(item: UserActivity) => {
           const metadata = JSON.parse(item.metadata_json);
           return (
             <List.Item>

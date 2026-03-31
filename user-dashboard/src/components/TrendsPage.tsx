@@ -246,8 +246,8 @@ const TrendsPage: React.FC = () => {
         xField: 'month',
         yField: 'count',
         theme: 'classicDark',
-        smooth: true,
         style: {
+            shape: 'smooth',
             stroke: '#00D9FF',
             lineWidth: 2,
             fill: '#00D9FF',

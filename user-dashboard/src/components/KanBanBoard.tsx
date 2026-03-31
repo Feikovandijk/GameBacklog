@@ -105,7 +105,10 @@ const KanBanBoard: React.FC = () => {
   const fetchGames = async () => {
     setLoading(true);
     try {
-      const response = await api.getUserGames({ limit: 500, in_backlog: true });
+      const response = await api.userGamesAPI.get({
+        limit: 500,
+        in_backlog: true,
+      });
       const allGames = response.data.documents;
       setGames(allGames);
 

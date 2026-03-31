@@ -119,7 +119,7 @@ const GameLibrary: React.FC = () => {
             const pageSize = pagination.pageSize;
             const offset = (page - 1) * pageSize;
 
-            const response = await api.getUserGames({
+            const response = await api.userGamesAPI.get({
                 offset,
                 limit: pageSize,
                 search: searchText,

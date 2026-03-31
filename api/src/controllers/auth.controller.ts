@@ -5,15 +5,11 @@ import config from '../config';
 export const login = passport.authenticate('steam');
 
 export const returnAuth: RequestHandler[] = [
-  (req: Request, res: Response, next: NextFunction) => {
-    console.log('Hitting /auth/steam/return');
-    console.log('Request Headers:', JSON.stringify(req.headers, null, 2));
+  (_req: Request, _res: Response, next: NextFunction) => {
     next();
   },
   passport.authenticate('steam', { failureRedirect: '/' }),
-  (req: Request, res: Response) => {
-    console.log('Steam auth successful. Session:', req.sessionID);
-    console.log('User:', req.user ? 'Authenticated' : 'Not Authenticated');
+  (_req: Request, res: Response) => {
     res.redirect(`${config.frontendUrl}/dashboard`);
   },
 ];
