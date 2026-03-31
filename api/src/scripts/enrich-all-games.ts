@@ -354,10 +354,8 @@ export async function enrichAllGames() {
       `\nEnrichment complete! Processed: ${totalProcessedCount}, Updated: ${totalUpdatedCount}`
     );
     steamUser.logOff();
-  } catch (e) {
-    const error = e as Error;
-    console.log(`\nError during enrichment service:`, error.message);
-    console.log(error.stack);
+  } catch {
+    console.error('\nError during enrichment service.');
     steamUser.logOff();
     // Only exit if running standalone
     if (require.main === module) {
