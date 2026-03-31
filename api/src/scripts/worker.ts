@@ -17,7 +17,7 @@ async function runPlayerCountLoop() {
       await runPlayerCountSync();
       console.log(`Player sync finished at ${new Date().toISOString()}`);
     } catch (error) {
-      console.log('Player sync error (caught):', error);
+      console.error('Player sync error (caught):', error);
     }
     console.log(
       `Player sync sleeping for ${PLAYER_SYNC_INTERVAL_MS / 60000} minutes...`

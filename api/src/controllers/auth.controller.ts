@@ -1,13 +1,10 @@
-import { NextFunction, Request, RequestHandler, Response } from 'express';
+import { Request, RequestHandler, Response } from 'express';
 import { passport } from '../auth/steam-auth';
 import config from '../config';
 
 export const login = passport.authenticate('steam');
 
 export const returnAuth: RequestHandler[] = [
-  (_req: Request, _res: Response, next: NextFunction) => {
-    next();
-  },
   passport.authenticate('steam', { failureRedirect: '/' }),
   (_req: Request, res: Response) => {
     res.redirect(`${config.frontendUrl}/dashboard`);
@@ -23,7 +20,7 @@ export const logout = (req: Request, res: Response) => {
     // Destroy the session completely from the store
     req.session.destroy(sessionErr => {
       if (sessionErr) {
-        console.warn('Session destruction failed:', sessionErr);
+        console.error('Session destruction failed:', sessionErr);
       }
 
       const cookieOptions = {

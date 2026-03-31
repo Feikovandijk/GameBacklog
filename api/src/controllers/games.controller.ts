@@ -109,7 +109,7 @@ export const getMostReviewed = async (
 
     res.json(games || []);
   } catch (error: unknown) {
-    console.warn('Error fetching most reviewed games:', error);
+    console.error('Error fetching most reviewed games:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res.status(500).json({

@@ -105,8 +105,10 @@ async function fetchGameDetailsFromWebAPI(
       }
     }
     return gameData;
-  } catch (error) {
-    console.log(`Error fetching from Web API for ${steamAppId}:`, error);
+  } catch {
+    console.error(
+      `Error fetching from Web API for ${steamAppId}. See prior sanitized request logs for details.`
+    );
     return null;
   }
 }

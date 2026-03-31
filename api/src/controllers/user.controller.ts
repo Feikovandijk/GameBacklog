@@ -631,7 +631,7 @@ export const getDashboardStats = async (
     const genreCounts: Record<string, number> = {};
     (genreDataResult.data || []).forEach(ug => {
       const game = ug.game as { genres?: string[] | null } | null;
-      if (Array.isArray(game?.genres)) {
+      if (game && Array.isArray(game.genres)) {
         game.genres.forEach((genre: string) => {
           genreCounts[genre] = (genreCounts[genre] || 0) + 1;
         });
