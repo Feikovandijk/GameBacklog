@@ -10,7 +10,7 @@ describe('supabase client', () => {
     process.env = ORIGINAL_ENV;
   });
 
-  it('creates the client with configured service credentials', () => {
+  it('creates the client with configured service credentials', async () => {
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_KEY = 'service-role-key';
 
@@ -20,7 +20,7 @@ describe('supabase client', () => {
       createClient,
     }));
 
-    const { supabase } = require('./client');
+    const { supabase } = await import('./client');
 
     expect(createClient).toHaveBeenCalledWith(
       'https://example.supabase.co',
@@ -29,7 +29,7 @@ describe('supabase client', () => {
     expect(supabase).toEqual({ mocked: true });
   });
 
-  it('throws when required service credentials are missing', () => {
+  it('throws when required service credentials are missing', async () => {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_KEY;
 
@@ -37,7 +37,7 @@ describe('supabase client', () => {
       createClient: jest.fn(),
     }));
 
-    expect(() => require('./client')).toThrow(
+    await expect(import('./client')).rejects.toThrow(
       'Supabase URL or service role key is not defined in the configuration.'
     );
   });

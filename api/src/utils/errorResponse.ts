@@ -51,7 +51,7 @@ export function formatErrorResponse(
 
       // Include metadata if present
       if (error.metadata && Object.keys(error.metadata).length > 0) {
-        response.metadata = error.metadata as Record<string, unknown>;
+        response.metadata = error.metadata;
       }
     }
   } else {

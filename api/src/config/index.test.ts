@@ -10,13 +10,13 @@ describe('config', () => {
     process.env = ORIGINAL_ENV;
   });
 
-  it('uses sane defaults in test mode', () => {
+  it('uses sane defaults in test mode', async () => {
     process.env.NODE_ENV = 'test';
     delete process.env.PORT;
     delete process.env.FRONTEND_URL;
     delete process.env.LOG_LEVEL;
 
-    const config = require('./index').default;
+    const { default: config } = await import('./index');
 
     expect(config.port).toBe(6543);
     expect(config.frontendUrl).toBe('http://localhost:5173');
@@ -25,24 +25,24 @@ describe('config', () => {
     expect(config.logging.level).toBe('debug');
   });
 
-  it('parses worker configuration from environment', () => {
+  it('parses worker configuration from environment', async () => {
     process.env.NODE_ENV = 'test';
     process.env.WORKER_ID = '2';
     process.env.TOTAL_WORKERS = '5';
 
-    const config = require('./index').default;
+    const { default: config } = await import('./index');
 
     expect(config.worker.id).toBe(2);
     expect(config.worker.total).toBe(5);
   });
 
-  it('throws in non-test mode when steam key is missing', () => {
+  it('throws in non-test mode when steam key is missing', async () => {
     process.env.NODE_ENV = 'development';
     delete process.env.STEAM_API_KEY;
     delete process.env.STEAM_API_KEY_0;
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_KEY = 'service-key';
 
-    expect(() => require('./index')).toThrow('STEAM_API_KEY is required');
+    await expect(import('./index')).rejects.toThrow('STEAM_API_KEY is required');
   });
 });
