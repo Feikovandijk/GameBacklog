@@ -1,6 +1,6 @@
 // Dashboard components barrel export
 export { default as StatsGrid } from './StatsGrid';
-export type { DashboardStats } from './StatsGrid';
+export type { DashboardStats } from '../../services/api';
 export { default as WelcomeHeader } from './WelcomeHeader';
 export { default as GenreBreakdown } from './GenreBreakdown';
 export { default as QuickActions } from './QuickActions';

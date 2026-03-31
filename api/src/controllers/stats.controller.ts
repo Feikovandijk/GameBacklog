@@ -29,7 +29,7 @@ export const getStats = async (_req: Request, res: Response): Promise<void> => {
       updatedGames: stats.updatedGames || 0,
     });
   } catch (error: unknown) {
-    console.error('Error fetching stats:', error);
+    console.warn('Error fetching stats:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     res
@@ -78,7 +78,7 @@ export const getAnalytics = async (
               acc[doc.key] = JSON.parse(doc.value as string);
             }
           } catch (e) {
-            console.error(`Failed to parse stat value for key: ${doc.key}`, e);
+            console.warn(`Failed to parse stat value for key: ${doc.key}`, e);
             acc[doc.key] = {};
           }
           return acc;
@@ -126,7 +126,7 @@ export const getAnalytics = async (
 
     res.json(analyticsData);
   } catch (error: any) {
-    console.error('Error fetching analytics:', error);
+    console.warn('Error fetching analytics:', error);
     const errorMessage =
       error?.message ||
       (typeof error === 'string' ? error : 'An unknown error occurred.');

@@ -140,6 +140,10 @@ export interface UserActivity {
   type: string;
   timestamp: string;
   metadata_json: string;
+  created_at?: string;
+  data?: {
+    gameName?: string;
+  };
 }
 
 // Authentication
@@ -260,11 +264,5 @@ export const gamesAPI = {
     }),
   getAnalytics: () => api.get<AnalyticsData>('/api/analytics'),
 };
-
-export const getActivity = () => userGamesAPI.getActivity();
-export const searchGames = gamesAPI.searchGames;
-export const getUserGames = userGamesAPI.get;
-export const updateUserGame = userGamesAPI.updateGame;
-export const removeUserGame = userGamesAPI.removeGame;
 
 export default api;

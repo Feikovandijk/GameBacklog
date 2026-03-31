@@ -8,18 +8,8 @@ import {
 } from '@ant-design/icons';
 import { Spin } from 'antd';
 import { userGamesAPI } from '../../services/api';
+import type { UserActivity } from '../../services/api';
 import moment from 'moment';
-
-interface Activity {
-    id: string;
-    type: string;
-    timestamp?: string;
-    created_at?: string;
-    metadata_json?: string;
-    data?: {
-        gameName?: string;
-    };
-}
 
 const iconMap: Record<string, { icon: React.ReactNode; className: string }> = {
     'game.completed': {
@@ -54,13 +44,13 @@ const textMap: Record<string, (metadata: { gameName?: string }) => string> = {
 
 const RecentActivityFeed: React.FC = () => {
     const [loading, setLoading] = useState(true);
-    const [activities, setActivities] = useState<Activity[]>([]);
+    const [activities, setActivities] = useState<UserActivity[]>([]);
 
     useEffect(() => {
         const fetchActivity = async () => {
             try {
                 const response = await userGamesAPI.getActivity();
-                setActivities(response.data as Activity[]);
+                setActivities(response.data);
             } catch (error) {
                 console.error('Error fetching activity:', error);
             } finally {

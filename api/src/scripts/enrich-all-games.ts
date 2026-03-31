@@ -105,8 +105,8 @@ async function fetchGameDetailsFromWebAPI(
       }
     }
     return gameData;
-  } catch (error) {
-    console.error(`Error fetching from Web API for ${steamAppId}:`, error);
+  } catch {
+    console.log(`Error fetching from Web API for ${steamAppId}`);
     return null;
   }
 }
@@ -249,7 +249,7 @@ export async function enrichAllGames() {
         resolve();
       });
       steamUser.on('error', err => {
-        console.error(`Steam login error:`, err);
+        console.log(`Steam login error:`, err);
         reject(err);
       });
     });
@@ -277,7 +277,7 @@ export async function enrichAllGames() {
       const { data: gameBatch, error: batchError } = await query;
 
       if (batchError) {
-        console.error('Error fetching games batch:', batchError);
+        console.log('Error fetching games batch:', batchError);
         break;
       }
 
@@ -332,7 +332,7 @@ export async function enrichAllGames() {
             .eq('id', game.id);
 
           if (updateError) {
-            console.error(`Error updating game ${game.name}:`, updateError);
+            console.log(`Error updating game ${game.name}:`, updateError);
           } else {
             totalUpdatedCount++;
           }
@@ -354,10 +354,8 @@ export async function enrichAllGames() {
       `\nEnrichment complete! Processed: ${totalProcessedCount}, Updated: ${totalUpdatedCount}`
     );
     steamUser.logOff();
-  } catch (e) {
-    const error = e as Error;
-    console.error(`\nError during enrichment service:`, error.message);
-    console.error(error.stack);
+  } catch {
+    console.error('\nError during enrichment service.');
     steamUser.logOff();
     // Only exit if running standalone
     if (require.main === module) {

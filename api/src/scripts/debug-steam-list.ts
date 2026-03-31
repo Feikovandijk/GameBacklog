@@ -2,7 +2,7 @@ import config from '../config';
 
 async function checkSteamListSize() {
   if (!config.steamApiKey) {
-    console.error('Steam API key is missing.');
+    console.log('Steam API key is missing.');
     return;
   }
 
@@ -28,7 +28,7 @@ async function checkSteamListSize() {
       );
     }
   } catch (error) {
-    console.error('Failed to fetch Steam games list:', error);
+    console.log('Failed to fetch Steam games list:', error);
   }
 }
 

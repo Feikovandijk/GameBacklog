@@ -55,7 +55,7 @@ async function checkSchema() {
     .limit(1);
 
   if (error) {
-    console.error('Error selecting columns:', error);
+    console.log('Error selecting columns:', error);
     // Parse error message to find which column is missing
     // Message format often: "Could not find the 'column_name' column of 'games' in the schema cache"
   } else {

@@ -3,10 +3,6 @@
  * These errors provide structured information for logging and API responses
  */
 
-/**
- * Base authentication error class
- * All auth-related errors extend this class
- */
 export class AuthError extends Error {
   public readonly timestamp: Date;
 
@@ -23,9 +19,6 @@ export class AuthError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  /**
-   * Convert error to a loggable object
-   */
   toLogObject(): Record<string, unknown> {
     return {
       name: this.name,
@@ -40,10 +33,6 @@ export class AuthError extends Error {
   }
 }
 
-/**
- * Steam OAuth authentication errors
- * Thrown when Steam authentication fails
- */
 export class SteamAuthError extends AuthError {
   constructor(
     technicalDetails: string,
@@ -60,10 +49,6 @@ export class SteamAuthError extends AuthError {
   }
 }
 
-/**
- * Session management errors
- * Thrown when session operations fail
- */
 export class SessionError extends AuthError {
   constructor(
     technicalDetails: string,
@@ -80,10 +65,6 @@ export class SessionError extends AuthError {
   }
 }
 
-/**
- * User creation/update errors
- * Thrown when database operations on users fail
- */
 export class UserCreationError extends AuthError {
   constructor(
     technicalDetails: string,
@@ -100,10 +81,6 @@ export class UserCreationError extends AuthError {
   }
 }
 
-/**
- * Unauthorized access errors (401)
- * Thrown when authentication is required but not provided
- */
 export class UnauthorizedError extends AuthError {
   constructor(
     userMessage: string,
@@ -114,10 +91,6 @@ export class UnauthorizedError extends AuthError {
   }
 }
 
-/**
- * Forbidden access errors (403)
- * Thrown when user is authenticated but lacks permission
- */
 export class ForbiddenError extends AuthError {
   constructor(
     userMessage: string,
