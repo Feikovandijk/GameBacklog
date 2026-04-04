@@ -13,14 +13,14 @@ async function runPlayerCountLoop() {
   console.log('Starting Player Count Sync Loop...');
   while (true) {
     try {
-      console.log(`\n[Player Sync] Starting at ${new Date().toISOString()}`);
+      console.log(`\nPlayer sync started at ${new Date().toISOString()}`);
       await runPlayerCountSync();
-      console.log(`[Player Sync] Finished at ${new Date().toISOString()}`);
+      console.log(`Player sync finished at ${new Date().toISOString()}`);
     } catch (error) {
-      console.error('[Player Sync] Error:', error);
+      console.error('Player sync error (caught):', error);
     }
     console.log(
-      `[Player Sync] Sleeping for ${PLAYER_SYNC_INTERVAL_MS / 60000} minutes...`
+      `Player sync sleeping for ${PLAYER_SYNC_INTERVAL_MS / 60000} minutes...`
     );
     await new Promise(resolve => setTimeout(resolve, PLAYER_SYNC_INTERVAL_MS));
   }
@@ -30,14 +30,14 @@ async function runGameListSyncLoop() {
   console.log('Starting Game List Sync Loop...');
   while (true) {
     try {
-      console.log(`\n[Game List Sync] Starting at ${new Date().toISOString()}`);
+      console.log(`\nGame list sync started at ${new Date().toISOString()}`);
       await runSyncService();
-      console.log(`[Game List Sync] Finished at ${new Date().toISOString()}`);
+      console.log(`Game list sync finished at ${new Date().toISOString()}`);
     } catch (error) {
-      console.error('[Game List Sync] Error:', error);
+      console.log('Game list sync error (caught):', error);
     }
     console.log(
-      `[Game List Sync] Sleeping for ${GAME_LIST_SYNC_INTERVAL_MS / 60000} minutes...`
+      `Game list sync sleeping for ${GAME_LIST_SYNC_INTERVAL_MS / 60000} minutes...`
     );
     await new Promise(resolve =>
       setTimeout(resolve, GAME_LIST_SYNC_INTERVAL_MS)
@@ -49,14 +49,14 @@ async function runPicsRefreshLoop() {
   console.log('Starting PICS Refresh Loop...');
   while (true) {
     try {
-      console.log(`\n[PICS Refresh] Starting at ${new Date().toISOString()}`);
+      console.log(`\nPICS refresh started at ${new Date().toISOString()}`);
       await runPicsRefreshService();
-      console.log(`[PICS Refresh] Finished at ${new Date().toISOString()}`);
+      console.log(`PICS refresh finished at ${new Date().toISOString()}`);
     } catch (error) {
-      console.error('[PICS Refresh] Error:', error);
+      console.log('PICS refresh error:', error);
     }
     console.log(
-      `[PICS Refresh] Sleeping for ${PICS_REFRESH_INTERVAL_MS / 60000} minutes...`
+      `PICS refresh sleeping for ${PICS_REFRESH_INTERVAL_MS / 60000} minutes...`
     );
     await new Promise(resolve => setTimeout(resolve, PICS_REFRESH_INTERVAL_MS));
   }
@@ -66,14 +66,14 @@ async function runTrendingSyncLoop() {
   console.log('Starting Trending Games Sync Loop...');
   while (true) {
     try {
-      console.log(`\n[Trending Sync] Starting at ${new Date().toISOString()}`);
+      console.log(`\nTrending sync started at ${new Date().toISOString()}`);
       await syncTrendingGames();
-      console.log(`[Trending Sync] Finished at ${new Date().toISOString()}`);
+      console.log(`Trending sync finished at ${new Date().toISOString()}`);
     } catch (error) {
-      console.error('[Trending Sync] Error:', error);
+      console.log('Trending sync error:', error);
     }
     console.log(
-      `[Trending Sync] Sleeping for ${TRENDING_SYNC_INTERVAL_MS / 60000} minutes...`
+      `Trending sync sleeping for ${TRENDING_SYNC_INTERVAL_MS / 60000} minutes...`
     );
     await new Promise(resolve =>
       setTimeout(resolve, TRENDING_SYNC_INTERVAL_MS)

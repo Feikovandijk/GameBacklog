@@ -105,7 +105,10 @@ const KanBanBoard: React.FC = () => {
   const fetchGames = async () => {
     setLoading(true);
     try {
-      const response = await api.getUserGames({ limit: 500, in_backlog: true });
+      const response = await api.userGamesAPI.get({
+        limit: 500,
+        in_backlog: true,
+      });
       const allGames = response.data.documents;
       setGames(allGames);
 
@@ -114,7 +117,11 @@ const KanBanBoard: React.FC = () => {
       allGames.forEach(g => {
         g.game?.genres?.forEach(genre => tags.add(genre));
       });
-      setAvailableTags(Array.from(tags).sort().slice(0, 12));
+      setAvailableTags(
+        Array.from(tags)
+          .sort((a, b) => a.localeCompare(b))
+          .slice(0, 12)
+      );
     } catch (error) {
       console.error('Error fetching board:', error);
     } finally {

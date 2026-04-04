@@ -41,7 +41,7 @@ async function recalculateStats() {
 
     console.log('Stats recalculation completed successfully!');
   } catch (error) {
-    console.error('\nAn error occurred during stats recalculation:', error);
+    console.log('\nAn error occurred during stats recalculation:', error);
     process.exit(1);
   }
 }
@@ -79,14 +79,14 @@ async function upsertStat(key: string, count: number) {
       console.log(`- Created stat '${key}' with count ${count}.`);
     }
   } catch (e) {
-    console.error(`Failed to upsert stat for key: ${key}`);
+    console.log(`Failed to upsert stat for key: ${key}`);
     throw e;
   }
 }
 
 if (require.main === module) {
   void recalculateStats().catch(error => {
-    console.error('Failed to recalculate stats:', error);
+    console.log('Failed to recalculate stats:', error);
     process.exit(1);
   });
 }

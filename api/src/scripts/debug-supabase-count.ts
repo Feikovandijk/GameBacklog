@@ -19,13 +19,13 @@ async function debugCount() {
       .select('*', { count: 'exact', head: true });
 
     if (error) {
-      console.error('Error counting games:', error);
-      console.error('Status:', status, statusText);
+      console.log('Error counting games:', error);
+      console.log('Status:', status, statusText);
     } else {
       console.log('Successfully counted games:', count);
     }
   } catch (e) {
-    console.error('Unexpected error:', e);
+    console.log('Unexpected error:', e);
   }
 }
 

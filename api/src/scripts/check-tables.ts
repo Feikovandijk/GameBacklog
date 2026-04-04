@@ -14,17 +14,13 @@ async function checkTables() {
     const { error } = await supabase.from(table).select('*').limit(1);
     if (error) {
       if (error.code === 'PGRST205') {
-        console.error(`[MISSING] Table '${table}' does not exist.`);
+        console.log(`[MISSING] Table '${table}' does not exist.`);
       } else {
-        console.error(`[ERROR] checking table '${table}':`, error.message);
+        console.log(`Error checking table '${table}':`, error.message);
       }
-    } else {
-      console.log(`[OK] Table '${table}' exists.`);
     }
   }
 
-  // Check specific columns in games
-  console.log('\nChecking columns in games table...');
   // Check specific columns in games
   console.log('\nChecking columns in games table...');
   const { error } = await supabase
@@ -34,7 +30,7 @@ async function checkTables() {
     )
     .limit(1);
   if (error) {
-    console.error(
+    console.log(
       `[MISSING] One or more columns in 'games' table are missing:`,
       error.message
     );
@@ -49,7 +45,7 @@ async function checkTables() {
     .select('value')
     .limit(1);
   if (statError) {
-    console.error(
+    console.log(
       `[MISSING] 'value' column in 'statistics' table is missing:`,
       statError.message
     );

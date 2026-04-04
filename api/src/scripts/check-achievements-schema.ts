@@ -8,7 +8,7 @@ async function checkAchievementsSchema() {
     .limit(1);
 
   if (error) {
-    console.error('Error selecting api_name:', error);
+    console.log('Error selecting api_name:', error);
   } else {
     console.log('Success! api_name column exists.');
   }
@@ -19,7 +19,7 @@ async function checkAchievementsSchema() {
     .limit(1);
 
   if (allColError) {
-    console.error('Error selecting *:', allColError);
+    console.log('Error selecting *:', allColError);
   } else if (data && data.length > 0) {
     console.log(
       'Existing columns:',

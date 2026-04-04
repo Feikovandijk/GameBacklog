@@ -2,19 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Typography, Spin, message } from 'antd';
 import { PlusOutlined, FireOutlined } from '@ant-design/icons';
 import { userGamesAPI } from '../services/api';
+import type { TopSellerGame } from '../services/api';
 
 const { Title, Text } = Typography;
-
-interface TopSellerGame {
-  steam_appid: number;
-  name: string;
-  header_image: string;
-  price_final: number;
-  price_currency: string;
-  developers: string[];
-  genres: string[];
-  rank: number;
-}
 
 const SteamTopSellers: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -23,7 +13,7 @@ const SteamTopSellers: React.FC = () => {
 
   // Mock data for now - will be replaced with actual API call
   useEffect(() => {
-    const fetchTopSellers = async () => {
+    const fetchTopSellers = () => {
       setLoading(true);
       // TODO: Replace with actual API call to /api/steam/top-sellers
       // For now, using mock data

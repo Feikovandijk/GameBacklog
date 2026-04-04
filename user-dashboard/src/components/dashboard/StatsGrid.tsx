@@ -11,25 +11,7 @@ import {
     TrophyOutlined,
     DollarOutlined,
 } from '@ant-design/icons';
-
-export interface DashboardStats {
-    totalGames: number;
-    completedGames: number;
-    completed100: number;
-    currentlyPlaying: number;
-    wantToPlay: number;
-    onHold: number;
-    dropped: number;
-    completedThisWeek: number;
-    completedThisMonth: number;
-    completedThisYear: number;
-    totalHoursPlayed: number;
-    avgHoursPerCompletion: number;
-    topGenres: { name: string; count: number }[];
-    recentAchievementCount: number;
-    collectionValueEstimate: number;
-    completionPercentage: number;
-}
+import type { DashboardStats } from '../../services/api';
 
 interface StatsGridProps {
     stats: DashboardStats | null;

@@ -379,7 +379,7 @@ const AnalysisPage: React.FC = () => {
 
   const allTags = Array.from(
     new Set(analyzedGames.flatMap(g => g.user_tags || []))
-  ).sort();
+  ).sort((a, b) => a.localeCompare(b));
 
   /* ── Filtered research library ─────────────────────────────────────── */
 
