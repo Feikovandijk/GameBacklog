@@ -43,8 +43,13 @@ type PassportDoneFunction = (error: Error | null, user?: User | false) => void;
 // Define return path constant to avoid magic strings
 const STEAM_RETURN_PATH = '/auth/steam/return';
 
-// API URL for OAuth callback (must be the API server, not frontend)
-const API_URL = process.env.API_URL || `http://localhost:${config.port}`;
+// API_URL may be set to the nginx proxy base (e.g. https://gamelog.feiko.org/api).
+// Steam OAuth callbacks are handled via the /auth/ nginx location, so we must
+// strip any trailing /api path — identical to how the frontend api.ts strips it
+// from VITE_API_URL.  The result is the scheme+host the browser reaches.
+const API_URL = (process.env.API_URL || `http://localhost:${config.port}`)
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '');
 
 // Configure Passport Steam strategy
 passport.use(
