@@ -112,10 +112,11 @@ npm install --prefix devdashboard    # Dev dashboard dependencies
 cp .env.example .env                 # Then fill in real values
 ```
 
-Required env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`, `STEAM_API_KEY`, `SESSION_SECRET`, `FRONTEND_URL`, `API_URL`.
+Required env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`, `STEAM_API_KEY`, `SESSION_SECRET`, `CSRF_SECRET`, `FRONTEND_URL`, `API_URL`.
 
 ## Deployment Notes
 
-- **`API_URL` must point to the frontend domain's `/api` path** (e.g., `https://gamelog.feiko.org/api`), not directly to the API server. The user-dashboard nginx proxy strips the `/api` prefix and forwards to Express. Steam OAuth callbacks go through this same proxy so the session cookie stays on the frontend domain.
+- **`API_URL` must be the scheme+host only** (e.g., `https://gamelog.feiko.org`), **without any `/api` path suffix**. The Steam OAuth `returnURL` is built as `${API_URL}/auth/steam/return`; the nginx `location /auth/` block proxies those requests to Express. `steam-auth.ts` strips a trailing `/api` path defensively, but the canonical value should have no path component. The user-dashboard nginx proxy handles `/api/*` → Express for all other API calls.
+- **`CSRF_SECRET`** must be set (generate with `openssl rand -hex 32`). The API refuses to start in production without it.
 - Docker images are built for `linux/amd64`. On ARM (Apple Silicon), use `docker buildx build --platform linux/amd64`.
 - The `.env` file is shared across containers via `env_file` in `docker-compose.yml`.
