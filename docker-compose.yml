@@ -5,7 +5,7 @@ services:
     ports:
       - '${PORT:-6543}:6543'
     environment: &common-environment
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: ${PORT:-6543}
       API_URL: ${API_URL}
       CSRF_SECRET: ${CSRF_SECRET}
