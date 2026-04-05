@@ -40,18 +40,21 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Session configuration
-// secure: 'auto' — always issues the cookie but only marks it Secure when the
-// connection is HTTPS (determined via trust-proxy / X-Forwarded-Proto).
-// With secure: true + proxy: false the cookie is silently dropped on the
-// HTTP leg between nginx and Express, so the browser never receives it.
+// In production we require Secure cookies and rely on `proxy: true` + the
+// app-level `trust proxy` setting so express-session honors the
+// X-Forwarded-Proto header from the reverse proxy when deciding whether the
+// connection is secure. The dashboard's nginx (user-dashboard/default.conf.template)
+// defaults X-Forwarded-Proto to `https` when the outer proxy omits it, so the
+// Secure cookie is actually emitted over the HTTPS hop the browser made.
+const isProduction = process.env.NODE_ENV === 'production';
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
     saveUninitialized: false,
-    // proxy: undefined → defers to app-level `trust proxy` (set to 1 above)
+    proxy: isProduction,
     cookie: {
-      secure: 'auto',
+      secure: isProduction,
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: 'lax',
