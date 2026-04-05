@@ -39,19 +39,34 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// Session configuration
-// secure: 'auto' — always issues the cookie but only marks it Secure when the
-// connection is HTTPS (determined via trust-proxy / X-Forwarded-Proto).
-// With secure: true + proxy: false the cookie is silently dropped on the
-// HTTP leg between nginx and Express, so the browser never receives it.
+const isProduction = process.env.NODE_ENV === 'production';
+
+// In production, ensure X-Forwarded-Proto is always populated before the
+// session middleware reads it. The user-dashboard nginx already defaults it
+// to 'https' via the map block, but this middleware provides an extra layer
+// of defence: if the outer proxy omits the header entirely it defaults to
+// 'https' (the public site is HTTPS-only, so this is always correct in prod).
+// Without this, express-session with secure:true would silently drop the
+// connect.sid cookie, breaking Steam OAuth (the openid nonce can't be stored).
+if (isProduction) {
+  app.use((req, _res, next) => {
+    if (!req.headers['x-forwarded-proto']) {
+      req.headers['x-forwarded-proto'] = 'https';
+    }
+    next();
+  });
+}
+
+// Session configuration — secure cookies in production, trusting the proxy
+// X-Forwarded-Proto header so express-session knows the connection is HTTPS.
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
     saveUninitialized: false,
-    // proxy: undefined → defers to app-level `trust proxy` (set to 1 above)
+    proxy: isProduction,
     cookie: {
-      secure: 'auto',
+      secure: isProduction,
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: 'lax',
