@@ -40,15 +40,18 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Session configuration
-const isProduction = process.env.NODE_ENV === 'production';
+// secure: 'auto' — always issues the cookie but only marks it Secure when the
+// connection is HTTPS (determined via trust-proxy / X-Forwarded-Proto).
+// With secure: true + proxy: false the cookie is silently dropped on the
+// HTTP leg between nginx and Express, so the browser never receives it.
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',
     resave: false,
     saveUninitialized: false,
-    proxy: isProduction,
+    // proxy: undefined → defers to app-level `trust proxy` (set to 1 above)
     cookie: {
-      secure: isProduction,
+      secure: 'auto',
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: 'lax',
