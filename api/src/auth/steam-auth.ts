@@ -102,10 +102,12 @@ passport.use(
         } catch (error) {
           const authMeta =
             error instanceof AuthError ? error.metadata : undefined;
+          const errorCode =
+            error instanceof AuthError ? error.errorCode : undefined;
           logger.error(
             'Steam authentication failed',
             error as Error,
-            { requestId, identifier },
+            { requestId, identifier, errorCode },
             authMeta
           );
           return done(error as Error, false);
