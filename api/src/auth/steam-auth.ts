@@ -7,6 +7,7 @@ import { syncUserWithSteam } from '../services/user-steam-sync-service';
 import { User } from '../types/steam.types';
 import { logger } from '../utils/logger';
 import {
+  AuthError,
   SessionError,
   SteamAuthError,
   UserCreationError,
@@ -99,10 +100,14 @@ passport.use(
 
           return done(null, user);
         } catch (error) {
-          logger.error('Steam authentication failed', error as Error, {
-            requestId,
-            identifier,
-          });
+          const authMeta =
+            error instanceof AuthError ? error.metadata : undefined;
+          logger.error(
+            'Steam authentication failed',
+            error as Error,
+            { requestId, identifier },
+            authMeta
+          );
           return done(error as Error, false);
         }
       })();
@@ -210,7 +215,13 @@ async function createOrUpdateUser(
       throw new UserCreationError(
         'Failed to check existing user',
         'DB_QUERY_ERROR',
-        { steamId, dbError: fetchError.message }
+        {
+          steamId,
+          dbError: fetchError.message,
+          dbCode: fetchError.code,
+          dbDetails: fetchError.details,
+          dbHint: fetchError.hint,
+        }
       );
     }
 
@@ -246,6 +257,9 @@ async function createOrUpdateUser(
             steamId,
             userId: existingUser.id,
             dbError: updateError.message,
+            dbCode: updateError.code,
+            dbDetails: updateError.details,
+            dbHint: updateError.hint,
           }
         );
       }
@@ -304,6 +318,9 @@ async function createOrUpdateUser(
           {
             steamId,
             dbError: createError.message,
+            dbCode: createError.code,
+            dbDetails: createError.details,
+            dbHint: createError.hint,
           }
         );
       }
