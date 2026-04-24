@@ -215,7 +215,7 @@ async function createOrUpdateUser(
 
     if (fetchError) {
       throw new UserCreationError(
-        'Failed to check existing user',
+        `Failed to check existing user: ${fetchError.message} [code=${fetchError.code}]`,
         'DB_QUERY_ERROR',
         {
           steamId,
@@ -253,7 +253,7 @@ async function createOrUpdateUser(
 
       if (updateError) {
         throw new UserCreationError(
-          'Failed to update user',
+          `Failed to update user: ${updateError.message} [code=${updateError.code}]`,
           'DB_UPDATE_ERROR',
           {
             steamId,
@@ -315,7 +315,7 @@ async function createOrUpdateUser(
 
       if (createError) {
         throw new UserCreationError(
-          'Failed to create user',
+          `Failed to create user: ${createError.message} [code=${createError.code}]`,
           'DB_INSERT_ERROR',
           {
             steamId,

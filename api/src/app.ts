@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { passport } from './auth/steam-auth';
 import config from './config';
+import { supabase } from './supabase/client';
 import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 
 // Routes
@@ -85,6 +86,27 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json(getHealthPayload());
+});
+
+app.get('/api/health/db', (_req: Request, res: Response) => {
+  void (async () => {
+    const { error } = await supabase
+      .from('users')
+      .select('id')
+      .limit(1);
+    if (error) {
+      res.status(503).json({
+        status: 'error',
+        db: 'unreachable',
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+    } else {
+      res.json({ status: 'ok', db: 'connected' });
+    }
+  })();
 });
 
 // CSRF Token Endpoint
