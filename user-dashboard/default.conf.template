@@ -1,6 +1,11 @@
+# Inside the dashboard container, the hop to the API is always HTTP. We rely
+# on the outer reverse proxy (that terminates TLS at the public hostname) to
+# set X-Forwarded-Proto: https. If it doesn't, fall back to 'https' — the
+# public site is HTTPS-only, so this is safe and lets express-session emit
+# the Secure session cookie instead of silently dropping it.
 map $http_x_forwarded_proto $proxy_x_forwarded_proto {
   default $http_x_forwarded_proto;
-  ''      $scheme;
+  ''      https;
 }
 
 server {

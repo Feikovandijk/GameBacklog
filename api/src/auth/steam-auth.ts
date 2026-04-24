@@ -7,6 +7,7 @@ import { syncUserWithSteam } from '../services/user-steam-sync-service';
 import { User } from '../types/steam.types';
 import { logger } from '../utils/logger';
 import {
+  AuthError,
   SessionError,
   SteamAuthError,
   UserCreationError,
@@ -43,8 +44,13 @@ type PassportDoneFunction = (error: Error | null, user?: User | false) => void;
 // Define return path constant to avoid magic strings
 const STEAM_RETURN_PATH = '/auth/steam/return';
 
-// API URL for OAuth callback (must be the API server, not frontend)
-const API_URL = process.env.API_URL || `http://localhost:${config.port}`;
+// API_URL may be set to the nginx proxy base (e.g. https://gamelog.feiko.org/api).
+// Steam OAuth callbacks are handled via the /auth/ nginx location, so we must
+// strip any trailing /api path — identical to how the frontend api.ts strips it
+// from VITE_API_URL.  The result is the scheme+host the browser reaches.
+const API_URL = (process.env.API_URL || `http://localhost:${config.port}`)
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '');
 
 // Configure Passport Steam strategy
 passport.use(
@@ -94,10 +100,16 @@ passport.use(
 
           return done(null, user);
         } catch (error) {
-          logger.error('Steam authentication failed', error as Error, {
-            requestId,
-            identifier,
-          });
+          const authMeta =
+            error instanceof AuthError ? error.metadata : undefined;
+          const errorCode =
+            error instanceof AuthError ? error.errorCode : undefined;
+          logger.error(
+            'Steam authentication failed',
+            error as Error,
+            { requestId, identifier, errorCode },
+            authMeta
+          );
           return done(error as Error, false);
         }
       })();
@@ -205,7 +217,13 @@ async function createOrUpdateUser(
       throw new UserCreationError(
         'Failed to check existing user',
         'DB_QUERY_ERROR',
-        { steamId, dbError: fetchError.message }
+        {
+          steamId,
+          dbError: fetchError.message,
+          dbCode: fetchError.code,
+          dbDetails: fetchError.details,
+          dbHint: fetchError.hint,
+        }
       );
     }
 
@@ -241,6 +259,9 @@ async function createOrUpdateUser(
             steamId,
             userId: existingUser.id,
             dbError: updateError.message,
+            dbCode: updateError.code,
+            dbDetails: updateError.details,
+            dbHint: updateError.hint,
           }
         );
       }
@@ -299,6 +320,9 @@ async function createOrUpdateUser(
           {
             steamId,
             dbError: createError.message,
+            dbCode: createError.code,
+            dbDetails: createError.details,
+            dbHint: createError.hint,
           }
         );
       }

@@ -27,11 +27,16 @@ const App = () => {
     const fetchUser = async () => {
       try {
         const currentUser = await authAPI.getCurrentUser();
-        setUser(currentUser.data);
-        // Fetch CSRF token after auth so it's generated with the authenticated
-        // session identifier — otherwise it's generated as 'anon' and all
-        // state-changing requests will fail with 403 invalid csrf token.
-        await authAPI.fetchCsrfToken();
+        // Guard: only accept the response if it looks like a real User object.
+        // A missing/unexpected body (e.g. HTML from a misconfigured proxy) would
+        // be truthy and silently bypass the login page without this check.
+        if (currentUser.data?.id) {
+          setUser(currentUser.data);
+          // Fetch CSRF token after auth so it's generated with the authenticated
+          // session identifier — otherwise it's generated as 'anon' and all
+          // state-changing requests will fail with 403 invalid csrf token.
+          await authAPI.fetchCsrfToken();
+        }
       } catch {
         console.log('No user logged in');
       } finally {
