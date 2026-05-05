@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', sans-serif; background: #0B1121; padding: 20px; display: flex; gap: 20px; }
+.sidebar { width: 180px; background: #161E32; border: 1px solid #2A3550; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.logo { display: flex; align-items: center; gap: 8px; padding: 8px 10px 14px; border-bottom: 1px solid rgba(42,53,80,0.5); margin-bottom: 4px; }
+.logo-icon { width: 28px; height: 28px; background: #00E5BC; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,229,188,0.3); }
+.logo-text { font-size: 14px; font-weight: 700; color: #fff; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all 150ms; }
+.nav-active { background: #00E5BC; color: #0B1121; font-weight: 700; box-shadow: 0 4px 12px rgba(0,229,188,0.2); }
+.nav-default { color: #94A3B8; font-weight: 500; }
+.nav-default:hover { color: #fff; background: #1F2943; }
+.icon { font-family: 'Material Symbols Outlined'; font-size: 20px; font-weight: normal; }
+.right { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #94A3B8; margin-bottom: 6px; }
+</style>
+</head><body>
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-icon"><span class="icon" style="font-size:16px;color:#0B1121">code</span></div>
+    <div class="logo-text">DevTracker</div>
+  </div>
+  <div class="nav-item nav-active"><span class="icon">dashboard</span><span>Dashboard</span></div>
+  <div class="nav-item nav-default"><span class="icon">library_books</span><span>Library</span></div>
+  <div class="nav-item nav-default"><span class="icon">view_kanban</span><span>Board</span></div>
+  <div class="nav-item nav-default"><span class="icon">trending_up</span><span>Trends</span></div>
+  <div class="nav-item nav-default"><span class="icon">analytics</span><span>Analysis</span></div>
+</div>
+<div class="right">
+  <div class="label">Nav states</div>
+  <div style="background:#161E32;border:1px solid #2A3550;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px;">
+    <div class="nav-item nav-active" style="border-radius:8px"><span class="icon">dashboard</span><span style="font-size:13px">Active item</span></div>
+    <div class="nav-item nav-default" style="border-radius:8px"><span class="icon">library_books</span><span style="font-size:13px">Default item</span></div>
+    <div class="nav-item nav-default" style="border-radius:8px;background:#1F2943;color:#fff"><span class="icon">view_kanban</span><span style="font-size:13px">Hover item</span></div>
+  </div>
+</div>
+</body></html>

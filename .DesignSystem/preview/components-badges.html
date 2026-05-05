@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', sans-serif; background: #0B1121; padding: 20px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #94A3B8; margin-bottom: 8px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head><body>
+<div class="label">Status Badges</div>
+<div class="row">
+  <span class="badge" style="background:rgba(0,229,188,0.12);color:#00E5BC"><span class="dot" style="background:#00E5BC"></span>Playing</span>
+  <span class="badge" style="background:rgba(16,185,129,0.12);color:#10B981"><span class="dot" style="background:#10B981"></span>Completed</span>
+  <span class="badge" style="background:rgba(139,92,246,0.15);color:#a78bfa"><span class="dot" style="background:#a78bfa"></span>100% Complete</span>
+  <span class="badge" style="background:rgba(0,163,255,0.12);color:#00A3FF"><span class="dot" style="background:#00A3FF"></span>Want to Play</span>
+  <span class="badge" style="background:rgba(234,179,8,0.12);color:#EAB308"><span class="dot" style="background:#EAB308"></span>On Hold</span>
+  <span class="badge" style="background:rgba(239,68,68,0.12);color:#EF4444"><span class="dot" style="background:#EF4444"></span>Dropped</span>
+  <span class="badge" style="background:rgba(148,163,184,0.1);color:#94A3B8"><span class="dot" style="background:#94A3B8"></span>Unplayed</span>
+</div>
+<div class="label" style="margin-top:4px">Inline labels (table use)</div>
+<div class="row">
+  <span class="badge" style="background:#161E32;border:1px solid #2A3550;color:#fff;border-radius:8px">Playing</span>
+  <span class="badge" style="background:#161E32;border:1px solid #2A3550;color:#94A3B8;border-radius:8px">Unplayed</span>
+  <span class="badge" style="background:rgba(0,229,188,0.1);border:1px solid rgba(0,229,188,0.2);color:#00E5BC;border-radius:8px">Completed</span>
+</div>
+</body></html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', sans-serif; background: #0B1121; padding: 20px; }
+.row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 20px; }
+.label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #94A3B8; margin-bottom: 8px; }
+.radius-item { text-align: center; }
+.radius-box { background: #161E32; border: 1px solid #2A3550; }
+.name { font-size: 10px; color: #94A3B8; margin-top: 6px; font-family: monospace; }
+.val { font-size: 10px; font-weight: 700; color: #fff; }
+.sp-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.sp-bar { background: #00E5BC; opacity: 0.7; height: 12px; border-radius: 2px; }
+.sp-label { font-size: 10px; color: #94A3B8; font-family: monospace; width: 80px; }
+.sp-val { font-size: 10px; color: #fff; font-weight: 600; }
+</style>
+</head><body>
+<div class="label">Border Radius</div>
+<div class="row">
+  <div class="radius-item"><div class="radius-box" style="width:40px;height:40px;border-radius:4px"></div><div class="name">sm</div><div class="val">4px</div></div>
+  <div class="radius-item"><div class="radius-box" style="width:48px;height:48px;border-radius:8px"></div><div class="name">md</div><div class="val">8px</div></div>
+  <div class="radius-item"><div class="radius-box" style="width:56px;height:56px;border-radius:12px"></div><div class="name">lg / xl</div><div class="val">12px</div></div>
+  <div class="radius-item"><div class="radius-box" style="width:64px;height:64px;border-radius:16px"></div><div class="name">2xl — cards</div><div class="val">16px</div></div>
+  <div class="radius-item"><div class="radius-box" style="width:48px;height:48px;border-radius:9999px"></div><div class="name">full</div><div class="val">∞</div></div>
+</div>
+<div class="label">Spacing Scale</div>
+<div>
+  <div class="sp-row"><div class="sp-label">4px (gap-1)</div><div class="sp-bar" style="width:4px"></div><div class="sp-val">4px</div></div>
+  <div class="sp-row"><div class="sp-label">8px (gap-2)</div><div class="sp-bar" style="width:8px"></div><div class="sp-val">8px</div></div>
+  <div class="sp-row"><div class="sp-label">12px (gap-3)</div><div class="sp-bar" style="width:12px"></div><div class="sp-val">12px</div></div>
+  <div class="sp-row"><div class="sp-label">16px (gap-4)</div><div class="sp-bar" style="width:16px"></div><div class="sp-val">16px</div></div>
+  <div class="sp-row"><div class="sp-label">24px (gap-6)</div><div class="sp-bar" style="width:24px"></div><div class="sp-val">24px</div></div>
+  <div class="sp-row"><div class="sp-label">32px (gap-8)</div><div class="sp-bar" style="width:32px"></div><div class="sp-val">32px</div></div>
+  <div class="sp-row"><div class="sp-label">40px (p-10)</div><div class="sp-bar" style="width:40px"></div><div class="sp-val">40px</div></div>
+</div>
+</body></html>

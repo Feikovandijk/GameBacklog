@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', sans-serif; background: #0B1121; padding: 20px; }
+.row { display: flex; flex-direction: column; gap: 4px; }
+.item { display: flex; align-items: baseline; gap: 16px; padding: 6px 0; border-bottom: 1px solid #2A3550; }
+.item:last-child { border-bottom: none; }
+.meta { width: 130px; flex-shrink: 0; font-size: 10px; font-weight: 600; color: #94A3B8; font-family: monospace; text-transform: uppercase; letter-spacing: .06em; }
+.sample { color: #fff; }
+</style>
+</head><body>
+<div class="row">
+  <div class="item"><div class="meta">36px / bold</div><div class="sample" style="font-size:36px;font-weight:700;letter-spacing:-0.015em;line-height:1.2">Page Heading</div></div>
+  <div class="item"><div class="meta">30px / bold</div><div class="sample" style="font-size:30px;font-weight:700;letter-spacing:-0.015em;line-height:1.25">Section Title</div></div>
+  <div class="item"><div class="meta">20px / bold</div><div class="sample" style="font-size:20px;font-weight:700">Card Header</div></div>
+  <div class="item"><div class="meta">18px / bold</div><div class="sample" style="font-size:18px;font-weight:700">Sub-section</div></div>
+  <div class="item"><div class="meta">14px / medium</div><div class="sample" style="font-size:14px;font-weight:500;color:#fff">Body text, nav labels, descriptions</div></div>
+  <div class="item"><div class="meta">14px / regular</div><div class="sample" style="font-size:14px;font-weight:400;color:#94A3B8">Secondary body text, metadata</div></div>
+  <div class="item"><div class="meta">12px / semibold upper</div><div class="sample" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8">TABLE HEADER LABEL</div></div>
+  <div class="item"><div class="meta">12px / medium</div><div class="sample" style="font-size:12px;font-weight:500;color:#94A3B8">Timestamps · captions · badges</div></div>
+</div>
+</body></html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', sans-serif; background: #0B1121; padding: 20px; }
+table { width: 100%; border-collapse: collapse; background: #161E32; border: 1px solid #2A3550; border-radius: 16px; overflow: hidden; }
+thead tr { background: rgba(11,17,33,0.3); border-bottom: 1px solid #2A3550; }
+th { padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #94A3B8; text-align: left; }
+td { padding: 12px 16px; font-size: 13px; color: #94A3B8; border-bottom: 1px solid rgba(42,53,80,0.5); }
+td:first-child { color: #fff; font-weight: 700; }
+tr:last-child td { border-bottom: none; }
+.hover-row td { background: rgba(31,41,67,0.5); }
+.hover-row td:first-child { color: #00E5BC; }
+.game-img { width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(135deg,#1e1b4b,#4c1d95); display: inline-block; vertical-align: middle; margin-right: 10px; }
+.icon { font-family: 'Material Symbols Outlined'; font-size: 18px; vertical-align: middle; }
+.mono { font-family: monospace; }
+</style>
+</head><body>
+<table>
+  <thead>
+    <tr>
+      <th>Game Title</th>
+      <th>Status</th>
+      <th>Time Played</th>
+      <th style="text-align:right">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="hover-row">
+      <td><span class="game-img"></span>Elden Ring</td>
+      <td><span style="color:#00E5BC;font-size:12px;font-weight:700">Playing</span></td>
+      <td class="mono">142.5h</td>
+      <td style="text-align:right"><span class="icon" style="color:#94A3B8">edit</span></td>
+    </tr>
+    <tr>
+      <td><span class="game-img" style="background:linear-gradient(135deg,#064e3b,#134e4a)"></span>Hollow Knight</td>
+      <td><span style="color:#10B981;font-size:12px;font-weight:700">Completed</span></td>
+      <td class="mono">41.0h</td>
+      <td style="text-align:right"><span class="icon" style="color:#94A3B8">edit</span></td>
+    </tr>
+    <tr>
+      <td><span class="game-img" style="background:linear-gradient(135deg,#1e3a5f,#164e63)"></span>Baldur's Gate 3</td>
+      <td><span style="color:#00A3FF;font-size:12px;font-weight:700">Want to Play</span></td>
+      <td class="mono">—</td>
+      <td style="text-align:right"><span class="icon" style="color:#94A3B8">edit</span></td>
+    </tr>
+  </tbody>
+</table>
+</body></html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', sans-serif; background: rgba(0,0,0,0.6); padding: 20px; display: flex; gap: 20px; align-items: flex-start; }
+.modal { background: #161E32; border: 1px solid #2A3550; border-radius: 16px; padding: 24px; width: 300px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+.modal-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.modal-sub { font-size: 13px; color: #94A3B8; margin-bottom: 20px; line-height: 1.5; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btn { padding: 8px 16px; border-radius: 10px; font-family: 'Manrope',sans-serif; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.1); color: #fff; }
+.btn-danger { background: #EF4444; color: #fff; }
+.icon { font-family: 'Material Symbols Outlined'; font-size: 20px; vertical-align: middle; }
+.warn-icon { width: 36px; height: 36px; background: rgba(239,68,68,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+</style>
+</head><body>
+<div class="modal">
+  <div class="warn-icon"><span class="icon" style="color:#EF4444">warning</span></div>
+  <div class="modal-title">Clear Dropped</div>
+  <div class="modal-sub">This will remove <strong style="color:#fff">4 games</strong> from this column on your board. They will remain in your library.</div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost">Cancel</button>
+    <button class="btn btn-danger">Clear All</button>
+  </div>
+</div>
+</body></html>

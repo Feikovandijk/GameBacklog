@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', sans-serif; background: #0B1121; padding: 20px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #94A3B8; margin-bottom: 10px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 12px; font-family: 'Manrope',sans-serif; font-size: 13px; font-weight: 700; border: none; cursor: pointer; }
+.btn-p { background: #00E5BC; color: #0B1121; box-shadow: 0 4px 16px rgba(0,229,188,0.25); }
+.btn-p:hover { background: #00C4A1; }
+.btn-s { background: #161E32; color: #fff; border: 1px solid #2A3550; font-weight: 500; }
+.btn-ghost { background: transparent; color: #94A3B8; border: 1px solid #2A3550; font-weight: 500; }
+.btn-danger { background: rgba(239,68,68,0.1); color: #EF4444; border: 1px solid rgba(239,68,68,0.2); font-weight: 600; }
+.btn-sm { padding: 7px 12px; font-size: 12px; border-radius: 10px; }
+.icon { font-family: 'Material Symbols Outlined'; font-size: 18px; font-weight: normal; font-style: normal; }
+.disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
+</head><body>
+<div class="label">Primary Actions</div>
+<div class="row">
+  <button class="btn btn-p"><span class="icon">add</span>Track New Game</button>
+  <button class="btn btn-p"><span class="icon">sync</span>Sync Library</button>
+  <button class="btn btn-p btn-sm">Add Game</button>
+</div>
+<div class="label">Secondary / Ghost</div>
+<div class="row">
+  <button class="btn btn-s"><span class="icon">calendar_today</span>This Week</button>
+  <button class="btn btn-s"><span class="icon">sync</span>Sync Steam Library</button>
+  <button class="btn btn-ghost">Cancel</button>
+  <button class="btn btn-danger"><span class="icon">delete</span>Clear All</button>
+</div>
+<div class="label">Disabled</div>
+<div class="row">
+  <button class="btn btn-p disabled" disabled>Syncing...</button>
+  <button class="btn btn-s disabled" disabled>Loading...</button>
+</div>
+</body></html>
